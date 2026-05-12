@@ -1,0 +1,7 @@
+# <type>(<scope>): <subject>  (50자 이내)
+#
+# <body>  (72자에서 줄바꿈, 무엇을·왜 변경했는지)
+#
+# <footer>  (Breaking Change, Closes #123 등)
+#
+# Type: feat, fix, docs, style, refactor, test, chore, perf
