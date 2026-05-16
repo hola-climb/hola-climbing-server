@@ -149,6 +149,35 @@
 			<optional>true</optional>
 		</dependency>
 
+		<!-- ========== 보안 (Security + JWT) ========== -->
+
+		<!-- Spring Security: 인증/인가 필터 체인, BCryptPasswordEncoder 등 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+		<!-- JWT (jjwt 0.12.x): Access/Refresh 토큰 발급/검증
+		     - api: 인터페이스
+		     - impl: 런타임 구현체
+		     - jackson: JSON 직렬화 (Jackson 이미 쓰니까 통일) -->
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-api</artifactId>
+			<version>0.12.6</version>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-impl</artifactId>
+			<version>0.12.6</version>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-jackson</artifactId>
+			<version>0.12.6</version>
+			<scope>runtime</scope>
+		</dependency>
 
 		<!-- ========== 테스트 (Boot 4.0의 새 모듈별 -test 패턴) ========== -->
 
@@ -210,6 +239,14 @@
 			<artifactId>testcontainers-postgresql</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- Security 테스트: @WithMockUser, MockMvc 인증 헬퍼 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
 
 	<build>

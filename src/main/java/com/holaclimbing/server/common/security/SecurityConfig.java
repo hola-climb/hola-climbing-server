@@ -1,0 +1,112 @@
+package com.holaclimbing.server.common.security;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Spring Security 메인 설정.
+ *
+ * 개발 친화적 정책:
+ * - CSRF off (REST API라 불필요)
+ * - Session stateless (JWT 기반)
+ * - JWT 필터를 UsernamePasswordAuthenticationFilter 앞에 등록
+ * - 401/403 핸들러는 공통 ApiResponse 포맷으로 응답
+ * - 현재는 .anyRequest().permitAll() → 개발 편의 최대화
+ * - 발표 직전 → .authenticated()로 강화 + 필요한 API에 @PreAuthorize
+ */
+@Configuration
+@RequiredArgsConstructor
+@EnableConfigurationProperties(JwtProperties.class)
+public class SecurityConfig {
+
+    /** BCrypt 워크 팩터. 메모리: strength=12 */
+    private static final int BCRYPT_STRENGTH = 12;
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthenticationEntryPoint entryPoint;
+    private final JwtAccessDeniedHandler accessDeniedHandler;
+
+    @Value("${app.cors.allowed-origins}")
+    private String allowedOrigins;
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(eh -> eh
+                        .authenticationEntryPoint(entryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
+                .authorizeHttpRequests(auth -> auth
+                        // 인증 관련 공개 API
+                        .requestMatchers("/api/users/signup",
+                                "/api/users/login",
+                                "/api/users/refresh",
+                                "/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/users/nickname-check",
+                                "/api/users/email-check").permitAll()
+                        // 문서/모니터링
+                        .requestMatchers("/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v1/api-docs/**",
+                                "/actuator/**",
+                                "/api/docs/**").permitAll()
+                        // 공개 조회 (영상 피드, 암장 검색 등)
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/videos/**",
+                                "/api/gyms/**").permitAll()
+                        // 개발 단계: 그 외도 일단 다 통과
+                        // TODO(release): 아래 줄을 .authenticated()로 바꾸고 보호 필요 API에 @PreAuthorize
+                        .anyRequest().permitAll()
+                )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(BCRYPT_STRENGTH);
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Authorization"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
+}
