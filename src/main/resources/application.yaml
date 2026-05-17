@@ -76,6 +76,7 @@ management:
 #      show-components: always
 # 앱 자체 커스텀 설정
 app:
+  base-url: ${APP_BASE_URL:http://localhost:8080}   # 이메일 인증 링크 생성 기준 URL
   upload:
     allowed-extensions: mp4,mov,avi
     max-duration-seconds: 600

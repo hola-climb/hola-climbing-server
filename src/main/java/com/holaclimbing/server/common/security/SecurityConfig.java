@@ -62,10 +62,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/signup",
                                 "/api/users/login",
                                 "/api/users/refresh",
+                                "/api/users/resend-verification",
                                 "/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/users/nickname-check",
-                                "/api/users/email-check").permitAll()
+                                "/api/users/email-check",
+                                "/api/users/verify-email").permitAll()
                         // 문서/모니터링
                         .requestMatchers("/swagger-ui/**",
                                 "/swagger-ui.html",
