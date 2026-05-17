@@ -1,5 +1,61 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.holaclimbing.server.domain.chat.mapper.ChatMapper">
-    <!-- TODO: Chat SQL -->
+
+    <select id="findRoomByGymId" resultType="com.holaclimbing.server.domain.chat.domain.ChatRoom">
+        SELECT id, gym_id, name, created_at
+        FROM chat_rooms
+        WHERE gym_id = #{gymId}
+    </select>
+
+    <select id="findRoomById" resultType="com.holaclimbing.server.domain.chat.domain.ChatRoom">
+        SELECT id, gym_id, name, created_at
+        FROM chat_rooms
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insertRoom" parameterType="com.holaclimbing.server.domain.chat.domain.ChatRoom"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO chat_rooms (gym_id, name)
+        VALUES (#{gymId}, #{name})
+    </insert>
+
+    <select id="findMember" resultType="com.holaclimbing.server.domain.chat.domain.ChatRoomMember">
+        SELECT id, room_id, user_id, joined_at, last_read_message_id, left_at
+        FROM chat_room_members
+        WHERE room_id = #{roomId} AND user_id = #{userId}
+    </select>
+
+    <insert id="insertMember" parameterType="com.holaclimbing.server.domain.chat.domain.ChatRoomMember">
+        INSERT INTO chat_room_members (room_id, user_id)
+        VALUES (#{roomId}, #{userId})
+        ON CONFLICT (room_id, user_id) DO NOTHING
+    </insert>
+
+    <insert id="insertMessage" parameterType="com.holaclimbing.server.domain.chat.domain.ChatMessage"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO chat_messages (room_id, user_id, content)
+        VALUES (#{roomId}, #{userId}, #{content})
+    </insert>
+
+    <select id="findMessageById" resultType="com.holaclimbing.server.domain.chat.domain.ChatMessage">
+        SELECT id, room_id, user_id, content, created_at, deleted_at
+        FROM chat_messages
+        WHERE id = #{id}
+    </select>
+
+    <select id="findMessages" resultType="com.holaclimbing.server.domain.chat.domain.ChatMessage">
+        SELECT id, room_id, user_id, content, created_at, deleted_at
+        FROM chat_messages
+        WHERE room_id = #{roomId} AND deleted_at IS NULL
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countMessages" resultType="long">
+        SELECT COUNT(*)
+        FROM chat_messages
+        WHERE room_id = #{roomId} AND deleted_at IS NULL
+    </select>
+
 </mapper>

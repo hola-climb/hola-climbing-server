@@ -82,6 +82,12 @@
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
 
+		<!-- WebSocket + STOMP: 암장 실시간 채팅 (pub/sub /topic, app /app) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-websocket</artifactId>
+		</dependency>
+
 
 		<!-- ========== 데이터베이스 (PostgreSQL + pgvector + MyBatis) ========== -->
 

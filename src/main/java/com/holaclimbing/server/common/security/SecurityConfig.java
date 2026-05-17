@@ -74,6 +74,8 @@ public class SecurityConfig {
                                 "/v1/api-docs/**",
                                 "/actuator/**",
                                 "/api/docs/**").permitAll()
+                        // WebSocket 핸드셰이크 — 인증은 StompHandshakeInterceptor가 담당
+                        .requestMatchers("/ws/**").permitAll()
                         // 공개 조회 (영상 피드, 암장 검색 등)
                         .requestMatchers(HttpMethod.GET,
                                 "/api/videos/**",
@@ -92,6 +94,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/notifications/**").authenticated()
                         // 신고 — 등록은 인증 필요
                         .requestMatchers(HttpMethod.POST, "/api/reports").authenticated()
+                        // 채팅 REST — 본인 전용
+                        .requestMatchers("/api/chats/**").authenticated()
                         // 영상 등록·수정·삭제·좋아요·댓글 — 인증 필요 (GET 피드/상세/댓글목록은 위에서 공개)
                         .requestMatchers(HttpMethod.POST, "/api/videos", "/api/videos/**").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/videos/**").authenticated()
