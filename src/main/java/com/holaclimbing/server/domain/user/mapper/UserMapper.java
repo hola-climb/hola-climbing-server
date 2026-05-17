@@ -33,4 +33,10 @@ public interface UserMapper {
 
     /** 마지막 로그인 시각 갱신. */
     int updateLastLoginAt(Long id);
+
+    /** 프로필 부분 수정 — null이 아닌 필드만 갱신. */
+    int updateProfile(@Param("id") Long id,
+                      @Param("nickname") String nickname,
+                      @Param("profileImage") String profileImage,
+                      @Param("bio") String bio);
 }

@@ -78,6 +78,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/videos/**",
                                 "/api/gyms/**").permitAll()
+                        // 본인 인증이 필요한 회원 API (내 프로필, 팔로우/차단 변경)
+                        .requestMatchers("/api/users/me", "/api/users/me/**").authenticated()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/users/*/follow",
+                                "/api/users/*/block").authenticated()
+                        .requestMatchers(HttpMethod.DELETE,
+                                "/api/users/*/follow",
+                                "/api/users/*/block").authenticated()
                         // 개발 단계: 그 외도 일단 다 통과
                         // TODO(release): 아래 줄을 .authenticated()로 바꾸고 보호 필요 API에 @PreAuthorize
                         .anyRequest().permitAll()

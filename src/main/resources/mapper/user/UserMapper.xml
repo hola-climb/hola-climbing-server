@@ -62,4 +62,15 @@
         WHERE id = #{id}
     </update>
 
+    <update id="updateProfile">
+        UPDATE users
+        <set>
+            <if test="nickname != null">nickname = #{nickname},</if>
+            <if test="profileImage != null">profile_image = #{profileImage},</if>
+            <if test="bio != null">bio = #{bio},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id} AND deleted_at IS NULL
+    </update>
+
 </mapper>
