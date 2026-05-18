@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 채팅방 REST API. 실시간 메시지 송수신은 STOMP(/app/chat, /topic/chat) 로 처리한다.
+ * 채팅방 REST API. 실시간 메시지 송수신은 STOMP(/app/gyms/{id}/chat, /topic/gyms/{id}/chat)로 처리한다.
  * 모두 인증이 필요하다.
  */
 @RestController
@@ -35,11 +35,11 @@ public class ChatController {
         return ApiResponse.success(chatService.joinGymRoom(userId, gymId));
     }
 
-    @GetMapping("/rooms/{roomId}/messages")
+    @GetMapping("/gyms/{gymId}/messages")
     public ApiResponse<PageResponse<ChatMessageResponse>> getMessages(
-            @PathVariable Long roomId,
+            @PathVariable Long gymId,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "30") @Positive int size) {
-        return ApiResponse.success(chatService.getMessages(roomId, page, size));
+        return ApiResponse.success(chatService.getMessages(gymId, page, size));
     }
 }

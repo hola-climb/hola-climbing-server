@@ -11,8 +11,8 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 /**
  * STOMP 기반 WebSocket 설정 (암장 실시간 채팅).
  * - 엔드포인트: /ws (핸드셰이크 시 JWT 검증)
- * - 구독(브로드캐스트): /topic/chat/{roomId}
- * - 발행(클라이언트 → 서버): /app/chat/{roomId}
+ * - 구독(브로드캐스트): /topic/gyms/{gymId}/chat
+ * - 발행(클라이언트 → 서버): /app/gyms/{gymId}/chat
  */
 @Configuration
 @EnableWebSocketMessageBroker

@@ -49,23 +49,23 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     @Transactional
-    public ChatMessageResponse sendMessage(Long roomId, Long userId, SendMessageRequest request) {
+    public ChatMessageResponse sendMessage(Long gymId, Long userId, SendMessageRequest request) {
         if (request == null || request.content() == null || request.content().isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "메시지 내용이 비어 있습니다.");
         }
-        ChatRoom room = chatMapper.findRoomById(roomId);
+        ChatRoom room = chatMapper.findRoomByGymId(gymId);
         if (room == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "채팅방을 찾을 수 없습니다.");
         }
-        ChatRoomMember member = chatMapper.findMember(roomId, userId);
+        ChatRoomMember member = chatMapper.findMember(room.getId(), userId);
         if (member == null || member.getLeftAt() != null) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "채팅방 멤버가 아닙니다.");
         }
         ChatMessage message = ChatMessage.builder()
-                .roomId(roomId)
+                .roomId(room.getId())
                 .userId(userId)
                 .content(request.content().strip())
-                .verifiedAtGym(verifyAtGym(room.getGymId(), request.lat(), request.lng()))
+                .verifiedAtGym(verifyAtGym(gymId, request.lat(), request.lng()))
                 .build();
         chatMapper.insertMessage(message);
         return ChatMessageResponse.of(chatMapper.findMessageById(message.getId()));
@@ -94,12 +94,13 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public PageResponse<ChatMessageResponse> getMessages(Long roomId, int page, int size) {
-        if (chatMapper.findRoomById(roomId) == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "채팅방을 찾을 수 없습니다.");
+    public PageResponse<ChatMessageResponse> getMessages(Long gymId, int page, int size) {
+        ChatRoom room = chatMapper.findRoomByGymId(gymId);
+        if (room == null) {
+            return PageResponse.of(List.of(), page, size, 0);
         }
-        long total = chatMapper.countMessages(roomId);
-        List<ChatMessageResponse> content = chatMapper.findMessages(roomId, size, page * size)
+        long total = chatMapper.countMessages(room.getId());
+        List<ChatMessageResponse> content = chatMapper.findMessages(room.getId(), size, page * size)
                 .stream().map(ChatMessageResponse::of).toList();
         return PageResponse.of(content, page, size, total);
     }

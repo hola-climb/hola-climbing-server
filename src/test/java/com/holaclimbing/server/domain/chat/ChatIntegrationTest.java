@@ -124,9 +124,9 @@ class ChatIntegrationTest {
     @DisplayName("메시지 이력 — 입장 직후 방은 메시지가 비어 있다")
     void getMessages_emptyRoom() throws Exception {
         String token = register("a@hola.com", "climberone");
-        long roomId = joinRoom(token, 1L);
+        joinRoom(token, 1L);
 
-        mockMvc.perform(get("/api/chats/rooms/" + roomId + "/messages")
+        mockMvc.perform(get("/api/chats/gyms/1/messages")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.total_elements").value(0));
@@ -136,7 +136,7 @@ class ChatIntegrationTest {
     @DisplayName("STOMP — 메시지를 보내면 구독자에게 실시간 전달되고 이력에 저장된다")
     void stomp_sendAndBroadcast() throws Exception {
         String token = register("a@hola.com", "climberone");
-        long roomId = joinRoom(token, 1L);
+        joinRoom(token, 1L);
 
         WebSocketStompClient client = stompClient();
         StompSession session = client.connectAsync(
@@ -146,7 +146,7 @@ class ChatIntegrationTest {
 
         // 브로드캐스트 payload는 raw 바이트로 받아 앱 ObjectMapper(snake_case)로 파싱한다.
         BlockingQueue<ChatMessageResponse> received = new LinkedBlockingQueue<>();
-        session.subscribe("/topic/chat/" + roomId, new StompFrameHandler() {
+        session.subscribe("/topic/gyms/1/chat", new StompFrameHandler() {
             @Override
             public Type getPayloadType(StompHeaders headers) {
                 return byte[].class;
@@ -165,7 +165,7 @@ class ChatIntegrationTest {
 
         // 암장 좌표와 동일한 위치에서 전송 → verified_at_gym=true
         StompHeaders sendHeaders = new StompHeaders();
-        sendHeaders.setDestination("/app/chat/" + roomId);
+        sendHeaders.setDestination("/app/gyms/1/chat");
         sendHeaders.setContentType(MimeTypeUtils.APPLICATION_JSON);
         session.send(sendHeaders,
                 objectMapper.writeValueAsBytes(new SendMessageRequest("first send!", GYM1_LAT, GYM1_LNG)));
@@ -175,7 +175,7 @@ class ChatIntegrationTest {
         assertThat(delivered.content()).isEqualTo("first send!");
         assertThat(delivered.verifiedAtGym()).isTrue();
 
-        mockMvc.perform(get("/api/chats/rooms/" + roomId + "/messages")
+        mockMvc.perform(get("/api/chats/gyms/1/messages")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.total_elements").value(1))
@@ -190,21 +190,21 @@ class ChatIntegrationTest {
     @DisplayName("GPS 인증 — 암장 반경 내/밖/위치없음에 따라 verifiedAtGym이 결정된다")
     void sendMessage_gpsVerification() throws Exception {
         String token = register("a@hola.com", "climberone");
-        long roomId = joinRoom(token, 1L);
+        joinRoom(token, 1L);
         Long userId = userMapper.findByEmail("a@hola.com").getId();
 
         // 암장 300m 반경 내 (약 14m)
-        ChatMessageResponse near = chatService.sendMessage(roomId, userId,
+        ChatMessageResponse near = chatService.sendMessage(1L, userId,
                 new SendMessageRequest("at the gym", GYM1_LAT + 0.0001, GYM1_LNG + 0.0001));
         assertThat(near.verifiedAtGym()).isTrue();
 
         // 암장에서 멀리 떨어진 위치
-        ChatMessageResponse far = chatService.sendMessage(roomId, userId,
+        ChatMessageResponse far = chatService.sendMessage(1L, userId,
                 new SendMessageRequest("far away", 37.5665, 126.9780));
         assertThat(far.verifiedAtGym()).isFalse();
 
         // 위치 미제공
-        ChatMessageResponse noLocation = chatService.sendMessage(roomId, userId,
+        ChatMessageResponse noLocation = chatService.sendMessage(1L, userId,
                 new SendMessageRequest("no location", null, null));
         assertThat(noLocation.verifiedAtGym()).isFalse();
     }

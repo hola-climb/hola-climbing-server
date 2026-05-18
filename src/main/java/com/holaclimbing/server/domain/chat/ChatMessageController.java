@@ -16,7 +16,8 @@ import org.springframework.stereotype.Controller;
 
 /**
  * STOMP 채팅 메시지 핸들러.
- * 클라이언트가 /app/chat/{roomId}로 발행하면 저장 후 /topic/chat/{roomId} 구독자에게 브로드캐스트한다.
+ * 클라이언트가 /app/gyms/{gymId}/chat로 발행하면 저장 후
+ * /topic/gyms/{gymId}/chat 구독자에게 브로드캐스트한다.
  */
 @Slf4j
 @Controller
@@ -25,14 +26,14 @@ public class ChatMessageController {
 
     private final ChatService chatService;
 
-    @MessageMapping("/chat/{roomId}")
-    @SendTo("/topic/chat/{roomId}")
-    public ChatMessageResponse send(@DestinationVariable Long roomId,
+    @MessageMapping("/gyms/{gymId}/chat")
+    @SendTo("/topic/gyms/{gymId}/chat")
+    public ChatMessageResponse send(@DestinationVariable Long gymId,
                                     SendMessageRequest request,
                                     SimpMessageHeaderAccessor headerAccessor) {
         Long userId = (Long) headerAccessor.getSessionAttributes()
                 .get(StompHandshakeInterceptor.SESSION_USER_ID);
-        return chatService.sendMessage(roomId, userId, request);
+        return chatService.sendMessage(gymId, userId, request);
     }
 
     /** 메시지 처리 실패(비멤버·빈 내용 등)는 브로드캐스트하지 않고 로그만 남긴다. */
