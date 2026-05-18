@@ -110,7 +110,7 @@ class NotificationIntegrationTest {
         TestUser liker = register("b@hola.com", "climbertwo");
         long videoId = createVideo(owner.token());
 
-        mockMvc.perform(post("/api/videos/" + videoId + "/likes")
+        mockMvc.perform(post("/api/videos/" + videoId + "/like")
                         .header("Authorization", "Bearer " + liker.token()))
                 .andExpect(status().isOk());
 
@@ -190,7 +190,7 @@ class NotificationIntegrationTest {
         TestUser other = register("b@hola.com", "climbertwo");
         long videoId = createVideo(owner.token());
         comment(other.token(), videoId, "c1", null);
-        mockMvc.perform(post("/api/videos/" + videoId + "/likes")
+        mockMvc.perform(post("/api/videos/" + videoId + "/like")
                 .header("Authorization", "Bearer " + other.token())).andExpect(status().isOk());
 
         mockMvc.perform(patch("/api/notifications/read-all")

@@ -7,8 +7,10 @@ import com.holaclimbing.server.domain.video.dto.request.CreateVideoRequest;
 import com.holaclimbing.server.domain.video.dto.request.UpdateVideoRequest;
 import com.holaclimbing.server.domain.video.dto.request.UploadUrlRequest;
 import com.holaclimbing.server.domain.video.dto.response.CommentResponse;
+import com.holaclimbing.server.domain.video.dto.response.LikeResponse;
 import com.holaclimbing.server.domain.video.dto.response.UploadUrlResponse;
 import com.holaclimbing.server.domain.video.dto.response.VideoDetailResponse;
+import com.holaclimbing.server.domain.video.dto.response.VideoStatusResponse;
 import com.holaclimbing.server.domain.video.dto.response.VideoSummaryResponse;
 import com.holaclimbing.server.domain.video.service.CommentService;
 import com.holaclimbing.server.domain.video.service.VideoService;
@@ -86,18 +88,21 @@ public class VideoController {
         return ApiResponse.success();
     }
 
-    @PostMapping("/{videoId}/likes")
-    public ApiResponse<Void> likeVideo(@AuthenticationPrincipal Long userId,
-                                       @PathVariable Long videoId) {
-        videoService.likeVideo(userId, videoId);
-        return ApiResponse.success();
+    @GetMapping("/{videoId}/status")
+    public ApiResponse<VideoStatusResponse> getStatus(@PathVariable Long videoId) {
+        return ApiResponse.success(videoService.getStatus(videoId));
     }
 
-    @DeleteMapping("/{videoId}/likes")
-    public ApiResponse<Void> unlikeVideo(@AuthenticationPrincipal Long userId,
-                                         @PathVariable Long videoId) {
-        videoService.unlikeVideo(userId, videoId);
-        return ApiResponse.success();
+    @PostMapping("/{videoId}/like")
+    public ApiResponse<LikeResponse> likeVideo(@AuthenticationPrincipal Long userId,
+                                               @PathVariable Long videoId) {
+        return ApiResponse.success(videoService.likeVideo(userId, videoId));
+    }
+
+    @DeleteMapping("/{videoId}/like")
+    public ApiResponse<LikeResponse> unlikeVideo(@AuthenticationPrincipal Long userId,
+                                                 @PathVariable Long videoId) {
+        return ApiResponse.success(videoService.unlikeVideo(userId, videoId));
     }
 
     @PostMapping("/{videoId}/comments")

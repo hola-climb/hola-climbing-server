@@ -10,8 +10,10 @@ import com.holaclimbing.server.domain.video.domain.Video;
 import com.holaclimbing.server.domain.video.dto.request.CreateVideoRequest;
 import com.holaclimbing.server.domain.video.dto.request.UpdateVideoRequest;
 import com.holaclimbing.server.domain.video.dto.request.UploadUrlRequest;
+import com.holaclimbing.server.domain.video.dto.response.LikeResponse;
 import com.holaclimbing.server.domain.video.dto.response.UploadUrlResponse;
 import com.holaclimbing.server.domain.video.dto.response.VideoDetailResponse;
+import com.holaclimbing.server.domain.video.dto.response.VideoStatusResponse;
 import com.holaclimbing.server.domain.video.dto.response.VideoSummaryResponse;
 import com.holaclimbing.server.domain.video.mapper.LikeMapper;
 import com.holaclimbing.server.domain.video.mapper.VideoMapper;
@@ -22,7 +24,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -48,14 +49,14 @@ public class VideoServiceImpl implements VideoService {
         if (!uploadProperties.allowedExtensions().contains(extension)) {
             throw new BusinessException(ErrorCode.UNSUPPORTED_VIDEO_FORMAT);
         }
-        if (request.fileSizeBytes() > uploadProperties.maxFileSizeBytes()) {
+        if (request.fileSize() > uploadProperties.maxFileSizeBytes()) {
             throw new BusinessException(ErrorCode.VIDEO_TOO_LARGE);
         }
         String objectPath = "%s/%d/%s.%s".formatted(
                 gcsProperties.uploadPrefix(), userId, UUID.randomUUID(), extension);
-        String uploadUrl = gcsStorageService.createUploadUrl(objectPath, request.contentType());
-        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(gcsProperties.signedUrlMinutes());
-        return new UploadUrlResponse(uploadUrl, objectPath, request.contentType(), expiresAt);
+        String uploadUrl = gcsStorageService.createUploadUrl(objectPath, request.mimeType());
+        long expiresIn = gcsProperties.signedUrlMinutes() * 60L;
+        return new UploadUrlResponse(uploadUrl, objectPath, expiresIn);
     }
 
     @Override
@@ -74,7 +75,7 @@ public class VideoServiceImpl implements VideoService {
                 .title(request.title())
                 .description(request.description())
                 .grade(request.grade())
-                .gcsPath(request.gcsPath())
+                .gcsPath(request.objectPath())
                 .thumbnailPath(request.thumbnailPath())
                 .durationSeconds(request.durationSeconds())
                 .status(STATUS_PENDING)
@@ -128,8 +129,14 @@ public class VideoServiceImpl implements VideoService {
     }
 
     @Override
+    public VideoStatusResponse getStatus(Long videoId) {
+        Video video = findActiveVideo(videoId);
+        return new VideoStatusResponse(videoId, video.getStatus());
+    }
+
+    @Override
     @Transactional
-    public void likeVideo(Long userId, Long videoId) {
+    public LikeResponse likeVideo(Long userId, Long videoId) {
         Video video = findActiveVideo(videoId);
         if (likeMapper.exists(userId, videoId)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "이미 좋아요한 영상입니다.");
@@ -137,14 +144,17 @@ public class VideoServiceImpl implements VideoService {
         likeMapper.insert(userId, videoId);
         videoMapper.incrementLikeCount(videoId);
         notificationService.notifyLike(video.getUserId(), userId, videoId);
+        return new LikeResponse(true, videoMapper.findById(videoId).getLikeCount());
     }
 
     @Override
     @Transactional
-    public void unlikeVideo(Long userId, Long videoId) {
+    public LikeResponse unlikeVideo(Long userId, Long videoId) {
+        Video video = findActiveVideo(videoId);
         if (likeMapper.delete(userId, videoId) > 0) {
             videoMapper.decrementLikeCount(videoId);
         }
+        return new LikeResponse(false, videoMapper.findById(videoId).getLikeCount());
     }
 
     private VideoDetailResponse toDetail(Video video, boolean isLiked) {

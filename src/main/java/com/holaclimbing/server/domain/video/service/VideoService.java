@@ -4,8 +4,10 @@ import com.holaclimbing.server.common.response.PageResponse;
 import com.holaclimbing.server.domain.video.dto.request.CreateVideoRequest;
 import com.holaclimbing.server.domain.video.dto.request.UpdateVideoRequest;
 import com.holaclimbing.server.domain.video.dto.request.UploadUrlRequest;
+import com.holaclimbing.server.domain.video.dto.response.LikeResponse;
 import com.holaclimbing.server.domain.video.dto.response.UploadUrlResponse;
 import com.holaclimbing.server.domain.video.dto.response.VideoDetailResponse;
+import com.holaclimbing.server.domain.video.dto.response.VideoStatusResponse;
 import com.holaclimbing.server.domain.video.dto.response.VideoSummaryResponse;
 
 public interface VideoService {
@@ -22,6 +24,9 @@ public interface VideoService {
     /** 영상 상세 조회. 비공개 영상은 소유자만 접근 가능하며, 조회 시 조회수가 증가한다. */
     VideoDetailResponse getVideoDetail(Long videoId, Long viewerId);
 
+    /** 영상 분석 진행 상태 조회. */
+    VideoStatusResponse getStatus(Long videoId);
+
     /** 영상 부분 수정 (소유자만). */
     VideoDetailResponse updateVideo(Long userId, Long videoId, UpdateVideoRequest request);
 
@@ -29,8 +34,8 @@ public interface VideoService {
     void deleteVideo(Long userId, Long videoId);
 
     /** 영상 좋아요. */
-    void likeVideo(Long userId, Long videoId);
+    LikeResponse likeVideo(Long userId, Long videoId);
 
     /** 영상 좋아요 취소. */
-    void unlikeVideo(Long userId, Long videoId);
+    LikeResponse unlikeVideo(Long userId, Long videoId);
 }

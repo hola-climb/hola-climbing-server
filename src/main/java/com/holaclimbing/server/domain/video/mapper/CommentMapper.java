@@ -23,6 +23,9 @@ public interface CommentMapper {
     /** 영상의 댓글 개수. */
     long countByVideoId(Long videoId);
 
+    /** 댓글 내용 수정. */
+    int update(@Param("id") Long id, @Param("content") String content);
+
     /** 댓글 soft-delete. */
     int softDelete(Long id);
 }

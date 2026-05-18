@@ -8,6 +8,7 @@ import com.holaclimbing.server.domain.user.dto.request.SignupRequest;
 import com.holaclimbing.server.domain.user.mapper.UserMapper;
 import com.holaclimbing.server.domain.video.dto.request.CreateCommentRequest;
 import com.holaclimbing.server.domain.video.dto.request.CreateVideoRequest;
+import com.holaclimbing.server.domain.video.dto.request.UpdateCommentRequest;
 import com.holaclimbing.server.domain.video.dto.request.UpdateVideoRequest;
 import com.holaclimbing.server.domain.video.dto.request.UploadUrlRequest;
 import org.junit.jupiter.api.DisplayName;
@@ -85,7 +86,7 @@ class VideoIntegrationTest {
     }
 
     @Test
-    @DisplayName("업로드 URL 발급 — 인증 사용자는 Signed URL과 gcs_path를 받는다")
+    @DisplayName("업로드 URL 발급 — 인증 사용자는 Signed URL과 object_path를 받는다")
     void createUploadUrl_success() throws Exception {
         String token = register("a@hola.com", "climberone");
 
@@ -93,11 +94,11 @@ class VideoIntegrationTest {
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
-                                new UploadUrlRequest("send.mp4", "video/mp4", 10_000_000L))))
+                                new UploadUrlRequest("send.mp4", 10_000_000L, "video/mp4"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.upload_url").exists())
-                .andExpect(jsonPath("$.data.gcs_path").value(org.hamcrest.Matchers.endsWith(".mp4")))
-                .andExpect(jsonPath("$.data.expires_at").exists());
+                .andExpect(jsonPath("$.data.object_path").value(org.hamcrest.Matchers.endsWith(".mp4")))
+                .andExpect(jsonPath("$.data.expires_in").isNumber());
     }
 
     @Test
@@ -106,7 +107,7 @@ class VideoIntegrationTest {
         mockMvc.perform(post("/api/videos/upload-url")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
-                                new UploadUrlRequest("send.mp4", "video/mp4", 10_000_000L))))
+                                new UploadUrlRequest("send.mp4", 10_000_000L, "video/mp4"))))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -119,7 +120,7 @@ class VideoIntegrationTest {
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
-                                new UploadUrlRequest("send.avi", "video/x-msvideo", 10_000_000L))))
+                                new UploadUrlRequest("send.avi", 10_000_000L, "video/x-msvideo"))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("V004"));
     }
@@ -133,7 +134,7 @@ class VideoIntegrationTest {
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
-                                new UploadUrlRequest("send.mp4", "video/mp4", 209_715_201L))))
+                                new UploadUrlRequest("send.mp4", 209_715_201L, "video/mp4"))))
                 .andExpect(status().isPayloadTooLarge())
                 .andExpect(jsonPath("$.code").value("V002"));
     }
@@ -229,7 +230,7 @@ class VideoIntegrationTest {
         String liker = register("b@hola.com", "climbertwo");
         long videoId = createVideo(owner, true);
 
-        mockMvc.perform(post("/api/videos/" + videoId + "/likes").header("Authorization", "Bearer " + liker))
+        mockMvc.perform(post("/api/videos/" + videoId + "/like").header("Authorization", "Bearer " + liker))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/videos/" + videoId).header("Authorization", "Bearer " + liker))
@@ -244,9 +245,9 @@ class VideoIntegrationTest {
         String liker = register("b@hola.com", "climbertwo");
         long videoId = createVideo(owner, true);
 
-        mockMvc.perform(post("/api/videos/" + videoId + "/likes").header("Authorization", "Bearer " + liker))
+        mockMvc.perform(post("/api/videos/" + videoId + "/like").header("Authorization", "Bearer " + liker))
                 .andExpect(status().isOk());
-        mockMvc.perform(post("/api/videos/" + videoId + "/likes").header("Authorization", "Bearer " + liker))
+        mockMvc.perform(post("/api/videos/" + videoId + "/like").header("Authorization", "Bearer " + liker))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("C001"));
     }
@@ -258,9 +259,9 @@ class VideoIntegrationTest {
         String liker = register("b@hola.com", "climbertwo");
         long videoId = createVideo(owner, true);
 
-        mockMvc.perform(post("/api/videos/" + videoId + "/likes").header("Authorization", "Bearer " + liker))
+        mockMvc.perform(post("/api/videos/" + videoId + "/like").header("Authorization", "Bearer " + liker))
                 .andExpect(status().isOk());
-        mockMvc.perform(delete("/api/videos/" + videoId + "/likes").header("Authorization", "Bearer " + liker))
+        mockMvc.perform(delete("/api/videos/" + videoId + "/like").header("Authorization", "Bearer " + liker))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/videos/" + videoId))
@@ -338,6 +339,39 @@ class VideoIntegrationTest {
         long commentId = addComment(owner, videoId, "owner comment");
 
         mockMvc.perform(delete("/api/comments/" + commentId).header("Authorization", "Bearer " + other))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("분석 진행 상태 — 등록 직후 영상은 status=pending")
+    void getStatus_returnsPending() throws Exception {
+        String token = register("a@hola.com", "climberone");
+        long videoId = createVideo(token, true);
+
+        mockMvc.perform(get("/api/videos/" + videoId + "/status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.video_id").value(videoId))
+                .andExpect(jsonPath("$.data.status").value("pending"));
+    }
+
+    @Test
+    @DisplayName("댓글 수정 — 작성자는 수정 가능, 타인은 403")
+    void updateComment_accessControl() throws Exception {
+        String owner = register("a@hola.com", "climberone");
+        String other = register("b@hola.com", "climbertwo");
+        long videoId = createVideo(owner, true);
+        long commentId = addComment(owner, videoId, "before edit");
+
+        var body = objectMapper.writeValueAsString(new UpdateCommentRequest("after edit"));
+        mockMvc.perform(patch("/api/comments/" + commentId)
+                        .header("Authorization", "Bearer " + owner)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").value("after edit"));
+
+        mockMvc.perform(patch("/api/comments/" + commentId)
+                        .header("Authorization", "Bearer " + other)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
     }
 

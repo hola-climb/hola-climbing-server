@@ -26,6 +26,11 @@
         SELECT COUNT(*) FROM comments WHERE video_id = #{videoId} AND deleted_at IS NULL
     </select>
 
+    <update id="update">
+        UPDATE comments SET content = #{content}, updated_at = NOW()
+        WHERE id = #{id} AND deleted_at IS NULL
+    </update>
+
     <update id="softDelete">
         UPDATE comments SET deleted_at = NOW(), updated_at = NOW() WHERE id = #{id}
     </update>

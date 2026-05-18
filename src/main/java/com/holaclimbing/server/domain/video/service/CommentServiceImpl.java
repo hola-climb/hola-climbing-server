@@ -7,6 +7,7 @@ import com.holaclimbing.server.domain.notification.service.NotificationService;
 import com.holaclimbing.server.domain.video.domain.Comment;
 import com.holaclimbing.server.domain.video.domain.Video;
 import com.holaclimbing.server.domain.video.dto.request.CreateCommentRequest;
+import com.holaclimbing.server.domain.video.dto.request.UpdateCommentRequest;
 import com.holaclimbing.server.domain.video.dto.response.CommentResponse;
 import com.holaclimbing.server.domain.video.mapper.CommentMapper;
 import com.holaclimbing.server.domain.video.mapper.VideoMapper;
@@ -64,6 +65,20 @@ public class CommentServiceImpl implements CommentService {
         List<CommentResponse> content = commentMapper.findByVideoId(videoId, size, page * size)
                 .stream().map(CommentResponse::from).toList();
         return PageResponse.of(content, page, size, total);
+    }
+
+    @Override
+    @Transactional
+    public CommentResponse updateComment(Long userId, Long commentId, UpdateCommentRequest request) {
+        Comment comment = commentMapper.findById(commentId);
+        if (comment == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "댓글을 찾을 수 없습니다.");
+        }
+        if (!comment.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+        commentMapper.update(commentId, request.content());
+        return CommentResponse.from(commentMapper.findById(commentId));
     }
 
     @Override
