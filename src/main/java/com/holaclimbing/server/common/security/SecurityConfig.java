@@ -101,6 +101,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/videos", "/api/videos/**").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/videos/**", "/api/comments/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/videos/**", "/api/comments/**").authenticated()
+                        // 암장 리뷰 — 조회는 공개(위 GET 규칙), 작성·수정·삭제는 인증 필요
+                        .requestMatchers(HttpMethod.POST, "/api/gyms/**").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/gyms/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/gyms/**").authenticated()
                         // 개발 단계: 그 외도 일단 다 통과
                         // TODO(release): 아래 줄을 .authenticated()로 바꾸고 보호 필요 API에 @PreAuthorize
                         .anyRequest().permitAll()

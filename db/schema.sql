@@ -160,6 +160,18 @@ CREATE TABLE gym_photos (
 );
 CREATE INDEX idx_gym_photos_gym ON gym_photos(gym_id, display_order);
 
+CREATE TABLE gym_reviews (
+    id          BIGSERIAL PRIMARY KEY,
+    gym_id      BIGINT NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
+    user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    rating      SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    content     TEXT,
+    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE (gym_id, user_id)
+);
+CREATE INDEX idx_gym_reviews_gym ON gym_reviews(gym_id, created_at DESC);
+
 
 -- =====================================================================
 -- 3. VIDEO DOMAIN (F-02)
