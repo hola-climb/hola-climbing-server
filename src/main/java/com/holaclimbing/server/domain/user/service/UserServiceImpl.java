@@ -4,6 +4,7 @@ import com.holaclimbing.server.common.exception.BusinessException;
 import com.holaclimbing.server.common.exception.error.ErrorCode;
 import com.holaclimbing.server.common.security.JwtTokenProvider;
 import com.holaclimbing.server.common.security.TokenBlacklist;
+import com.holaclimbing.server.domain.terms.service.TermsService;
 import com.holaclimbing.server.domain.user.domain.User;
 import com.holaclimbing.server.domain.user.dto.request.LoginRequest;
 import com.holaclimbing.server.domain.user.dto.request.SignupRequest;
@@ -38,6 +39,7 @@ public class UserServiceImpl implements UserService {
     private final VerificationEmailSender emailSender;
     private final StringRedisTemplate redis;
     private final TokenBlacklist tokenBlacklist;
+    private final TermsService termsService;
 
     @Override
     @Transactional
@@ -48,6 +50,7 @@ public class UserServiceImpl implements UserService {
         if (userMapper.existsByNickname(request.nickname())) {
             throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
         }
+        termsService.validateRequiredAgreed(request.termsAgreed());
 
         String verificationToken = UUID.randomUUID().toString();
         User user = User.builder()
@@ -58,6 +61,7 @@ public class UserServiceImpl implements UserService {
                 .nickname(request.nickname())
                 .build();
         userMapper.insert(user);
+        termsService.agree(user.getId(), request.termsAgreed());
 
         emailSender.send(user.getEmail(), verificationToken);
         log.info("회원가입 완료: userId={}, email={}", user.getId(), user.getEmail());

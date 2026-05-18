@@ -22,6 +22,7 @@ public enum ErrorCode {
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "U006", "만료된 토큰입니다."),
     USER_BLOCKED(HttpStatus.FORBIDDEN, "U007", "차단된 사용자입니다."),
     NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "U008", "이미 사용 중인 닉네임입니다."),
+    REQUIRED_TERMS_NOT_AGREED(HttpStatus.BAD_REQUEST, "U010", "필수 약관에 모두 동의해야 합니다."),
     INVALID_RESET_TOKEN(HttpStatus.BAD_REQUEST, "U011", "유효하지 않거나 만료된 토큰입니다."),
 
     // ===== 비디오 F-02 (V) =====

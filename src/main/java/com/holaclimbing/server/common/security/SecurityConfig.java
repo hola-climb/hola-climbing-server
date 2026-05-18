@@ -86,6 +86,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/notifications/**").authenticated()
                         // 신고 — 등록은 인증 필요
                         .requestMatchers(HttpMethod.POST, "/api/reports").authenticated()
+                        // 약관 — 조회는 공개, 동의 기록은 인증 필요
+                        .requestMatchers(HttpMethod.POST, "/api/terms/agree").authenticated()
                         // 채팅 REST — 본인 전용
                         .requestMatchers("/api/chats/**").authenticated()
                         // 통계 — 내 통계는 인증 필요 (특정 사용자 통계는 공개)

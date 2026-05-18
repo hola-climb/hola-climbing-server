@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.holaclimbing.server.domain.terms.mapper.TermsMapper">
+
+    <select id="findActiveTerms" resultType="com.holaclimbing.server.domain.terms.domain.TermVersion">
+        SELECT DISTINCT ON (type) id, type, version, title, is_required, effective_at
+        FROM terms_versions
+        WHERE effective_at &lt;= NOW()
+        ORDER BY type, effective_at DESC, version DESC
+    </select>
+
+    <insert id="upsertAgreement">
+        INSERT INTO user_term_agreements (user_id, term_version_id, agreed)
+        VALUES (#{userId}, #{termId}, #{agreed})
+        ON CONFLICT (user_id, term_version_id)
+        DO UPDATE SET agreed = EXCLUDED.agreed, agreed_at = NOW()
+    </insert>
+
+</mapper>
