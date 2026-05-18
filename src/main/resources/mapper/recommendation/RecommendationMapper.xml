@@ -1,5 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.holaclimbing.server.domain.recommendation.mapper.RecommendationMapper">
-    <!-- TODO: Recommendation SQL -->
+
+    <!-- 팔로잉 업로더의 영상을 우선 노출하고, 나머지는 최신순으로 채운다. -->
+    <select id="findFeedVideos" resultType="com.holaclimbing.server.domain.video.domain.Video">
+        SELECT v.id, v.user_id, v.gym_id, v.title, v.description, v.grade,
+               v.gcs_path, v.gcs_streaming_path, v.thumbnail_path,
+               v.duration_seconds, v.file_size_bytes, v.mime_type,
+               v.view_count, v.like_count, v.comment_count, v.status, v.is_public,
+               v.created_at, v.updated_at, v.deleted_at
+        FROM videos v
+        LEFT JOIN follows f ON f.following_id = v.user_id AND f.follower_id = #{userId}
+        WHERE v.is_public = TRUE AND v.deleted_at IS NULL AND v.status &lt;&gt; 'failed'
+          AND v.user_id &lt;&gt; #{userId}
+        ORDER BY (f.id IS NOT NULL) DESC, v.created_at DESC, v.id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countFeedVideos" resultType="long">
+        SELECT COUNT(*)
+        FROM videos
+        WHERE is_public = TRUE AND deleted_at IS NULL AND status &lt;&gt; 'failed'
+          AND user_id &lt;&gt; #{userId}
+    </select>
+
+    <select id="findFollowingIds" resultType="long">
+        SELECT following_id FROM follows WHERE follower_id = #{userId}
+    </select>
+
 </mapper>
