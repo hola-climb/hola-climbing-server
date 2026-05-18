@@ -98,6 +98,16 @@ public class VideoServiceImpl implements VideoService {
     }
 
     @Override
+    public PageResponse<VideoSummaryResponse> getGymVideos(Long gymId, int page, int size) {
+        long total = videoMapper.countByGym(gymId);
+        List<VideoSummaryResponse> content = videoMapper.findByGym(gymId, size, page * size)
+                .stream()
+                .map(v -> VideoSummaryResponse.from(v, gcsStorageService.createReadUrl(v.getGcsPath())))
+                .toList();
+        return PageResponse.of(content, page, size, total);
+    }
+
+    @Override
     @Transactional
     public VideoDetailResponse getVideoDetail(Long videoId, Long viewerId) {
         Video video = findActiveVideo(videoId);

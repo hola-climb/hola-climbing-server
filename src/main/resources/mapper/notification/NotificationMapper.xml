@@ -52,4 +52,27 @@
         WHERE id = #{id} AND recipient_id = #{recipientId}
     </delete>
 
+    <select id="findSettings" resultType="com.holaclimbing.server.domain.notification.domain.NotificationSettings">
+        SELECT user_id, notify_comment, notify_reply, notify_like,
+               notify_follow, notify_chat, notify_system
+        FROM user_notification_settings
+        WHERE user_id = #{userId}
+    </select>
+
+    <insert id="upsertSettings">
+        INSERT INTO user_notification_settings
+            (user_id, notify_comment, notify_reply, notify_like,
+             notify_follow, notify_chat, notify_system)
+        VALUES (#{userId}, #{notifyComment}, #{notifyReply}, #{notifyLike},
+                #{notifyFollow}, #{notifyChat}, #{notifySystem})
+        ON CONFLICT (user_id) DO UPDATE SET
+            notify_comment = EXCLUDED.notify_comment,
+            notify_reply   = EXCLUDED.notify_reply,
+            notify_like    = EXCLUDED.notify_like,
+            notify_follow  = EXCLUDED.notify_follow,
+            notify_chat    = EXCLUDED.notify_chat,
+            notify_system  = EXCLUDED.notify_system,
+            updated_at     = NOW()
+    </insert>
+
 </mapper>

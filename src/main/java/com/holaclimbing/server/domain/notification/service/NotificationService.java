@@ -1,7 +1,9 @@
 package com.holaclimbing.server.domain.notification.service;
 
 import com.holaclimbing.server.common.response.PageResponse;
+import com.holaclimbing.server.domain.notification.dto.request.UpdateNotificationSettingsRequest;
 import com.holaclimbing.server.domain.notification.dto.response.NotificationResponse;
+import com.holaclimbing.server.domain.notification.dto.response.NotificationSettingsResponse;
 
 public interface NotificationService {
 
@@ -23,12 +25,18 @@ public interface NotificationService {
     /** 미읽음 알림 개수. */
     long getUnreadCount(Long userId);
 
-    /** 단건 읽음 처리. */
-    void markRead(Long userId, Long notificationId);
+    /** 단건 읽음 처리. 처리 후 남은 미읽음 개수를 반환. */
+    long markRead(Long userId, Long notificationId);
 
-    /** 모든 알림 읽음 처리. */
-    void markAllRead(Long userId);
+    /** 모든 알림 읽음 처리. 처리 후 남은 미읽음 개수(0)를 반환. */
+    long markAllRead(Long userId);
 
     /** 알림 삭제. */
     void deleteNotification(Long userId, Long notificationId);
+
+    /** 알림 설정 조회. 설정 행이 없으면 기본값(전부 ON). */
+    NotificationSettingsResponse getSettings(Long userId);
+
+    /** 알림 설정 부분 변경. */
+    NotificationSettingsResponse updateSettings(Long userId, UpdateNotificationSettingsRequest request);
 }

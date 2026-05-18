@@ -21,6 +21,9 @@ public interface VideoService {
     /** 공개 피드 조회. uploaderId가 있으면 해당 업로더로 필터. */
     PageResponse<VideoSummaryResponse> getFeed(Long uploaderId, int page, int size);
 
+    /** 특정 암장의 공개 영상 목록. */
+    PageResponse<VideoSummaryResponse> getGymVideos(Long gymId, int page, int size);
+
     /** 영상 상세 조회. 비공개 영상은 소유자만 접근 가능하며, 조회 시 조회수가 증가한다. */
     VideoDetailResponse getVideoDetail(Long videoId, Long viewerId);
 

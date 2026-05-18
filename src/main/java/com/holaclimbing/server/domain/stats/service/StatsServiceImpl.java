@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.holaclimbing.server.common.exception.BusinessException;
 import com.holaclimbing.server.common.exception.error.ErrorCode;
 import com.holaclimbing.server.domain.stats.domain.Stats;
+import com.holaclimbing.server.domain.stats.dto.response.TechniqueStatsResponse;
 import com.holaclimbing.server.domain.stats.dto.response.UserStatsResponse;
 import com.holaclimbing.server.domain.stats.mapper.StatsMapper;
 import com.holaclimbing.server.domain.user.mapper.UserMapper;
@@ -37,6 +38,21 @@ public class StatsServiceImpl implements StatsService {
             return UserStatsResponse.empty(userId);
         }
         return UserStatsResponse.of(stats, parseTechniqueCounts(stats.getTechniqueCounts()));
+    }
+
+    @Override
+    public TechniqueStatsResponse getTechniqueStats(Long userId) {
+        if (userMapper.findById(userId) == null) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        Stats stats = statsMapper.findByUserId(userId);
+        Map<String, Integer> counts = stats == null
+                ? Map.of() : parseTechniqueCounts(stats.getTechniqueCounts());
+        String mostUsed = counts.entrySet().stream()
+                .max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(null);
+        String leastUsed = counts.entrySet().stream()
+                .min(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(null);
+        return new TechniqueStatsResponse(counts, mostUsed, leastUsed);
     }
 
     /** JSONB 문자열({"highstep":12,...})을 Map으로 파싱. 비어 있거나 깨졌으면 빈 Map. */

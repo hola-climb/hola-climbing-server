@@ -3,6 +3,7 @@ package com.holaclimbing.server.domain.notification;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.holaclimbing.server.TestcontainersConfiguration;
+import com.holaclimbing.server.domain.notification.dto.request.UpdateNotificationSettingsRequest;
 import com.holaclimbing.server.domain.user.dto.request.LoginRequest;
 import com.holaclimbing.server.domain.user.dto.request.SignupRequest;
 import com.holaclimbing.server.domain.user.dto.request.VerifyEmailRequest;
@@ -194,9 +195,10 @@ class NotificationIntegrationTest {
         mockMvc.perform(post("/api/videos/" + videoId + "/like")
                 .header("Authorization", "Bearer " + other.token())).andExpect(status().isOk());
 
-        mockMvc.perform(patch("/api/notifications/read-all")
+        mockMvc.perform(patch("/api/notifications/all/read")
                         .header("Authorization", "Bearer " + owner.token()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.unread_count").value(0));
 
         mockMvc.perform(get("/api/notifications/unread-count")
                         .header("Authorization", "Bearer " + owner.token()))
@@ -240,6 +242,37 @@ class NotificationIntegrationTest {
         mockMvc.perform(get("/api/notifications/unread-count")
                         .header("Authorization", "Bearer " + owner.token()))
                 .andExpect(jsonPath("$.data").value(0));
+    }
+
+    @Test
+    @DisplayName("알림 설정 — 설정 행이 없으면 기본값(전부 ON)을 반환한다")
+    void getSettings_defaults() throws Exception {
+        TestUser user = register("a@hola.com", "climberone");
+
+        mockMvc.perform(get("/api/notifications/settings")
+                        .header("Authorization", "Bearer " + user.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.notify_comment").value(true))
+                .andExpect(jsonPath("$.data.notify_like").value(true));
+    }
+
+    @Test
+    @DisplayName("알림 설정 변경 — 일부 토글을 끄면 그 값만 반영된다")
+    void updateSettings_partial() throws Exception {
+        TestUser user = register("a@hola.com", "climberone");
+
+        mockMvc.perform(patch("/api/notifications/settings")
+                        .header("Authorization", "Bearer " + user.token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new UpdateNotificationSettingsRequest(
+                                null, null, false, null, null, null))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.notify_like").value(false))
+                .andExpect(jsonPath("$.data.notify_comment").value(true));
+
+        mockMvc.perform(get("/api/notifications/settings")
+                        .header("Authorization", "Bearer " + user.token()))
+                .andExpect(jsonPath("$.data.notify_like").value(false));
     }
 
     // ===== helpers =====

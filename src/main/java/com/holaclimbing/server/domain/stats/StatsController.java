@@ -1,6 +1,7 @@
 package com.holaclimbing.server.domain.stats;
 
 import com.holaclimbing.server.common.response.ApiResponse;
+import com.holaclimbing.server.domain.stats.dto.response.TechniqueStatsResponse;
 import com.holaclimbing.server.domain.stats.dto.response.UserStatsResponse;
 import com.holaclimbing.server.domain.stats.service.StatsService;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,11 @@ public class StatsController {
     @GetMapping("/me")
     public ApiResponse<UserStatsResponse> getMyStats(@AuthenticationPrincipal Long userId) {
         return ApiResponse.success(statsService.getUserStats(userId));
+    }
+
+    @GetMapping("/me/techniques")
+    public ApiResponse<TechniqueStatsResponse> getMyTechniqueStats(@AuthenticationPrincipal Long userId) {
+        return ApiResponse.success(statsService.getTechniqueStats(userId));
     }
 
     @GetMapping("/users/{userId}")

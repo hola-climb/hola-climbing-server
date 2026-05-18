@@ -44,6 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Sql(scripts = {
         "classpath:sql/users-schema.sql",
         "classpath:sql/gyms-schema.sql",
+        "classpath:sql/gyms-data.sql",
         "classpath:sql/videos-schema.sql",
         "classpath:sql/notifications-schema.sql"
 }, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
@@ -374,6 +375,26 @@ class VideoIntegrationTest {
                         .header("Authorization", "Bearer " + other)
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("암장 영상 목록 — 해당 암장의 공개 영상만 반환한다")
+    void getGymVideos_returnsGymVideos() throws Exception {
+        String token = register("a@hola.com", "climberone");
+        var gymVideo = new CreateVideoRequest(1L, "gym clip", "desc", "V4",
+                "gs://hola-bucket/gym.mp4", null, 30, true);
+        for (int i = 0; i < 2; i++) {
+            mockMvc.perform(post("/api/videos")
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(gymVideo)))
+                    .andExpect(status().isCreated());
+        }
+        createVideo(token, true);  // gymId 없는 영상 — 암장 목록에서 제외돼야 함
+
+        mockMvc.perform(get("/api/gyms/1/videos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total_elements").value(2));
     }
 
     // ===== helpers =====

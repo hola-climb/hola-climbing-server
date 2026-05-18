@@ -46,6 +46,22 @@
         </if>
     </select>
 
+    <select id="findByGym" resultType="com.holaclimbing.server.domain.video.domain.Video">
+        SELECT <include refid="columns"/>
+        FROM videos
+        WHERE is_public = TRUE AND deleted_at IS NULL AND status &lt;&gt; 'failed'
+          AND gym_id = #{gymId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countByGym" resultType="long">
+        SELECT COUNT(*)
+        FROM videos
+        WHERE is_public = TRUE AND deleted_at IS NULL AND status &lt;&gt; 'failed'
+          AND gym_id = #{gymId}
+    </select>
+
     <update id="incrementViewCount">
         UPDATE videos SET view_count = view_count + 1 WHERE id = #{id}
     </update>

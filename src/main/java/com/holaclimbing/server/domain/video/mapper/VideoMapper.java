@@ -23,6 +23,14 @@ public interface VideoMapper {
     /** findFeed 결과 총 개수. */
     long countFeed(@Param("userId") Long userId);
 
+    /** 특정 암장의 공개 영상 (최신순). */
+    List<Video> findByGym(@Param("gymId") Long gymId,
+                          @Param("size") int size,
+                          @Param("offset") int offset);
+
+    /** findByGym 결과 총 개수. */
+    long countByGym(Long gymId);
+
     int incrementViewCount(Long id);
 
     int incrementLikeCount(Long id);

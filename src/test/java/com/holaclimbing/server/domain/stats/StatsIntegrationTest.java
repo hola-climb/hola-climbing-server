@@ -110,6 +110,27 @@ class StatsIntegrationTest {
                 .andExpect(jsonPath("$.code").value("U001"));
     }
 
+    @Test
+    @DisplayName("기술별 통계 — 최다/최소 사용 기술을 함께 반환한다")
+    void getTechniqueStats_withData() throws Exception {
+        String token = register("a@hola.com", "climberone");
+        long userId = userMapper.findByEmail("a@hola.com").getId();
+        seedStats(userId, 5, 1200L, "{\"highstep\":12,\"flagging\":8,\"dyno\":3}");
+
+        mockMvc.perform(get("/api/stats/me/techniques").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.technique_counts.highstep").value(12))
+                .andExpect(jsonPath("$.data.most_used").value("highstep"))
+                .andExpect(jsonPath("$.data.least_used").value("dyno"));
+    }
+
+    @Test
+    @DisplayName("기술별 통계 — 토큰 없이 호출하면 401")
+    void getTechniqueStats_withoutToken_returns401() throws Exception {
+        mockMvc.perform(get("/api/stats/me/techniques"))
+                .andExpect(status().isUnauthorized());
+    }
+
     // ===== helpers =====
 
     private void seedStats(long userId, int totalVideos, long totalSeconds, String techniqueCountsJson) {

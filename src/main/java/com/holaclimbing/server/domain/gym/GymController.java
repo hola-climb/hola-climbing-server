@@ -5,6 +5,8 @@ import com.holaclimbing.server.common.response.PageResponse;
 import com.holaclimbing.server.domain.gym.dto.response.GymDetailResponse;
 import com.holaclimbing.server.domain.gym.dto.response.GymSummaryResponse;
 import com.holaclimbing.server.domain.gym.service.GymService;
+import com.holaclimbing.server.domain.video.dto.response.VideoSummaryResponse;
+import com.holaclimbing.server.domain.video.service.VideoService;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ import java.util.List;
 public class GymController {
 
     private final GymService gymService;
+    private final VideoService videoService;
 
     @GetMapping
     public ApiResponse<PageResponse<GymSummaryResponse>> searchGyms(
@@ -49,5 +52,13 @@ public class GymController {
     @GetMapping("/{gymId}")
     public ApiResponse<GymDetailResponse> getGymDetail(@PathVariable Long gymId) {
         return ApiResponse.success(gymService.getGymDetail(gymId));
+    }
+
+    @GetMapping("/{gymId}/videos")
+    public ApiResponse<PageResponse<VideoSummaryResponse>> getGymVideos(
+            @PathVariable Long gymId,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Positive int size) {
+        return ApiResponse.success(videoService.getGymVideos(gymId, page, size));
     }
 }
