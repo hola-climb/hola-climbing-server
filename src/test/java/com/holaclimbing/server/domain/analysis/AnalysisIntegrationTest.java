@@ -3,6 +3,7 @@ package com.holaclimbing.server.domain.analysis;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.holaclimbing.server.TestcontainersConfiguration;
+import com.holaclimbing.server.domain.analysis.dto.request.AnalysisFeedbackRequest;
 import com.holaclimbing.server.domain.analysis.dto.request.AnalysisIngestRequest;
 import com.holaclimbing.server.domain.analysis.dto.request.AnalysisSegmentPayload;
 import com.holaclimbing.server.domain.user.dto.request.LoginRequest;
@@ -62,7 +63,7 @@ class AnalysisIntegrationTest {
         String token = register("a@hola.com", "climberone");
         long videoId = createVideo(token);
 
-        mockMvc.perform(get("/api/analysis/videos/" + videoId))
+        mockMvc.perform(get("/api/videos/" + videoId + "/analysis"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("pending"))
                 .andExpect(jsonPath("$.data.segments").isEmpty());
@@ -88,7 +89,7 @@ class AnalysisIntegrationTest {
                 .andExpect(jsonPath("$.data.segments[0].technique").value("highstep"))
                 .andExpect(jsonPath("$.data.segments[1].is_dynamic").value(true));
 
-        mockMvc.perform(get("/api/analysis/videos/" + videoId))
+        mockMvc.perform(get("/api/videos/" + videoId + "/analysis"))
                 .andExpect(jsonPath("$.data.status").value("done"))
                 .andExpect(jsonPath("$.data.segments.length()").value(2));
     }
@@ -121,7 +122,7 @@ class AnalysisIntegrationTest {
         ingest(videoId, new AnalysisIngestRequest("done", "lstm_v1", List.of(
                 new AnalysisSegmentPayload(0, 0, 1500, "lock_off", false, 0.95f))));
 
-        mockMvc.perform(get("/api/analysis/videos/" + videoId))
+        mockMvc.perform(get("/api/videos/" + videoId + "/analysis"))
                 .andExpect(jsonPath("$.data.segments.length()").value(1))
                 .andExpect(jsonPath("$.data.model_version").value("lstm_v1"))
                 .andExpect(jsonPath("$.data.segments[0].technique").value("lock_off"));
@@ -144,7 +145,7 @@ class AnalysisIntegrationTest {
     @Test
     @DisplayName("분석 조회 — 없는 영상은 404 V001")
     void getAnalysis_videoNotFound_returns404() throws Exception {
-        mockMvc.perform(get("/api/analysis/videos/999999"))
+        mockMvc.perform(get("/api/videos/999999/analysis"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("V001"));
     }
@@ -159,6 +160,48 @@ class AnalysisIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("V001"));
+    }
+
+    @Test
+    @DisplayName("분석 재시도 — 소유자가 재시도하면 status가 pending으로 돌아가고 결과가 비워진다")
+    void retryAnalysis_byOwner() throws Exception {
+        String token = register("a@hola.com", "climberone");
+        long videoId = createVideo(token);
+        ingest(videoId, new AnalysisIngestRequest("done", "rule_v1", List.of(
+                new AnalysisSegmentPayload(0, 0, 1000, "highstep", false, 0.9f))));
+
+        mockMvc.perform(post("/api/videos/" + videoId + "/analysis/retry")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("pending"))
+                .andExpect(jsonPath("$.data.segments").isEmpty());
+    }
+
+    @Test
+    @DisplayName("분석 재시도 실패 — 소유자가 아니면 403")
+    void retryAnalysis_byOther_returns403() throws Exception {
+        String owner = register("a@hola.com", "climberone");
+        String other = register("b@hola.com", "climbertwo");
+        long videoId = createVideo(owner);
+
+        mockMvc.perform(post("/api/videos/" + videoId + "/analysis/retry")
+                        .header("Authorization", "Bearer " + other))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("분석 피드백 — 등록하면 201과 labelId를 반환한다")
+    void submitFeedback_success() throws Exception {
+        String token = register("a@hola.com", "climberone");
+        long videoId = createVideo(token);
+
+        var request = new AnalysisFeedbackRequest("highstep", 12.5, false, "flagging", "이건 플래깅이에요");
+        mockMvc.perform(post("/api/videos/" + videoId + "/analysis/feedback")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.label_id").isNumber());
     }
 
     // ===== helpers =====

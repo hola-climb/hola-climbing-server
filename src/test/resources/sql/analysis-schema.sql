@@ -1,6 +1,7 @@
--- Analysis 도메인 통합 테스트용 analysis_results 테이블.
+-- Analysis 도메인 통합 테스트용 analysis_results / labels 테이블.
 -- users-schema.sql, gyms-schema.sql, videos-schema.sql 다음에 실행되어야 한다 (FK 대상).
 -- 운영 schema.sql에서 별도 인덱스를 제외한 버전.
+DROP TABLE IF EXISTS labels CASCADE;
 DROP TABLE IF EXISTS analysis_results CASCADE;
 
 CREATE TABLE analysis_results (
@@ -17,4 +18,13 @@ CREATE TABLE analysis_results (
     model_version   VARCHAR(50),
     raw_data        JSONB,
     created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE labels (
+    id          BIGSERIAL PRIMARY KEY,
+    video_id    BIGINT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    technique   VARCHAR(50),
+    is_correct  BOOLEAN,
+    created_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );

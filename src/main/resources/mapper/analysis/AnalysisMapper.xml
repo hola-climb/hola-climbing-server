@@ -24,4 +24,10 @@
         DELETE FROM analysis_results WHERE video_id = #{videoId}
     </delete>
 
+    <insert id="insertLabel" parameterType="com.holaclimbing.server.domain.analysis.domain.Label"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO labels (video_id, user_id, technique, is_correct)
+        VALUES (#{videoId}, #{userId}, #{technique}, #{isCorrect})
+    </insert>
+
 </mapper>
