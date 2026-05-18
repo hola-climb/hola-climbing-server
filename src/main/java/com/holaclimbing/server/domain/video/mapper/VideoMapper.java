@@ -42,4 +42,7 @@ public interface VideoMapper {
 
     /** 영상 soft-delete. */
     int softDelete(Long id);
+
+    /** 분석 상태 갱신 (pending/analyzing/done/failed). */
+    int updateStatus(@Param("id") Long id, @Param("status") String status);
 }

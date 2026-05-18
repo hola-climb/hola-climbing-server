@@ -98,6 +98,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/chats/**").authenticated()
                         // 통계 — 내 통계는 인증 필요 (특정 사용자 통계는 공개)
                         .requestMatchers(HttpMethod.GET, "/api/stats/me").authenticated()
+                        // AI 분석 — 조회 공개 + 결과 수신은 AI 워커 서버 간 콜백
+                        // TODO(release): 결과 수신(POST)에 워커 공유 시크릿 인증 추가
+                        .requestMatchers("/api/analysis/**").permitAll()
                         // 영상 등록·수정·삭제·좋아요·댓글 — 인증 필요 (GET 피드/상세/댓글목록은 위에서 공개)
                         .requestMatchers(HttpMethod.POST, "/api/videos", "/api/videos/**").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/videos/**").authenticated()

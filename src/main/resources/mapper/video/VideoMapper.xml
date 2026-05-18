@@ -82,4 +82,8 @@
         UPDATE videos SET deleted_at = NOW(), updated_at = NOW() WHERE id = #{id}
     </update>
 
+    <update id="updateStatus">
+        UPDATE videos SET status = #{status}, updated_at = NOW() WHERE id = #{id}
+    </update>
+
 </mapper>

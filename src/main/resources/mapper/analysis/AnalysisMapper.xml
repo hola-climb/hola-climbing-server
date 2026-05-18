@@ -1,5 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.holaclimbing.server.domain.analysis.mapper.AnalysisMapper">
-    <!-- TODO: Analysis SQL -->
+
+    <insert id="insertResults">
+        INSERT INTO analysis_results (video_id, sequence_index, start_time_ms, end_time_ms,
+                                      technique, is_dynamic, confidence, model_version)
+        VALUES
+        <foreach collection="results" item="r" separator=",">
+            (#{r.videoId}, #{r.sequenceIndex}, #{r.startTimeMs}, #{r.endTimeMs},
+             #{r.technique}, #{r.isDynamic}, #{r.confidence}, #{r.modelVersion})
+        </foreach>
+    </insert>
+
+    <select id="findByVideoId" resultType="com.holaclimbing.server.domain.analysis.domain.AnalysisResult">
+        SELECT id, video_id, sequence_index, start_time_ms, end_time_ms,
+               technique, is_dynamic, confidence, model_version, created_at
+        FROM analysis_results
+        WHERE video_id = #{videoId}
+        ORDER BY sequence_index ASC, id ASC
+    </select>
+
+    <delete id="deleteByVideoId">
+        DELETE FROM analysis_results WHERE video_id = #{videoId}
+    </delete>
+
 </mapper>
