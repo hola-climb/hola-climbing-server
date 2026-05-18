@@ -7,6 +7,7 @@ import com.holaclimbing.server.domain.user.dto.request.LoginRequest;
 import com.holaclimbing.server.domain.user.dto.request.RefreshRequest;
 import com.holaclimbing.server.domain.user.dto.request.ResendVerificationRequest;
 import com.holaclimbing.server.domain.user.dto.request.SignupRequest;
+import com.holaclimbing.server.domain.user.dto.request.VerifyEmailRequest;
 import com.holaclimbing.server.domain.user.mapper.UserMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -92,7 +93,7 @@ class UserAuthIntegrationTest {
     @Test
     @DisplayName("회원가입 실패 — 잘못된 이메일 형식은 400 C001")
     void signup_invalidEmail_returns400() throws Exception {
-        mockMvc.perform(post("/api/users/signup")
+        mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"not-an-email\",\"password\":\"password123\",\"nickname\":\"boulderking\"}"))
                 .andExpect(status().isBadRequest())
@@ -102,7 +103,7 @@ class UserAuthIntegrationTest {
     @Test
     @DisplayName("회원가입 실패 — 8자 미만 비밀번호는 400 C001")
     void signup_shortPassword_returns400() throws Exception {
-        mockMvc.perform(post("/api/users/signup")
+        mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"climber@hola.com\",\"password\":\"short\",\"nickname\":\"boulderking\"}"))
                 .andExpect(status().isBadRequest())
@@ -134,7 +135,7 @@ class UserAuthIntegrationTest {
     @Test
     @DisplayName("이메일 인증 실패 — 존재하지 않는 토큰은 401 U005")
     void verifyEmail_invalidToken_returns401() throws Exception {
-        mockMvc.perform(get("/api/users/verify-email").param("token", "bogus-token"))
+        mockMvc.perform(post("/api/auth/email/verify").contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(new VerifyEmailRequest("bogus-token"))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("U005"));
     }
@@ -165,7 +166,7 @@ class UserAuthIntegrationTest {
         verifyEmailOf(EMAIL);
         String refreshToken = dataOf(login(EMAIL, PASSWORD)).path("refresh_token").asText();
 
-        var data = dataOf(mockMvc.perform(post("/api/users/refresh")
+        var data = dataOf(mockMvc.perform(post("/api/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new RefreshRequest(refreshToken))))
                 .andExpect(status().isOk()));
@@ -180,7 +181,7 @@ class UserAuthIntegrationTest {
         verifyEmailOf(EMAIL);
         String accessToken = dataOf(login(EMAIL, PASSWORD)).path("access_token").asText();
 
-        mockMvc.perform(post("/api/users/refresh")
+        mockMvc.perform(post("/api/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new RefreshRequest(accessToken))))
                 .andExpect(status().isUnauthorized())
@@ -190,16 +191,16 @@ class UserAuthIntegrationTest {
     @Test
     @DisplayName("중복 확인 — 가입 전후로 이메일/닉네임 사용 가능 여부가 바뀐다")
     void availabilityCheck_reflectsSignup() throws Exception {
-        mockMvc.perform(get("/api/users/email-check").param("email", EMAIL))
+        mockMvc.perform(get("/api/auth/email-check").param("email", EMAIL))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.available").value(true));
 
         signup(EMAIL, PASSWORD, NICKNAME).andExpect(status().isCreated());
 
-        mockMvc.perform(get("/api/users/email-check").param("email", EMAIL))
+        mockMvc.perform(get("/api/auth/email-check").param("email", EMAIL))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.available").value(false));
-        mockMvc.perform(get("/api/users/nickname-check").param("nickname", NICKNAME))
+        mockMvc.perform(get("/api/auth/nickname-check").param("nickname", NICKNAME))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.available").value(false));
     }
@@ -210,7 +211,7 @@ class UserAuthIntegrationTest {
         signup(EMAIL, PASSWORD, NICKNAME).andExpect(status().isCreated());
         String firstToken = userMapper.findByEmail(EMAIL).getEmailVerificationToken();
 
-        mockMvc.perform(post("/api/users/resend-verification")
+        mockMvc.perform(post("/api/auth/resend-verification")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new ResendVerificationRequest(EMAIL))))
                 .andExpect(status().isOk());
@@ -222,20 +223,20 @@ class UserAuthIntegrationTest {
     // ===== helpers =====
 
     private ResultActions signup(String email, String password, String nickname) throws Exception {
-        return mockMvc.perform(post("/api/users/signup")
+        return mockMvc.perform(post("/api/auth/signup")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new SignupRequest(email, password, nickname))));
     }
 
     private ResultActions login(String email, String password) throws Exception {
-        return mockMvc.perform(post("/api/users/login")
+        return mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest(email, password))));
     }
 
     private void verifyEmailOf(String email) throws Exception {
         String token = userMapper.findByEmail(email).getEmailVerificationToken();
-        mockMvc.perform(get("/api/users/verify-email").param("token", token))
+        mockMvc.perform(post("/api/auth/email/verify").contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(new VerifyEmailRequest(token))))
                 .andExpect(status().isOk());
     }
 

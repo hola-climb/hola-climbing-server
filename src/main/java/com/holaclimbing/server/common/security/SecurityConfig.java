@@ -58,16 +58,8 @@ public class SecurityConfig {
                         .authenticationEntryPoint(entryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
-                        // 인증 관련 공개 API
-                        .requestMatchers("/api/users/signup",
-                                "/api/users/login",
-                                "/api/users/refresh",
-                                "/api/users/resend-verification",
-                                "/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET,
-                                "/api/users/nickname-check",
-                                "/api/users/email-check",
-                                "/api/users/verify-email").permitAll()
+                        // 인증 관련 공개 API (회원가입/로그인/토큰재발급/이메일인증/중복확인)
+                        .requestMatchers("/api/auth/**").permitAll()
                         // 문서/모니터링
                         .requestMatchers("/swagger-ui/**",
                                 "/swagger-ui.html",

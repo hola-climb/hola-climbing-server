@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.holaclimbing.server.TestcontainersConfiguration;
 import com.holaclimbing.server.domain.user.dto.request.LoginRequest;
 import com.holaclimbing.server.domain.user.dto.request.SignupRequest;
+import com.holaclimbing.server.domain.user.dto.request.VerifyEmailRequest;
 import com.holaclimbing.server.domain.user.mapper.UserMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -120,14 +121,14 @@ class StatsIntegrationTest {
 
     /** 회원가입 → 이메일 인증 → 로그인까지 완료하고 accessToken을 반환. */
     private String register(String email, String nickname) throws Exception {
-        mockMvc.perform(post("/api/users/signup")
+        mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new SignupRequest(email, PASSWORD, nickname))))
                 .andExpect(status().isCreated());
         var user = userMapper.findByEmail(email);
-        mockMvc.perform(get("/api/users/verify-email").param("token", user.getEmailVerificationToken()))
+        mockMvc.perform(post("/api/auth/email/verify").contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(new VerifyEmailRequest(user.getEmailVerificationToken()))))
                 .andExpect(status().isOk());
-        return dataOf(mockMvc.perform(post("/api/users/login")
+        return dataOf(mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest(email, PASSWORD)))))
                 .path("access_token").asText();

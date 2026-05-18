@@ -5,6 +5,7 @@ import com.holaclimbing.server.domain.user.dto.request.LoginRequest;
 import com.holaclimbing.server.domain.user.dto.request.RefreshRequest;
 import com.holaclimbing.server.domain.user.dto.request.ResendVerificationRequest;
 import com.holaclimbing.server.domain.user.dto.request.SignupRequest;
+import com.holaclimbing.server.domain.user.dto.request.VerifyEmailRequest;
 import com.holaclimbing.server.domain.user.dto.response.AvailabilityResponse;
 import com.holaclimbing.server.domain.user.dto.response.SignupResponse;
 import com.holaclimbing.server.domain.user.dto.response.TokenResponse;
@@ -23,11 +24,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 인증 API — 회원가입, 로그인, 토큰 재발급, 이메일 인증.
+ * 회원 프로필·팔로우·차단은 UserProfileController(/api/users)에 있다.
+ */
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/auth")
 @RequiredArgsConstructor
 @Validated
-public class UserController {
+public class AuthController {
 
     private final UserService userService;
 
@@ -48,9 +53,9 @@ public class UserController {
         return ApiResponse.success(userService.refresh(request.refreshToken()));
     }
 
-    @GetMapping("/verify-email")
-    public ApiResponse<Void> verifyEmail(@RequestParam @NotBlank String token) {
-        userService.verifyEmail(token);
+    @PostMapping("/email/verify")
+    public ApiResponse<Void> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        userService.verifyEmail(request.token());
         return ApiResponse.success();
     }
 

@@ -21,7 +21,8 @@ public class VerificationEmailSender {
     }
 
     public void send(String toEmail, String token) {
-        String verifyLink = baseUrl + "/api/users/verify-email?token=" + token;
+        // 프론트 인증 페이지로 연결되는 링크. 페이지에서 POST /api/auth/email/verify로 토큰을 검증한다.
+        String verifyLink = baseUrl + "/verify-email?token=" + token;
         log.info("[이메일 인증] 수신자={} / 인증 링크={}", toEmail, verifyLink);
     }
 }

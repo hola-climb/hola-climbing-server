@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.holaclimbing.server.TestcontainersConfiguration;
 import com.holaclimbing.server.domain.user.dto.request.LoginRequest;
 import com.holaclimbing.server.domain.user.dto.request.SignupRequest;
+import com.holaclimbing.server.domain.user.dto.request.VerifyEmailRequest;
 import com.holaclimbing.server.domain.user.dto.request.UpdateProfileRequest;
 import com.holaclimbing.server.domain.user.mapper.UserMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -252,16 +253,16 @@ class UserProfileIntegrationTest {
 
     /** 회원가입 → 이메일 인증 → 로그인까지 완료한 사용자를 만들고 (id, accessToken)을 반환. */
     private TestUser register(String email, String nickname) throws Exception {
-        mockMvc.perform(post("/api/users/signup")
+        mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new SignupRequest(email, PASSWORD, nickname))))
                 .andExpect(status().isCreated());
 
         var user = userMapper.findByEmail(email);
-        mockMvc.perform(get("/api/users/verify-email").param("token", user.getEmailVerificationToken()))
+        mockMvc.perform(post("/api/auth/email/verify").contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(new VerifyEmailRequest(user.getEmailVerificationToken()))))
                 .andExpect(status().isOk());
 
-        String token = dataOf(mockMvc.perform(post("/api/users/login")
+        String token = dataOf(mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest(email, PASSWORD)))))
                 .path("access_token").asText();
