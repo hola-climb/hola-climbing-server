@@ -36,4 +36,8 @@ public interface GymMapper {
 
     /** 암장 사진 등록. 생성된 PK는 photo.id로 채워진다. */
     void insertPhoto(GymPhoto photo);
+
+    /** 암장 요일별 운영시간(business_hours jsonb) 갱신. */
+    int updateBusinessHours(@Param("gymId") Long gymId,
+                            @Param("businessHours") String businessHours);
 }

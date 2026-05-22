@@ -4,6 +4,7 @@ import com.holaclimbing.server.common.response.ApiResponse;
 import com.holaclimbing.server.common.response.PageResponse;
 import com.holaclimbing.server.domain.gym.dto.request.CreateGymPhotoRequest;
 import com.holaclimbing.server.domain.gym.dto.request.CreateGymRequest;
+import com.holaclimbing.server.domain.gym.dto.request.UpdateBusinessHoursRequest;
 import com.holaclimbing.server.domain.gym.dto.response.CreateGymResponse;
 import com.holaclimbing.server.domain.gym.dto.response.GymDetailResponse;
 import com.holaclimbing.server.domain.gym.dto.response.GymPhotoResponse;
@@ -20,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -95,5 +97,13 @@ public class GymController {
     @GetMapping("/{gymId}/photos")
     public ApiResponse<List<GymPhotoResponse>> getGymPhotos(@PathVariable Long gymId) {
         return ApiResponse.success(gymService.getPhotos(gymId));
+    }
+
+    /** 암장 요일별 운영시간 수정 (인증 필요). */
+    @PatchMapping("/{gymId}/business-hours")
+    public ApiResponse<GymDetailResponse> updateBusinessHours(
+            @PathVariable Long gymId,
+            @Valid @RequestBody UpdateBusinessHoursRequest request) {
+        return ApiResponse.success(gymService.updateBusinessHours(gymId, request));
     }
 }

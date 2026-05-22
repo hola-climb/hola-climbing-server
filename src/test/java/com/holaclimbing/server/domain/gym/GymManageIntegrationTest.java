@@ -3,8 +3,10 @@ package com.holaclimbing.server.domain.gym;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.holaclimbing.server.TestcontainersConfiguration;
+import com.holaclimbing.server.domain.gym.dto.DayHours;
 import com.holaclimbing.server.domain.gym.dto.request.CreateGymPhotoRequest;
 import com.holaclimbing.server.domain.gym.dto.request.CreateGymRequest;
+import com.holaclimbing.server.domain.gym.dto.request.UpdateBusinessHoursRequest;
 import com.holaclimbing.server.domain.user.dto.request.LoginRequest;
 import com.holaclimbing.server.domain.user.dto.request.SignupRequest;
 import com.holaclimbing.server.domain.user.dto.request.VerifyEmailRequest;
@@ -22,8 +24,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -63,7 +67,7 @@ class GymManageIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new CreateGymRequest(
                                 "새 암장", "서울시 송파구", 37.5, 127.1,
-                                "02-000-0000", null, "신규 제안 암장", "seoul"))))
+                                "02-000-0000", null, "신규 제안 암장", null, "seoul"))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.id").isNumber())
                 .andExpect(jsonPath("$.data.name").value("새 암장"))
@@ -76,7 +80,7 @@ class GymManageIntegrationTest {
         mockMvc.perform(post("/api/gyms")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new CreateGymRequest(
-                                "새 암장", null, null, null, null, null, null, null))))
+                                "새 암장", null, null, null, null, null, null, null, null))))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -121,6 +125,60 @@ class GymManageIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(2))
                 .andExpect(jsonPath("$.data[0].display_order").value(0));
+    }
+
+    @Test
+    @DisplayName("암장 상세 — 요일별 운영시간을 포함해 반환한다 (일요일 휴무는 응답에서 제외)")
+    void getGymDetail_includesBusinessHours() throws Exception {
+        mockMvc.perform(get("/api/gyms/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.business_hours.mon.open").value("06:00"))
+                .andExpect(jsonPath("$.data.business_hours.mon.close").value("23:00"))
+                .andExpect(jsonPath("$.data.business_hours.sat.open").value("09:00"))
+                .andExpect(jsonPath("$.data.business_hours.sun").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("운영시간 수정 — 200, 전달한 요일별 시각으로 치환된다")
+    void updateBusinessHours_success() throws Exception {
+        String token = register("a@hola.com", "climberone");
+        var body = objectMapper.writeValueAsString(new UpdateBusinessHoursRequest(Map.of(
+                "mon", new DayHours("07:00", "22:00"),
+                "sat", new DayHours("10:00", "20:00"))));
+
+        mockMvc.perform(patch("/api/gyms/1/business-hours")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.business_hours.mon.open").value("07:00"))
+                .andExpect(jsonPath("$.data.business_hours.sat.close").value("20:00"));
+
+        mockMvc.perform(get("/api/gyms/1"))
+                .andExpect(jsonPath("$.data.business_hours.mon.open").value("07:00"));
+    }
+
+    @Test
+    @DisplayName("운영시간 수정 실패 — 토큰 없이 호출하면 401")
+    void updateBusinessHours_withoutToken_returns401() throws Exception {
+        mockMvc.perform(patch("/api/gyms/1/business-hours")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new UpdateBusinessHoursRequest(
+                                Map.of("mon", new DayHours("07:00", "22:00"))))))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("운영시간 수정 실패 — 없는 암장은 404 G001")
+    void updateBusinessHours_nonexistentGym_returns404() throws Exception {
+        String token = register("a@hola.com", "climberone");
+
+        mockMvc.perform(patch("/api/gyms/999999/business-hours")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new UpdateBusinessHoursRequest(
+                                Map.of("mon", new DayHours("07:00", "22:00"))))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("G001"));
     }
 
     // ===== helpers =====

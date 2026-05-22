@@ -3,6 +3,7 @@ package com.holaclimbing.server.domain.gym.service;
 import com.holaclimbing.server.common.response.PageResponse;
 import com.holaclimbing.server.domain.gym.dto.request.CreateGymPhotoRequest;
 import com.holaclimbing.server.domain.gym.dto.request.CreateGymRequest;
+import com.holaclimbing.server.domain.gym.dto.request.UpdateBusinessHoursRequest;
 import com.holaclimbing.server.domain.gym.dto.response.CreateGymResponse;
 import com.holaclimbing.server.domain.gym.dto.response.GymDetailResponse;
 import com.holaclimbing.server.domain.gym.dto.response.GymPhotoResponse;
@@ -29,4 +30,7 @@ public interface GymService {
 
     /** 암장 사진 목록 조회. */
     List<GymPhotoResponse> getPhotos(Long gymId);
+
+    /** 암장 요일별 운영시간 수정. 갱신된 암장 상세를 반환한다. */
+    GymDetailResponse updateBusinessHours(Long gymId, UpdateBusinessHoursRequest request);
 }

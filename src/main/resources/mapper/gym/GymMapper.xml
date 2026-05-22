@@ -8,7 +8,7 @@
 
     <select id="findById" resultType="com.holaclimbing.server.domain.gym.domain.Gym">
         SELECT id, name, address, lat, lng, description, phone, website, thumbnail_url,
-               region_code, rating_avg, rating_count, status, created_by,
+               business_hours, region_code, rating_avg, rating_count, status, created_by,
                created_at, updated_at, deleted_at
         FROM gyms
         WHERE id = #{id} AND status = 'active' AND deleted_at IS NULL
@@ -68,10 +68,16 @@
     <insert id="insertGym" parameterType="com.holaclimbing.server.domain.gym.domain.Gym"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO gyms (name, address, lat, lng, description, phone, website,
-                          region_code, status, created_by)
+                          business_hours, region_code, status, created_by)
         VALUES (#{name}, #{address}, #{lat}, #{lng}, #{description}, #{phone}, #{website},
-                #{regionCode}, #{status}, #{createdBy})
+                #{businessHours}::jsonb, #{regionCode}, #{status}, #{createdBy})
     </insert>
+
+    <update id="updateBusinessHours">
+        UPDATE gyms
+        SET business_hours = #{businessHours}::jsonb, updated_at = NOW()
+        WHERE id = #{gymId}
+    </update>
 
     <insert id="insertPhoto" parameterType="com.holaclimbing.server.domain.gym.domain.GymPhoto"
             useGeneratedKeys="true" keyProperty="id">
