@@ -1,0 +1,28 @@
+# 로컬 관측성 스택 — Prometheus(메트릭 수집) + Grafana(대시보드).
+# 실행: docker compose -f observability/docker-compose.yml up -d
+# Spring 앱은 호스트에서 8080으로 떠 있다고 가정하고, 컨테이너에서 host.docker.internal로 스크래핑한다.
+services:
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: hola-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # Linux 호환 (Mac/Win은 기본 지원)
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: hola-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus

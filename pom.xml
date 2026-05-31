@@ -54,6 +54,20 @@
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 
+		<!-- Micrometer Prometheus 레지스트리: /actuator/prometheus 노출 → Prometheus 스크래핑 -->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- 구조화 로깅(JSON) + MDC: logstash 인코더로 로그를 JSON으로 출력해 집계 도구(Loki/ELK)가 파싱 -->
+		<dependency>
+			<groupId>net.logstash.logback</groupId>
+			<artifactId>logstash-logback-encoder</artifactId>
+			<version>8.0</version>
+		</dependency>
+
 
 		<!-- ========== 캐시/큐 ========== -->
 

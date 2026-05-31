@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  로깅 구성:
+  - 기본(local/dev): 사람이 읽기 좋은 컬러 콘솔 패턴 + [requestId]
+  - json 프로파일: LogstashEncoder로 JSON 한 줄 = 한 로그. Loki/ELK/CloudWatch가 그대로 파싱.
+    운영 실행 예: spring.profiles.active=prod,json
+  requestId는 RequestIdFilter가 MDC에 심는다.
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- 사람이 읽는 콘솔 (기본) -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) [%X{requestId:-no-req}] %cyan(%logger{36}) - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- JSON 콘솔 (집계용) -->
+    <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <customFields>{"app":"hola-climbing-server"}</customFields>
+        </encoder>
+    </appender>
+
+    <springProfile name="json">
+        <root level="INFO">
+            <appender-ref ref="JSON"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!json">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+</configuration>

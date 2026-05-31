@@ -1,0 +1,100 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "schemaVersion": 39,
+  "title": "Hola Climbing Server",
+  "tags": ["hola", "spring-boot"],
+  "time": { "from": "now-30m", "to": "now" },
+  "refresh": "15s",
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "title": "요청 처리율 (req/s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"hola-climbing-server\"}[1m])) by (uri)",
+          "legendFormat": "{{uri}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "5xx 에러율 (req/s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"hola-climbing-server\",status=~\"5..\"}[1m])) by (status)",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "평균 응답시간 (ms)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "1000 * sum(rate(http_server_requests_seconds_sum{application=\"hola-climbing-server\"}[1m])) by (uri) / sum(rate(http_server_requests_seconds_count{application=\"hola-climbing-server\"}[1m])) by (uri)",
+          "legendFormat": "{{uri}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "JVM 힙 사용량",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum(jvm_memory_used_bytes{application=\"hola-climbing-server\",area=\"heap\"})",
+          "legendFormat": "heap used"
+        },
+        {
+          "expr": "sum(jvm_memory_max_bytes{application=\"hola-climbing-server\",area=\"heap\"})",
+          "legendFormat": "heap max"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "HikariCP 커넥션",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "hikaricp_connections_active{application=\"hola-climbing-server\"}",
+          "legendFormat": "active"
+        },
+        {
+          "expr": "hikaricp_connections_idle{application=\"hola-climbing-server\"}",
+          "legendFormat": "idle"
+        },
+        {
+          "expr": "hikaricp_connections_pending{application=\"hola-climbing-server\"}",
+          "legendFormat": "pending"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Tomcat 처리 스레드",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "tomcat_threads_busy_threads{application=\"hola-climbing-server\"}",
+          "legendFormat": "busy"
+        },
+        {
+          "expr": "tomcat_threads_current_threads{application=\"hola-climbing-server\"}",
+          "legendFormat": "current"
+        }
+      ]
+    }
+  ]
+}
