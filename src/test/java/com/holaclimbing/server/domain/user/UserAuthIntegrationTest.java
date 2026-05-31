@@ -182,6 +182,34 @@ class UserAuthIntegrationTest {
     }
 
     @Test
+    @DisplayName("토큰 재발급 회전 — 사용한 refresh 토큰을 다시 쓰면 401 (재사용 탐지)")
+    void refresh_rotation_oldTokenRejected() throws Exception {
+        signup(EMAIL, PASSWORD, NICKNAME).andExpect(status().isCreated());
+        verifyEmailOf(EMAIL);
+        String oldRefresh = dataOf(login(EMAIL, PASSWORD)).path("refreshToken").asText();
+
+        // 1차 회전 — 새 토큰 발급 성공, oldRefresh는 폐기됨.
+        String newRefresh = dataOf(mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RefreshRequest(oldRefresh))))
+                .andExpect(status().isOk())).path("refreshToken").asText();
+        assertThat(newRefresh).isNotBlank().isNotEqualTo(oldRefresh);
+
+        // 폐기된 oldRefresh 재사용 시도 → 401 U005
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RefreshRequest(oldRefresh))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("U005"));
+
+        // 새 refresh 토큰은 정상 동작
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new RefreshRequest(newRefresh))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("토큰 재발급 실패 — Access 토큰을 보내면 401 U005")
     void refresh_withAccessToken_returns401() throws Exception {
         signup(EMAIL, PASSWORD, NICKNAME).andExpect(status().isCreated());

@@ -87,9 +87,22 @@ public class UserServiceImpl implements UserService {
         return issueTokens(user);
     }
 
+    /**
+     * Refresh 토큰 회전(rotation). 토큰을 재발급하면서 사용된 refresh 토큰을 1회용으로 폐기한다.
+     * <ul>
+     *   <li>재사용 탐지: 이미 회전되어 블랙리스트된 refresh 토큰이 다시 들어오면 탈취 신호로 보고 거부.</li>
+     *   <li>회전: 검증을 통과한 refresh 토큰의 jti를 잔여 수명 동안 블랙리스트에 등록 → 같은 토큰 재사용 불가.</li>
+     * </ul>
+     */
     @Override
     public TokenResponse refresh(String refreshToken) {
         if (!parseIsRefreshToken(refreshToken)) {
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
+        }
+        Claims claims = tokenProvider.parseClaims(refreshToken);
+        String jti = claims.getId();
+        // 재사용 탐지 — 이미 회전된(블랙리스트된) refresh 토큰이면 거부.
+        if (tokenBlacklist.contains(jti)) {
             throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
         Long userId = tokenProvider.getUserId(refreshToken);
@@ -97,6 +110,9 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
+        // 회전 — 사용된 refresh 토큰을 잔여 수명 동안 블랙리스트에 등록(1회용).
+        long remainingMs = claims.getExpiration().getTime() - System.currentTimeMillis();
+        tokenBlacklist.blacklist(jti, Duration.ofMillis(remainingMs));
         return issueTokens(user);
     }
 
