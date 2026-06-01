@@ -19,6 +19,7 @@ import com.holaclimbing.server.domain.video.service.VideoService;
 import com.holaclimbing.server.infrastructure.ai.AnalysisStatusStore;
 import com.holaclimbing.server.infrastructure.ai.VideoAnalysisSseService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
@@ -76,7 +77,7 @@ public class VideoController {
     public ApiResponse<CursorPageResponse<VideoSummaryResponse>> getFeed(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String cursor,
-            @RequestParam(defaultValue = "20") @Positive int size) {
+            @RequestParam(defaultValue = "20") @Positive @Max(100) int size) {
         return ApiResponse.success(videoService.getFeed(userId, cursor, size));
     }
 
@@ -154,7 +155,7 @@ public class VideoController {
     public ApiResponse<PageResponse<CommentResponse>> getComments(
             @PathVariable Long videoId,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Positive int size) {
+            @RequestParam(defaultValue = "20") @Positive @Max(100) int size) {
         return ApiResponse.success(commentService.getComments(videoId, page, size));
     }
 }

@@ -9,6 +9,7 @@ import com.holaclimbing.server.domain.user.dto.response.UserProfileResponse;
 import com.holaclimbing.server.domain.user.dto.response.UserSummaryResponse;
 import com.holaclimbing.server.domain.user.service.UserProfileService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
@@ -58,7 +59,7 @@ public class UserProfileController {
     public ApiResponse<PageResponse<UserSummaryResponse>> getBlockedUsers(
             @AuthenticationPrincipal Long userId,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Positive int size) {
+            @RequestParam(defaultValue = "20") @Positive @Max(100) int size) {
         return ApiResponse.success(userProfileService.getBlockedUsers(userId, page, size));
     }
 
@@ -72,7 +73,7 @@ public class UserProfileController {
     public ApiResponse<PageResponse<UserSummaryResponse>> getFollowers(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Positive int size) {
+            @RequestParam(defaultValue = "20") @Positive @Max(100) int size) {
         return ApiResponse.success(userProfileService.getFollowers(userId, page, size));
     }
 
@@ -80,7 +81,7 @@ public class UserProfileController {
     public ApiResponse<PageResponse<UserSummaryResponse>> getFollowing(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Positive int size) {
+            @RequestParam(defaultValue = "20") @Positive @Max(100) int size) {
         return ApiResponse.success(userProfileService.getFollowing(userId, page, size));
     }
 

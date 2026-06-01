@@ -4,6 +4,7 @@ import com.holaclimbing.server.common.response.ApiResponse;
 import com.holaclimbing.server.common.response.PageResponse;
 import com.holaclimbing.server.domain.recommendation.dto.response.RecommendedVideoResponse;
 import com.holaclimbing.server.domain.recommendation.service.RecommendationService;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +30,7 @@ public class RecommendationController {
     public ApiResponse<PageResponse<RecommendedVideoResponse>> getVideoFeed(
             @AuthenticationPrincipal Long userId,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Positive int size) {
+            @RequestParam(defaultValue = "20") @Positive @Max(100) int size) {
         return ApiResponse.success(recommendationService.getVideoFeed(userId, page, size));
     }
 }

@@ -5,6 +5,7 @@ import com.holaclimbing.server.common.response.PageResponse;
 import com.holaclimbing.server.domain.chat.dto.response.ChatMessageResponse;
 import com.holaclimbing.server.domain.chat.dto.response.ChatRoomResponse;
 import com.holaclimbing.server.domain.chat.service.ChatService;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +40,7 @@ public class ChatController {
     public ApiResponse<PageResponse<ChatMessageResponse>> getMessages(
             @PathVariable Long gymId,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "30") @Positive int size) {
+            @RequestParam(defaultValue = "30") @Positive @Max(100) int size) {
         return ApiResponse.success(chatService.getMessages(gymId, page, size));
     }
 }

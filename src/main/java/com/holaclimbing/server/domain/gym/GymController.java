@@ -13,6 +13,7 @@ import com.holaclimbing.server.domain.gym.service.GymService;
 import com.holaclimbing.server.domain.video.dto.response.VideoSummaryResponse;
 import com.holaclimbing.server.domain.video.service.VideoService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
@@ -48,7 +49,7 @@ public class GymController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String region,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Positive int size) {
+            @RequestParam(defaultValue = "20") @Positive @Max(100) int size) {
         return ApiResponse.success(gymService.searchGyms(keyword, region, page, size));
     }
 
@@ -57,7 +58,7 @@ public class GymController {
             @RequestParam double lat,
             @RequestParam double lng,
             @RequestParam(defaultValue = "5") @Positive double radius,
-            @RequestParam(defaultValue = "20") @Positive int size) {
+            @RequestParam(defaultValue = "20") @Positive @Max(100) int size) {
         return ApiResponse.success(gymService.findNearbyGyms(lat, lng, radius, size));
     }
 
@@ -70,7 +71,7 @@ public class GymController {
     public ApiResponse<PageResponse<VideoSummaryResponse>> getGymVideos(
             @PathVariable Long gymId,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Positive int size) {
+            @RequestParam(defaultValue = "20") @Positive @Max(100) int size) {
         return ApiResponse.success(videoService.getGymVideos(gymId, page, size));
     }
 

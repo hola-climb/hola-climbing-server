@@ -7,6 +7,7 @@ import com.holaclimbing.server.domain.gym.dto.request.UpdateReviewRequest;
 import com.holaclimbing.server.domain.gym.dto.response.GymReviewResponse;
 import com.holaclimbing.server.domain.gym.service.GymReviewService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
@@ -48,7 +49,7 @@ public class GymReviewController {
     public ApiResponse<PageResponse<GymReviewResponse>> getReviews(
             @PathVariable Long gymId,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Positive int size) {
+            @RequestParam(defaultValue = "20") @Positive @Max(100) int size) {
         return ApiResponse.success(gymReviewService.getReviews(gymId, page, size));
     }
 

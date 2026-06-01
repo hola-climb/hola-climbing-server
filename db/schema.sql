@@ -206,7 +206,8 @@ CREATE TABLE videos (
 CREATE INDEX idx_videos_user        ON videos(user_id, created_at DESC);
 CREATE INDEX idx_videos_gym         ON videos(gym_id);
 CREATE INDEX idx_videos_status      ON videos(status);
-CREATE INDEX idx_videos_public_feed ON videos(created_at DESC) WHERE is_public = TRUE AND deleted_at IS NULL;
+-- 커서 피드는 id DESC keyset로 페이징하므로 id 기준 부분 인덱스를 쓴다 (id는 BIGSERIAL = 최신순).
+CREATE INDEX idx_videos_public_feed ON videos(id DESC) WHERE is_public = TRUE AND deleted_at IS NULL;
 
 
 CREATE TABLE comments (
