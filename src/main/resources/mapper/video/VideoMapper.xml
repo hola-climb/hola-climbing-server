@@ -26,26 +26,6 @@
         WHERE id = #{id} AND deleted_at IS NULL
     </select>
 
-    <select id="findFeed" resultType="com.holaclimbing.server.domain.video.domain.Video">
-        SELECT <include refid="columns"/>
-        FROM videos
-        WHERE is_public = TRUE AND deleted_at IS NULL AND status &lt;&gt; 'failed'
-        <if test="userId != null">
-            AND user_id = #{userId}
-        </if>
-        ORDER BY created_at DESC, id DESC
-        LIMIT #{size} OFFSET #{offset}
-    </select>
-
-    <select id="countFeed" resultType="long">
-        SELECT COUNT(*)
-        FROM videos
-        WHERE is_public = TRUE AND deleted_at IS NULL AND status &lt;&gt; 'failed'
-        <if test="userId != null">
-            AND user_id = #{userId}
-        </if>
-    </select>
-
     <!-- 커서 keyset 스캔: id는 BIGSERIAL이라 created_at DESC와 동일 순서. cursorId보다 작은 id부터. -->
     <select id="findFeedByCursor" resultType="com.holaclimbing.server.domain.video.domain.Video">
         SELECT <include refid="columns"/>

@@ -15,14 +15,6 @@ public interface VideoMapper {
     /** 영상 단건 조회 (soft-delete 제외). 없으면 null. */
     Video findById(Long id);
 
-    /** 공개 피드 — is_public이고 삭제/실패 상태가 아닌 영상 (최신순). userId가 있으면 해당 업로더로 필터. */
-    List<Video> findFeed(@Param("userId") Long userId,
-                         @Param("size") int size,
-                         @Param("offset") int offset);
-
-    /** findFeed 결과 총 개수. */
-    long countFeed(@Param("userId") Long userId);
-
     /**
      * 커서 기반 공개 피드. id 내림차순 keyset 스캔.
      * cursorId가 null이면 첫 페이지, 아니면 id가 cursorId보다 작은 것부터.
