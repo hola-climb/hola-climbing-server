@@ -4,6 +4,7 @@ import com.holaclimbing.server.common.exception.BusinessException;
 import com.holaclimbing.server.common.exception.error.ErrorCode;
 import com.holaclimbing.server.common.security.JwtTokenProvider;
 import com.holaclimbing.server.common.security.TokenBlacklist;
+import com.holaclimbing.server.common.security.UserTokenRevoker;
 import com.holaclimbing.server.domain.terms.service.TermsService;
 import com.holaclimbing.server.domain.user.domain.User;
 import com.holaclimbing.server.domain.user.dto.request.LoginRequest;
@@ -39,6 +40,7 @@ public class UserServiceImpl implements UserService {
     private final VerificationEmailSender emailSender;
     private final StringRedisTemplate redis;
     private final TokenBlacklist tokenBlacklist;
+    private final UserTokenRevoker userTokenRevoker;
     private final TermsService termsService;
 
     @Override
@@ -156,7 +158,11 @@ public class UserServiceImpl implements UserService {
         if (userId == null) {
             throw new BusinessException(ErrorCode.INVALID_RESET_TOKEN);
         }
-        userMapper.updatePassword(Long.valueOf(userId), passwordEncoder.encode(newPassword));
+        Long id = Long.valueOf(userId);
+        userMapper.updatePassword(id, passwordEncoder.encode(newPassword));
+        // 비밀번호 변경 → 기존에 발급된 모든 access/refresh 토큰 즉시 무효화.
+        // 탈취된 계정 복구 시나리오에서 공격자의 잔여 토큰을 차단한다.
+        userTokenRevoker.revokeAllFor(id);
         redis.delete(key);
     }
 

@@ -3,6 +3,7 @@ package com.holaclimbing.server.common.security;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.holaclimbing.server.common.exception.error.ErrorCode;
 import com.holaclimbing.server.common.response.ApiResponse;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -42,6 +43,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider tokenProvider;
     private final ObjectMapper objectMapper;
     private final TokenBlacklist tokenBlacklist;
+    private final UserTokenRevoker userTokenRevoker;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -54,17 +56,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         try {
-            if (!tokenProvider.isAccessToken(token)) {
+            // 한 번만 parseClaims로 검증 + 클레임 추출 (HMAC 검증을 3중복 호출하던 부분 정리).
+            Claims claims = tokenProvider.parseClaims(token);
+            if (!JwtTokenProvider.TYPE_ACCESS.equals(claims.get(JwtTokenProvider.CLAIM_TYPE, String.class))) {
                 sendError(response, ErrorCode.INVALID_TOKEN);
                 return;
             }
-            if (tokenBlacklist.contains(tokenProvider.getJti(token))) {
+            if (tokenBlacklist.contains(claims.getId())) {
                 log.debug("Blacklisted JWT (logged out)");
                 sendError(response, ErrorCode.INVALID_TOKEN);
                 return;
             }
 
-            Long userId = tokenProvider.getUserId(token);
+            Long userId = Long.parseLong(claims.getSubject());
+            // 비밀번호 재설정·탈퇴 등으로 사용자 단위 revoke가 표시돼 있고 토큰 iat가 그보다 이르면 거부.
+            long issuedAtSec = claims.getIssuedAt().toInstant().getEpochSecond();
+            if (userTokenRevoker.isRevoked(userId, issuedAtSec)) {
+                log.debug("Revoked JWT (user-level invalidation) — userId={}", userId);
+                sendError(response, ErrorCode.INVALID_TOKEN);
+                return;
+            }
+
             var auth = new UsernamePasswordAuthenticationToken(
                     userId, null, List.of(new SimpleGrantedAuthority(ROLE_USER)));
             auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

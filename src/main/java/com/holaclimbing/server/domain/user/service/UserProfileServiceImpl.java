@@ -9,6 +9,7 @@ import com.holaclimbing.server.domain.user.dto.response.MyProfileResponse;
 import com.holaclimbing.server.domain.user.dto.response.UserProfileResponse;
 import com.holaclimbing.server.domain.user.dto.response.UserSummaryResponse;
 import com.holaclimbing.server.domain.notification.service.NotificationService;
+import com.holaclimbing.server.common.security.UserTokenRevoker;
 import com.holaclimbing.server.domain.user.mapper.DeviceTokenMapper;
 import com.holaclimbing.server.domain.user.mapper.FollowMapper;
 import com.holaclimbing.server.domain.user.mapper.UserBlockMapper;
@@ -30,6 +31,7 @@ public class UserProfileServiceImpl implements UserProfileService {
     private final DeviceTokenMapper deviceTokenMapper;
     private final NotificationService notificationService;
     private final PasswordEncoder passwordEncoder;
+    private final UserTokenRevoker userTokenRevoker;
 
     @Override
     public MyProfileResponse getMyProfile(Long userId) {
@@ -140,8 +142,9 @@ public class UserProfileServiceImpl implements UserProfileService {
         }
         // FCM 푸시 차단 — 탈퇴 후에도 디바이스 토큰이 남아 있으면 알림이 계속 도달한다.
         deviceTokenMapper.deleteByUserId(userId);
+        // 활성 access/refresh 토큰을 사용자 단위로 즉시 무효화.
+        userTokenRevoker.revokeAllFor(userId);
         // PII 익명화 — UNIQUE(email)/UNIQUE(nickname) 제약 해제로 동일 이메일/닉네임 재가입 허용.
-        // 참고: 발급된 access/refresh 토큰은 별도 작업(#H 토큰 무효화)에서 처리한다.
         userMapper.anonymize(userId,
                 "deleted_" + userId + "@removed.local",
                 "deleted_" + userId);

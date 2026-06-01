@@ -23,10 +23,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JwtTokenProvider {
 
-    private static final String CLAIM_TYPE = "type";
-    private static final String CLAIM_EMAIL = "email";
-    private static final String TYPE_ACCESS = "access";
-    private static final String TYPE_REFRESH = "refresh";
+    public static final String CLAIM_TYPE = "type";
+    public static final String CLAIM_EMAIL = "email";
+    public static final String TYPE_ACCESS = "access";
+    public static final String TYPE_REFRESH = "refresh";
 
     private final JwtProperties props;
     private SecretKey key;
