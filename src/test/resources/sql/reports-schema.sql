@@ -13,5 +13,6 @@ CREATE TABLE reports (
     status          VARCHAR(20) NOT NULL DEFAULT 'pending',
     reviewed_by     BIGINT REFERENCES users(id),
     reviewed_at     TIMESTAMP,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE (reporter_id, target_type, target_id)
 );

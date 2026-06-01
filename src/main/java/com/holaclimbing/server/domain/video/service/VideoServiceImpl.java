@@ -162,10 +162,11 @@ public class VideoServiceImpl implements VideoService {
     @Transactional
     public LikeResponse likeVideo(Long userId, Long videoId) {
         Video video = findActiveVideo(videoId);
-        if (likeMapper.exists(userId, videoId)) {
+        // ON CONFLICT DO NOTHING으로 안전화. inserted == 0이면 이미 좋아요 상태였음.
+        int inserted = likeMapper.insert(userId, videoId);
+        if (inserted == 0) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "이미 좋아요한 영상입니다.");
         }
-        likeMapper.insert(userId, videoId);
         videoMapper.incrementLikeCount(videoId);
         notificationService.notifyLike(video.getUserId(), userId, videoId);
         return new LikeResponse(true, videoMapper.findById(videoId).getLikeCount());

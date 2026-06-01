@@ -37,8 +37,10 @@ public class ChatServiceImpl implements ChatService {
         }
         ChatRoom room = chatMapper.findRoomByGymId(gymId);
         if (room == null) {
-            room = ChatRoom.builder().gymId(gymId).build();
-            chatMapper.insertRoom(room);
+            ChatRoom candidate = ChatRoom.builder().gymId(gymId).build();
+            chatMapper.insertRoom(candidate);
+            // ON CONFLICT DO NOTHING — 다른 트랜잭션이 먼저 만들었으면 id가 안 채워진다. 재조회로 정합.
+            room = candidate.getId() != null ? candidate : chatMapper.findRoomByGymId(gymId);
         }
         chatMapper.insertMember(ChatRoomMember.builder()
                 .roomId(room.getId())

@@ -2,9 +2,14 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.holaclimbing.server.domain.video.mapper.LikeMapper">
 
+    <!--
+      ON CONFLICT DO NOTHING으로 같은 (user_id, video_id) 중복 INSERT를 안전화한다.
+      반환되는 영향 행 수(0 또는 1)로 신규 좋아요인지 중복인지를 서비스가 분기한다.
+    -->
     <insert id="insert">
         INSERT INTO likes (user_id, video_id)
         VALUES (#{userId}, #{videoId})
+        ON CONFLICT (user_id, video_id) DO NOTHING
     </insert>
 
     <delete id="delete">

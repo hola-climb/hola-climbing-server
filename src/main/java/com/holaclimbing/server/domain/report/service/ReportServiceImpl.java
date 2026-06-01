@@ -12,6 +12,7 @@ import com.holaclimbing.server.domain.video.domain.Video;
 import com.holaclimbing.server.domain.video.mapper.CommentMapper;
 import com.holaclimbing.server.domain.video.mapper.VideoMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,7 +53,12 @@ public class ReportServiceImpl implements ReportService {
                 .category(request.category())
                 .reason(request.reason())
                 .build();
-        reportMapper.insert(report);
+        try {
+            reportMapper.insert(report);
+        } catch (DuplicateKeyException e) {
+            // existsByReporterAndTarget 검사와 race가 발생해도 DB UNIQUE가 막아준다.
+            throw new BusinessException(ErrorCode.ALREADY_REPORTED);
+        }
         return ReportResponse.of(report);
     }
 

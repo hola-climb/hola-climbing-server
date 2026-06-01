@@ -14,10 +14,15 @@
         WHERE id = #{id}
     </select>
 
+    <!--
+      chat_rooms.gym_id는 UNIQUE이므로 동시 join 시 두 번째 INSERT가 실패한다.
+      ON CONFLICT DO NOTHING으로 안전하게 만들고, 서비스는 conflict 시 findRoomByGymId로 재조회한다.
+    -->
     <insert id="insertRoom" parameterType="com.holaclimbing.server.domain.chat.domain.ChatRoom"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO chat_rooms (gym_id, name)
         VALUES (#{gymId}, #{name})
+        ON CONFLICT (gym_id) DO NOTHING
     </insert>
 
     <select id="findMember" resultType="com.holaclimbing.server.domain.chat.domain.ChatRoomMember">

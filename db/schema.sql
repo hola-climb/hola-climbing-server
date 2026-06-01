@@ -309,7 +309,9 @@ CREATE TABLE reports (
     status          VARCHAR(20) NOT NULL DEFAULT 'pending',  -- 'pending' | 'reviewed' | 'resolved' | 'rejected'
     reviewed_by     BIGINT REFERENCES users(id),
     reviewed_at     TIMESTAMP,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    -- 동일 신고자가 같은 대상을 중복 신고 불가 (서비스의 existsByReporterAndTarget 검사와 race가 나도 DB에서 차단).
+    UNIQUE (reporter_id, target_type, target_id)
 );
 CREATE INDEX idx_reports_target ON reports(target_type, target_id);
 CREATE INDEX idx_reports_status ON reports(status, created_at DESC);
