@@ -61,6 +61,8 @@ server:
   tomcat:
     connection-timeout: 30s
     max-swallow-size: 500MB   # 영상 업로드 대비
+    mbeanregistry:
+      enabled: true   # tomcat_threads_* 메트릭 노출 (요청 스레드 포화도 모니터링)
 
 # Actuator 노출 범위
 management:
