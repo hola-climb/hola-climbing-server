@@ -98,6 +98,17 @@ class GymIntegrationTest {
     }
 
     @Test
+    @Sql(scripts = {"classpath:sql/gyms-schema.sql", "classpath:sql/gyms-data.sql"},
+            statements = "INSERT INTO gyms (id, name, address, lat, lng, region_code, rating_avg, rating_count, status) VALUES (6, 'Floating Edge Gym', 'Antipode Edge', 87.5, 0.0, 'edge', 0.00, 0, 'active')")
+    @DisplayName("근처 암장 — 거리 계산 하한 수치 오차가 있어도 500이 나지 않는다")
+    void findNearby_antipodalFloatingPointEdge_returnsOk() throws Exception {
+        mockMvc.perform(get("/api/gyms/nearby")
+                        .param("lat", "-87.5").param("lng", "-180").param("radius", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
     @DisplayName("근처 암장 — 위도 범위를 벗어난 좌표는 400")
     void findNearby_invalidLatitude_returns400() throws Exception {
         mockMvc.perform(get("/api/gyms/nearby")

@@ -52,11 +52,11 @@
         SELECT id, name, address, thumbnail_url, region_code, rating_avg, rating_count, lat, lng
         FROM (
             SELECT <include refid="summaryColumns"/>, lat, lng,
-                   6371 * acos(LEAST(1.0,
+                   6371 * acos(GREATEST(-1.0, LEAST(1.0,
                        cos(radians(#{lat})) * cos(radians(lat))
                        * cos(radians(lng) - radians(#{lng}))
                        + sin(radians(#{lat})) * sin(radians(lat))
-                   )) AS distance_km
+                   ))) AS distance_km
             FROM gyms
             WHERE lat IS NOT NULL AND lng IS NOT NULL
               AND status = 'active' AND deleted_at IS NULL
