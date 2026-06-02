@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -51,6 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class VideoIntegrationTest {
 
     private static final String PASSWORD = "password123";
+    private static final LocalDate RECORDED_DATE = LocalDate.of(2026, 6, 3);
 
     @Autowired
     private MockMvc mockMvc;
@@ -66,7 +68,7 @@ class VideoIntegrationTest {
     void createVideo_foreignObjectPath_returns403() throws Exception {
         String token = register("a@hola.com", "climberone");
         var bad = new CreateVideoRequest(null, "stolen", null, null,
-                "videos/uploads/9999/owned-by-someone-else.mp4", null, 45, true);
+                "videos/uploads/9999/owned-by-someone-else.mp4", null, 45, RECORDED_DATE, true);
         mockMvc.perform(post("/api/videos")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -90,7 +92,7 @@ class VideoIntegrationTest {
         String token = register("a@hola.com", "climberone");
 
         var req = new CreateVideoRequest(null, "My Send", "a clean ascent", "V5",
-                ownedObjectPath(token), null, 45, true);
+                ownedObjectPath(token), null, 45, RECORDED_DATE, true);
         mockMvc.perform(post("/api/videos")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -99,8 +101,46 @@ class VideoIntegrationTest {
                 .andExpect(jsonPath("$.data.id").isNumber())
                 .andExpect(jsonPath("$.data.status").value("pending"))
                 .andExpect(jsonPath("$.data.streamUrl").exists())
+                .andExpect(jsonPath("$.data.recordedDate").value("2026-06-03"))
                 .andExpect(jsonPath("$.data.viewCount").value(0))
                 .andExpect(jsonPath("$.data.isPublic").value(true));
+    }
+
+    @Test
+    @DisplayName("영상 등록 성공 — 사용자가 입력한 촬영일을 저장하고 반환한다")
+    void createVideo_withRecordedDate_returnsRecordedDate() throws Exception {
+        String token = register("a@hola.com", "climberone");
+
+        var body = java.util.Map.of(
+                "objectPath", ownedObjectPath(token),
+                "title", "MoonBoard session",
+                "recordedDate", "2026-06-03",
+                "isPublic", true
+        );
+        mockMvc.perform(post("/api/videos")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.recordedDate").value("2026-06-03"));
+    }
+
+    @Test
+    @DisplayName("영상 등록 실패 — 촬영일(recordedDate)을 누락하면 400")
+    void createVideo_withoutRecordedDate_returns400() throws Exception {
+        String token = register("a@hola.com", "climberone");
+
+        var body = java.util.Map.of(
+                "objectPath", ownedObjectPath(token),
+                "title", "MoonBoard session",
+                "isPublic", true
+        );
+        mockMvc.perform(post("/api/videos")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("C001"));
     }
 
     @Test
@@ -437,7 +477,7 @@ class VideoIntegrationTest {
         String token = register("a@hola.com", "climberone");
         for (int i = 0; i < 2; i++) {
             var gymVideo = new CreateVideoRequest(1L, "gym clip", "desc", "V4",
-                    ownedObjectPath(token), null, 30, true);
+                    ownedObjectPath(token), null, 30, RECORDED_DATE, true);
             mockMvc.perform(post("/api/videos")
                             .header("Authorization", "Bearer " + token)
                             .contentType(MediaType.APPLICATION_JSON)
@@ -503,7 +543,7 @@ class VideoIntegrationTest {
     private CreateVideoRequest videoRequest(boolean isPublic) throws Exception {
         // upload-url 발급(자기 소유 prefix)을 거친 objectPath를 사용해야 createVideo가 통과한다.
         return new CreateVideoRequest(null, "My Send", "a clean ascent", "V5",
-                "REPLACE", null, 45, isPublic);
+                "REPLACE", null, 45, RECORDED_DATE, isPublic);
     }
 
     /** 자기 소유 prefix(videos/uploads/{userId}/)에 해당하는 objectPath를 upload-url API로 발급받는다. */
@@ -535,7 +575,7 @@ class VideoIntegrationTest {
 
     private long createVideo(String token, boolean isPublic) throws Exception {
         var req = new CreateVideoRequest(null, "My Send", "a clean ascent", "V5",
-                ownedObjectPath(token), null, 45, isPublic);
+                ownedObjectPath(token), null, 45, RECORDED_DATE, isPublic);
         return dataOf(mockMvc.perform(post("/api/videos")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)

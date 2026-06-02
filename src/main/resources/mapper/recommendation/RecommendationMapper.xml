@@ -6,7 +6,7 @@
     <select id="findFeedVideos" resultType="com.holaclimbing.server.domain.video.domain.Video">
         SELECT v.id, v.user_id, v.gym_id, v.title, v.description, v.grade,
                v.gcs_path, v.gcs_streaming_path, v.thumbnail_path,
-               v.duration_seconds, v.file_size_bytes, v.mime_type,
+               v.duration_seconds, v.recorded_date, v.file_size_bytes, v.mime_type,
                v.view_count, v.like_count, v.comment_count, v.status, v.is_public,
                v.created_at, v.updated_at, v.deleted_at
         FROM videos v

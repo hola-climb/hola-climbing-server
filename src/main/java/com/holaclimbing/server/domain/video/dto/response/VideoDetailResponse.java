@@ -2,6 +2,7 @@ package com.holaclimbing.server.domain.video.dto.response;
 
 import com.holaclimbing.server.domain.video.domain.Video;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public record VideoDetailResponse(
@@ -16,6 +17,7 @@ public record VideoDetailResponse(
         String thumbnailPath,
         String streamUrl,
         Integer durationSeconds,
+        LocalDate recordedDate,
         String status,
         boolean isPublic,
         int viewCount,
@@ -31,7 +33,7 @@ public record VideoDetailResponse(
                 video.getId(), video.getUserId(), video.getGymId(), video.getTitle(),
                 video.getDescription(), video.getGrade(), video.getGcsPath(),
                 video.getGcsStreamingPath(), video.getThumbnailPath(), streamUrl,
-                video.getDurationSeconds(), video.getStatus(), video.isPublic(),
+                video.getDurationSeconds(), video.getRecordedDate(), video.getStatus(), video.isPublic(),
                 video.getViewCount(), video.getLikeCount(), video.getCommentCount(),
                 isLiked, video.getCreatedAt(), video.getUpdatedAt());
     }

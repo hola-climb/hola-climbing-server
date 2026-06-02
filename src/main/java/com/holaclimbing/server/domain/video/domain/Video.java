@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -26,6 +27,7 @@ public class Video {
     private String gcsStreamingPath;
     private String thumbnailPath;
     private Integer durationSeconds;
+    private LocalDate recordedDate;
     private Long fileSizeBytes;
     private String mimeType;
     private int viewCount;

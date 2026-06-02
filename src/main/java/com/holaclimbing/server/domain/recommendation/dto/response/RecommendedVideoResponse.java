@@ -2,6 +2,7 @@ package com.holaclimbing.server.domain.recommendation.dto.response;
 
 import com.holaclimbing.server.domain.video.domain.Video;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -16,6 +17,7 @@ public record RecommendedVideoResponse(
         String thumbnailPath,
         String streamUrl,
         Integer durationSeconds,
+        LocalDate recordedDate,
         int viewCount,
         int likeCount,
         int commentCount,
@@ -25,7 +27,7 @@ public record RecommendedVideoResponse(
     public static RecommendedVideoResponse of(Video video, String streamUrl, String source) {
         return new RecommendedVideoResponse(
                 video.getId(), video.getUserId(), video.getGymId(), video.getTitle(), video.getGrade(),
-                video.getThumbnailPath(), streamUrl, video.getDurationSeconds(), video.getViewCount(),
+                video.getThumbnailPath(), streamUrl, video.getDurationSeconds(), video.getRecordedDate(), video.getViewCount(),
                 video.getLikeCount(), video.getCommentCount(), source, video.getCreatedAt());
     }
 }

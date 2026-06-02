@@ -99,7 +99,7 @@ class RecommendationIntegrationTest {
                 .andExpect(status().isOk())).path("userId").asLong();
         String path = "videos/uploads/" + userId + "/test-" + java.util.UUID.randomUUID() + ".mp4";
         var request = new CreateVideoRequest(null, "feed clip", "desc", "V4",
-                path, null, 30, true);
+                path, null, 30, java.time.LocalDate.of(2026, 6, 3), true);
         mockMvc.perform(post("/api/videos")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)

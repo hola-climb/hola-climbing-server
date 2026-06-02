@@ -16,6 +16,7 @@ CREATE TABLE videos (
     gcs_streaming_path  VARCHAR(500),
     thumbnail_path      VARCHAR(500),
     duration_seconds    INTEGER,
+    recorded_date       DATE NOT NULL,
     file_size_bytes     BIGINT,
     mime_type           VARCHAR(50),
     view_count          INTEGER NOT NULL DEFAULT 0,

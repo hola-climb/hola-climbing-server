@@ -78,21 +78,21 @@ INSERT INTO climbing_logs (id, user_id, gym_id, climbed_on, grade_counts, memo) 
 ON CONFLICT DO NOTHING;
 
 -- ---------- 4) 영상 (피드) — status='analyzed'라야 피드 노출, gcs_path는 더미 ----------
-INSERT INTO videos (id, user_id, gym_id, title, description, grade, gcs_path, duration_seconds,
+INSERT INTO videos (id, user_id, gym_id, title, description, grade, gcs_path, duration_seconds, recorded_date,
                     status, is_public, created_at) VALUES
-(9001, 9001, 9001, '강남 빨강 완등',   '오늘의 베스트', 'V5', 'videos/seed/v9001.mp4', 42, 'analyzed', TRUE, NOW() - INTERVAL '1 day'),
-(9002, 9001, 9001, '파랑 연습',         NULL,           'V3', 'videos/seed/v9002.mp4', 30, 'analyzed', TRUE, NOW() - INTERVAL '5 days'),
-(9003, 9001, 9002, '홍대 원정 클립',   '홍대 다녀옴',   'V4', 'videos/seed/v9003.mp4', 51, 'analyzed', FALSE, NOW() - INTERVAL '9 days'),
-(9004, 9002, 9002, '주말 세션',         NULL,           'V4', 'videos/seed/v9004.mp4', 38, 'analyzed', TRUE, NOW() - INTERVAL '2 days'),
-(9005, 9002, 9002, '파랑 트라이',       NULL,           'V3', 'videos/seed/v9005.mp4', 27, 'analyzed', TRUE, NOW() - INTERVAL '7 days'),
-(9006, 9003, 9001, '다이노 성공',       '드디어!',      'V6', 'videos/seed/v9006.mp4', 19, 'analyzed', TRUE, NOW() - INTERVAL '3 days'),
-(9007, 9003, 9003, '판교 신상',         NULL,           'V5', 'videos/seed/v9007.mp4', 44, 'analyzed', TRUE, NOW() - INTERVAL '8 days'),
-(9008, 9003, 9001, '빨강 플래시',       NULL,           'V5', 'videos/seed/v9008.mp4', 33, 'analyzed', TRUE, NOW() - INTERVAL '15 days'),
-(9009, 9004, 9002, '슬랩 집중',         '슬랩 좋아',    'V3', 'videos/seed/v9009.mp4', 47, 'analyzed', TRUE, NOW() - INTERVAL '1 day'),
-(9010, 9004, 9002, '초록 마스터',       NULL,           'V2', 'videos/seed/v9010.mp4', 25, 'analyzed', TRUE, NOW() - INTERVAL '6 days'),
-(9011, 9005, 9001, '첫 등반 기록',     '시작!',        'V1', 'videos/seed/v9011.mp4', 22, 'analyzed', TRUE, NOW() - INTERVAL '2 days'),
-(9012, 9005, 9001, '초록 도전',         NULL,           'V2', 'videos/seed/v9012.mp4', 29, 'analyzed', TRUE, NOW() - INTERVAL '5 days'),
-(9013, 9005, 9002, '비공개 연습',       '아직 미공개',  'V1', 'videos/seed/v9013.mp4', 31, 'analyzed', FALSE, NOW() - INTERVAL '11 days')
+(9001, 9001, 9001, '강남 빨강 완등',   '오늘의 베스트', 'V5', 'videos/seed/v9001.mp4', 42, CURRENT_DATE - 1,  'analyzed', TRUE, NOW() - INTERVAL '1 day'),
+(9002, 9001, 9001, '파랑 연습',         NULL,           'V3', 'videos/seed/v9002.mp4', 30, CURRENT_DATE - 5,  'analyzed', TRUE, NOW() - INTERVAL '5 days'),
+(9003, 9001, 9002, '홍대 원정 클립',   '홍대 다녀옴',   'V4', 'videos/seed/v9003.mp4', 51, CURRENT_DATE - 9,  'analyzed', FALSE, NOW() - INTERVAL '9 days'),
+(9004, 9002, 9002, '주말 세션',         NULL,           'V4', 'videos/seed/v9004.mp4', 38, CURRENT_DATE - 2,  'analyzed', TRUE, NOW() - INTERVAL '2 days'),
+(9005, 9002, 9002, '파랑 트라이',       NULL,           'V3', 'videos/seed/v9005.mp4', 27, CURRENT_DATE - 7,  'analyzed', TRUE, NOW() - INTERVAL '7 days'),
+(9006, 9003, 9001, '다이노 성공',       '드디어!',      'V6', 'videos/seed/v9006.mp4', 19, CURRENT_DATE - 3,  'analyzed', TRUE, NOW() - INTERVAL '3 days'),
+(9007, 9003, 9003, '판교 신상',         NULL,           'V5', 'videos/seed/v9007.mp4', 44, CURRENT_DATE - 8,  'analyzed', TRUE, NOW() - INTERVAL '8 days'),
+(9008, 9003, 9001, '빨강 플래시',       NULL,           'V5', 'videos/seed/v9008.mp4', 33, CURRENT_DATE - 15, 'analyzed', TRUE, NOW() - INTERVAL '15 days'),
+(9009, 9004, 9002, '슬랩 집중',         '슬랩 좋아',    'V3', 'videos/seed/v9009.mp4', 47, CURRENT_DATE - 1,  'analyzed', TRUE, NOW() - INTERVAL '1 day'),
+(9010, 9004, 9002, '초록 마스터',       NULL,           'V2', 'videos/seed/v9010.mp4', 25, CURRENT_DATE - 6,  'analyzed', TRUE, NOW() - INTERVAL '6 days'),
+(9011, 9005, 9001, '첫 등반 기록',     '시작!',        'V1', 'videos/seed/v9011.mp4', 22, CURRENT_DATE - 2,  'analyzed', TRUE, NOW() - INTERVAL '2 days'),
+(9012, 9005, 9001, '초록 도전',         NULL,           'V2', 'videos/seed/v9012.mp4', 29, CURRENT_DATE - 5,  'analyzed', TRUE, NOW() - INTERVAL '5 days'),
+(9013, 9005, 9002, '비공개 연습',       '아직 미공개',  'V1', 'videos/seed/v9013.mp4', 31, CURRENT_DATE - 11, 'analyzed', FALSE, NOW() - INTERVAL '11 days')
 ON CONFLICT DO NOTHING;
 
 -- ---------- 5) 암장 리뷰 (사용자당 암장 1개 — UNIQUE(gym_id,user_id)) ----------

@@ -303,7 +303,8 @@ class NotificationIntegrationTest {
                 .header("Authorization", "Bearer " + ownerToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new CreateVideoRequest(
-                        null, "My Send", "desc", "V5", path, null, 45, true))))
+                        null, "My Send", "desc", "V5", path, null, 45,
+                        java.time.LocalDate.of(2026, 6, 3), true))))
                 .andExpect(status().isCreated()))
                 .path("id").asLong();
     }

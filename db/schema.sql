@@ -190,6 +190,7 @@ CREATE TABLE videos (
     thumbnail_path      VARCHAR(500),
     -- 영상 메타
     duration_seconds    INTEGER,
+    recorded_date       DATE NOT NULL,
     file_size_bytes     BIGINT,
     mime_type           VARCHAR(50),
     -- 카운터 (캐싱)

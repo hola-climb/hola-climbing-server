@@ -88,6 +88,7 @@ public class VideoServiceImpl implements VideoService {
                 .gcsPath(request.objectPath())
                 .thumbnailPath(request.thumbnailPath())
                 .durationSeconds(request.durationSeconds())
+                .recordedDate(request.recordedDate())
                 .status(STATUS_PENDING)
                 .isPublic(request.isPublic() == null || request.isPublic())
                 .build();

@@ -221,7 +221,7 @@ class AnalysisIntegrationTest {
                 .andExpect(status().isOk())).path("userId").asLong();
         String path = "videos/uploads/" + userId + "/test-" + java.util.UUID.randomUUID() + ".mp4";
         var request = new CreateVideoRequest(null, "My Send", "a clean ascent", "V5",
-                path, null, 45, true);
+                path, null, 45, java.time.LocalDate.of(2026, 6, 3), true);
         return dataOf(mockMvc.perform(post("/api/videos")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
