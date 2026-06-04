@@ -1,5 +1,8 @@
 package com.holaclimbing.server.common.security;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.server.ServerHttpRequest;
@@ -28,6 +31,8 @@ public class StompHandshakeInterceptor implements HandshakeInterceptor {
     private static final String TOKEN_PARAM = "token=";
 
     private final JwtTokenProvider tokenProvider;
+    private final TokenBlacklist tokenBlacklist;
+    private final UserTokenRevoker userTokenRevoker;
 
     @Override
     public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response,
@@ -37,11 +42,31 @@ public class StompHandshakeInterceptor implements HandshakeInterceptor {
             return false;
         }
         try {
-            if (!tokenProvider.isAccessToken(token)) {
+            Claims claims = tokenProvider.parseClaims(token);
+            if (!JwtTokenProvider.TYPE_ACCESS.equals(claims.get(JwtTokenProvider.CLAIM_TYPE, String.class))) {
                 return false;
             }
-            attributes.put(SESSION_USER_ID, tokenProvider.getUserId(token));
+
+            if (tokenBlacklist.contains(claims.getId())) {
+                log.debug("WebSocket 핸드셰이크 JWT 검증 실패: blacklisted token");
+                return false;
+            }
+
+            Long userId = Long.parseLong(claims.getSubject());
+            long issuedAtSec = claims.getIssuedAt().toInstant().getEpochSecond();
+            if (userTokenRevoker.isRevoked(userId, issuedAtSec)) {
+                log.debug("WebSocket 핸드셰이크 JWT 검증 실패: revoked token — userId={}", userId);
+                return false;
+            }
+
+            attributes.put(SESSION_USER_ID, userId);
             return true;
+        } catch (ExpiredJwtException e) {
+            log.debug("WebSocket 핸드셰이크 JWT 검증 실패: expired token");
+            return false;
+        } catch (JwtException | IllegalArgumentException e) {
+            log.debug("WebSocket 핸드셰이크 JWT 검증 실패: {}", e.getMessage());
+            return false;
         } catch (RuntimeException e) {
             log.debug("WebSocket 핸드셰이크 JWT 검증 실패: {}", e.getMessage());
             return false;

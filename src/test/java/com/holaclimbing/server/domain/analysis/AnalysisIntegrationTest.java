@@ -97,6 +97,42 @@ class AnalysisIntegrationTest {
     }
 
     @Test
+    @DisplayName("결과 수신 — AI 워커 snake_case JSON을 그대로 수신해 저장한다")
+    void ingest_workerSnakeCasePayload_storesSegments() throws Exception {
+        String token = register("a@hola.com", "climberone");
+        long videoId = createVideo(token);
+
+        String workerPayload = """
+                {
+                  "status": "done",
+                  "model_version": "rule_v1",
+                  "segments": [
+                    {
+                      "sequence_index": 0,
+                      "start_time_ms": 0,
+                      "end_time_ms": 1000,
+                      "technique": "highstep",
+                      "is_dynamic": false,
+                      "confidence": 0.91
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/analysis/videos/" + videoId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(workerPayload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("done"))
+                .andExpect(jsonPath("$.data.modelVersion").value("rule_v1"))
+                .andExpect(jsonPath("$.data.segments.length()").value(1))
+                .andExpect(jsonPath("$.data.segments[0].sequenceIndex").value(0))
+                .andExpect(jsonPath("$.data.segments[0].startTimeMs").value(0))
+                .andExpect(jsonPath("$.data.segments[0].endTimeMs").value(1000))
+                .andExpect(jsonPath("$.data.segments[0].isDynamic").value(false));
+    }
+
+    @Test
     @DisplayName("결과 수신 — failed 결과를 받으면 영상 status=failed")
     void ingest_failed_setsStatusFailed() throws Exception {
         String token = register("a@hola.com", "climberone");

@@ -84,6 +84,28 @@ class AnalysisInfraIntegrationTest {
     }
 
     @Test
+    @DisplayName("진행 이벤트 — AI 워커 snake_case JSON을 그대로 수신해 상태 저장소를 갱신한다")
+    void workerSnakeCaseProgress_updatesStatusStore() {
+        Long videoId = 50005L;
+        redis.convertAndSend(RedisAnalysisProgressBus.CHANNEL, """
+                {
+                  "video_id": 50005,
+                  "stage": "PROCESSING",
+                  "message": "프레임 추출 중",
+                  "updated_at": "2026-05-28T10:32:45.123Z"
+                }
+                """);
+
+        await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            Optional<AnalysisProgress> found = statusStore.find(videoId);
+            assertThat(found).isPresent();
+            assertThat(found.get().videoId()).isEqualTo(videoId);
+            assertThat(found.get().stage()).isEqualTo(AnalysisStage.PROCESSING);
+            assertThat(found.get().updatedAt()).isEqualTo(java.time.Instant.parse("2026-05-28T10:32:45.123Z"));
+        });
+    }
+
+    @Test
     @DisplayName("SSE 서비스 — connect/broadcast가 예외 없이 동작하고 비종료 이벤트는 구독자 유지")
     void sseBroadcast_keepsSubscriberForNonTerminalEvents() {
         Long videoId = 30003L;

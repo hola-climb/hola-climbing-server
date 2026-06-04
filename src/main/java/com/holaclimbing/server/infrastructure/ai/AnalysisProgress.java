@@ -1,5 +1,7 @@
 package com.holaclimbing.server.infrastructure.ai;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+
 import java.time.Instant;
 
 /**
@@ -7,9 +9,11 @@ import java.time.Instant;
  * Spring이 구독해 상태 저장소·SSE로 전달한다.
  */
 public record AnalysisProgress(
+        @JsonAlias("video_id")
         Long videoId,
         AnalysisStage stage,
         String message,
+        @JsonAlias("updated_at")
         Instant updatedAt
 ) {
 

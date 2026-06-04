@@ -10,6 +10,9 @@ import com.holaclimbing.server.domain.user.dto.request.LoginRequest;
 import com.holaclimbing.server.domain.user.dto.request.SignupRequest;
 import com.holaclimbing.server.domain.user.dto.request.VerifyEmailRequest;
 import com.holaclimbing.server.domain.user.mapper.UserMapper;
+import com.holaclimbing.server.common.security.JwtTokenProvider;
+import com.holaclimbing.server.common.security.TokenBlacklist;
+import com.holaclimbing.server.common.security.UserTokenRevoker;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +35,7 @@ import org.springframework.web.socket.messaging.WebSocketStompClient;
 
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -74,6 +78,15 @@ class ChatIntegrationTest {
 
     @Autowired
     private ChatService chatService;
+
+    @Autowired
+    private JwtTokenProvider tokenProvider;
+
+    @Autowired
+    private TokenBlacklist tokenBlacklist;
+
+    @Autowired
+    private UserTokenRevoker userTokenRevoker;
 
     @Value("${local.server.port}")
     private int port;
@@ -216,6 +229,38 @@ class ChatIntegrationTest {
 
         assertThatThrownBy(() -> client.connectAsync(
                         "ws://localhost:" + port + "/ws",
+                        new StompSessionHandlerAdapter() {})
+                .get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class);
+    }
+
+    @Test
+    @DisplayName("STOMP — 블랙리스트된 Access 토큰은 핸드셰이크가 거부된다")
+    void stomp_blacklistedToken_handshakeRejected() throws Exception {
+        String token = register("a@hola.com", "climberone");
+        tokenBlacklist.blacklist(tokenProvider.getJti(token), Duration.ofMinutes(30));
+
+        WebSocketStompClient client = stompClient();
+
+        assertThatThrownBy(() -> client.connectAsync(
+                        "ws://localhost:" + port + "/ws?token=" + token,
+                        new StompSessionHandlerAdapter() {})
+                .get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class);
+    }
+
+    @Test
+    @DisplayName("STOMP — 사용자 단위 revoke 이후 기존 Access 토큰은 핸드셰이크가 거부된다")
+    void stomp_userRevokedToken_handshakeRejected() throws Exception {
+        String token = register("a@hola.com", "climberone");
+        Long userId = userMapper.findByEmail("a@hola.com").getId();
+        Thread.sleep(1100);
+        userTokenRevoker.revokeAllFor(userId);
+
+        WebSocketStompClient client = stompClient();
+
+        assertThatThrownBy(() -> client.connectAsync(
+                        "ws://localhost:" + port + "/ws?token=" + token,
                         new StompSessionHandlerAdapter() {})
                 .get(5, TimeUnit.SECONDS))
                 .isInstanceOf(ExecutionException.class);

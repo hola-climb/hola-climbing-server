@@ -1,5 +1,6 @@
 package com.holaclimbing.server.domain.analysis.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 
@@ -12,6 +13,7 @@ import java.util.List;
  */
 public record AnalysisIngestRequest(
         @NotEmpty String status,
+        @JsonAlias("model_version")
         String modelVersion,
         @Valid List<AnalysisSegmentPayload> segments
 ) {
