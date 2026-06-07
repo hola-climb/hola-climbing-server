@@ -8,6 +8,7 @@ DROP TABLE IF EXISTS user_term_agreements CASCADE;
 DROP TABLE IF EXISTS terms_versions CASCADE;
 DROP TABLE IF EXISTS user_blocks CASCADE;
 DROP TABLE IF EXISTS follows CASCADE;
+DROP TABLE IF EXISTS admin_audit_logs CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
 CREATE TABLE users (
@@ -21,6 +22,8 @@ CREATE TABLE users (
     nickname                    VARCHAR(50) NOT NULL UNIQUE,
     profile_image               VARCHAR(500),
     bio                         TEXT,
+    role                        VARCHAR(20) NOT NULL DEFAULT 'USER',
+    status                      VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     last_login_at               TIMESTAMP,
     created_at                  TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at                  TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -29,8 +32,29 @@ CREATE TABLE users (
         (email IS NOT NULL AND password_hash IS NOT NULL) OR
         (provider IS NOT NULL AND provider_id IS NOT NULL)
     ),
+    CONSTRAINT chk_user_role CHECK (role IN ('USER', 'ADMIN')),
+    CONSTRAINT chk_user_status CHECK (status IN ('ACTIVE', 'SUSPENDED', 'DELETED')),
     UNIQUE (provider, provider_id)
 );
+
+CREATE INDEX idx_users_role_status    ON users(role, status);
+CREATE INDEX idx_users_status_created_at ON users(status, created_at DESC);
+
+CREATE TABLE admin_audit_logs (
+    id          BIGSERIAL PRIMARY KEY,
+    admin_id    BIGINT NOT NULL REFERENCES users(id),
+    action      VARCHAR(80) NOT NULL,
+    target_type VARCHAR(40) NOT NULL,
+    target_id   BIGINT,
+    reason      TEXT,
+    before_json JSONB,
+    after_json  JSONB,
+    created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_admin_audit_logs_admin_created
+    ON admin_audit_logs(admin_id, created_at DESC);
+CREATE INDEX idx_admin_audit_logs_target_created
+    ON admin_audit_logs(target_type, target_id, created_at DESC);
 
 CREATE TABLE follows (
     id              BIGSERIAL PRIMARY KEY,
