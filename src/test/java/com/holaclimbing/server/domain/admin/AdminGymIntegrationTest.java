@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -78,12 +79,93 @@ class AdminGymIntegrationTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    @DisplayName("관리자 암장 - 난이도 목록 교체")
+    void replaceGrades_replacesActiveGrades() throws Exception {
+        String adminToken = registerAndLoginAdmin();
+        long gymId = insertActiveGymWithGrade();
+
+        mockMvc.perform(put("/api/admin/gyms/" + gymId + "/grades")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"grades":[
+                                  {"label":"노랑","difficultyOrder":10},
+                                  {"label":"파랑","difficultyOrder":20}
+                                ],"reason":"운영 난이도 갱신"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].label").value("노랑"));
+    }
+
+    @Test
+    @DisplayName("관리자 암장 일괄입력 - preview는 저장하지 않고 오류 행을 반환한다")
+    void previewImport_returnsInvalidRowsWithoutSaving() throws Exception {
+        String adminToken = registerAndLoginAdmin();
+
+        mockMvc.perform(post("/api/admin/gyms/import/preview")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"rows":[
+                                  {"externalKey":"ok-1","name":"정상 암장","address":"서울","lat":37.1,"lng":127.1,
+                                   "regionCode":"seoul","grades":[{"label":"노랑","difficultyOrder":10}]},
+                                  {"externalKey":"bad-1","name":"","address":"서울","grades":[]}
+                                ]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.validCount").value(1))
+                .andExpect(jsonPath("$.data.invalidRows[0].externalKey").value("bad-1"));
+
+        Long savedCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM gyms WHERE name = '정상 암장'", Long.class);
+        org.assertj.core.api.Assertions.assertThat(savedCount).isZero();
+    }
+
+    @Test
+    @DisplayName("관리자 암장 일괄입력 - 유효한 행을 저장한다")
+    void applyImport_savesValidRows() throws Exception {
+        String adminToken = registerAndLoginAdmin();
+
+        mockMvc.perform(post("/api/admin/gyms/import")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"rows":[
+                                  {"externalKey":"import-1","name":"Imported Gym","address":"서울","lat":37.1,"lng":127.1,
+                                   "regionCode":"seoul","grades":[{"label":"노랑","difficultyOrder":10}]}
+                                ]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.importedCount").value(1));
+
+        mockMvc.perform(get("/api/admin/gyms")
+                        .param("keyword", "Imported")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].name").value("Imported Gym"));
+    }
+
     private long insertPendingGym() {
         return jdbcTemplate.queryForObject("""
                 INSERT INTO gyms (name, address, region_code, status, created_by)
                 VALUES ('Pending Gym', 'Seoul', 'seoul', 'pending', 1)
                 RETURNING id
                 """, Long.class);
+    }
+
+    private long insertActiveGymWithGrade() {
+        Long gymId = jdbcTemplate.queryForObject("""
+                INSERT INTO gyms (name, address, region_code, status, created_by)
+                VALUES ('Active Gym', 'Seoul', 'seoul', 'active', 1)
+                RETURNING id
+                """, Long.class);
+        jdbcTemplate.update("""
+                INSERT INTO gym_grades (gym_id, label, difficulty_order)
+                VALUES (?, '기존', 10)
+                """, gymId);
+        return gymId;
     }
 
     private String registerAndLoginAdmin() throws Exception {

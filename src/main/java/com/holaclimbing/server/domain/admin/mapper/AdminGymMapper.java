@@ -33,4 +33,10 @@ public interface AdminGymMapper {
                   @Param("description") String description,
                   @Param("businessHours") String businessHours,
                   @Param("regionCode") String regionCode);
+
+    int deactivateGrades(Long gymId);
+
+    void insertGrade(@Param("gymId") Long gymId,
+                     @Param("label") String label,
+                     @Param("difficultyOrder") int difficultyOrder);
 }

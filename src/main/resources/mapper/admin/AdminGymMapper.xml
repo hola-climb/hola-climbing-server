@@ -67,4 +67,19 @@
         WHERE id = #{gymId} AND deleted_at IS NULL
     </update>
 
+    <update id="deactivateGrades">
+        UPDATE gym_grades
+        SET is_active = FALSE, updated_at = NOW()
+        WHERE gym_id = #{gymId} AND is_active = TRUE
+    </update>
+
+    <insert id="insertGrade">
+        INSERT INTO gym_grades (gym_id, label, difficulty_order, is_active)
+        VALUES (#{gymId}, #{label}, #{difficultyOrder}, TRUE)
+        ON CONFLICT (gym_id, label)
+        DO UPDATE SET difficulty_order = EXCLUDED.difficulty_order,
+                      is_active = TRUE,
+                      updated_at = NOW()
+    </insert>
+
 </mapper>
