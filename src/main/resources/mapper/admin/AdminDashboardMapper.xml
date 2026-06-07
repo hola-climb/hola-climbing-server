@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.holaclimbing.server.domain.admin.mapper.AdminDashboardMapper">
+
+    <select id="countPendingGyms" resultType="long">
+        SELECT COUNT(*)
+        FROM gyms
+        WHERE status = 'pending' AND deleted_at IS NULL
+    </select>
+
+    <select id="countPendingReports" resultType="long">
+        SELECT COUNT(*)
+        FROM reports
+        WHERE status = 'pending'
+    </select>
+
+    <select id="countFailedAnalysisVideos" resultType="long">
+        SELECT COUNT(*)
+        FROM videos
+        WHERE status = 'failed' AND deleted_at IS NULL
+    </select>
+
+    <select id="countNewUsersToday" resultType="long">
+        SELECT COUNT(*)
+        FROM users
+        WHERE deleted_at IS NULL AND created_at::date = CURRENT_DATE
+    </select>
+
+</mapper>
