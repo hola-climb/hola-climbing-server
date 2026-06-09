@@ -12,6 +12,13 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}  # 환경변수 없으면 local 기본
 
+  # DB migration
+  flyway:
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: ${SPRING_FLYWAY_BASELINE_ON_MIGRATE:false}
+    validate-on-migrate: true
+
   # 영상 업로드 크기 제한 (멀티파트)
   servlet:
     multipart:
@@ -109,9 +116,8 @@ gcs:
   upload-prefix: videos/uploads        # 업로드 객체 경로 prefix
   signed-url-minutes: 15               # Signed URL 유효시간(분)
 
-# AI 분석 워커(Python) 연동 — 영상 등록 시 분석 요청 디스패치
+# AI 분석 워커(Python) 연동 — 영상 등록 시 Redis Streams로 요청하고 콜백 시크릿을 검증
 ai:
-  analysis-url: ${AI_ANALYSIS_URL:}    # 비어 있으면 디스패치 비활성화 (개발 환경)
   callback-secret: ${AI_CALLBACK_SECRET:}
 # JWT 설정
 jwt:

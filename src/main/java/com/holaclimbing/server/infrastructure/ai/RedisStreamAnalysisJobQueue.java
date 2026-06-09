@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,11 +25,18 @@ public class RedisStreamAnalysisJobQueue implements AnalysisJobQueue {
 
     @Override
     public void enqueue(AnalysisJob job) {
+        requireGcsPath(job.gcsPath());
         Map<String, String> payload = new HashMap<>();
         payload.put("videoId", String.valueOf(job.videoId()));
-        payload.put("gcsPath", job.gcsPath() == null ? "" : job.gcsPath());
+        payload.put("gcsPath", job.gcsPath());
         payload.put("callbackUrl", job.callbackUrl() == null ? "" : job.callbackUrl());
         redis.opsForStream().add(MapRecord.create(STREAM_KEY, payload));
         log.info("분석 요청 큐 적재 — videoId={}", job.videoId());
+    }
+
+    private static void requireGcsPath(String gcsPath) {
+        if (!StringUtils.hasText(gcsPath)) {
+            throw new IllegalArgumentException("gcsPath must not be blank");
+        }
     }
 }

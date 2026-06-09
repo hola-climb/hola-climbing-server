@@ -127,6 +127,16 @@
 			<version>0.1.6</version>
 		</dependency>
 
+		<!-- Flyway: fresh DB 생성과 운영 DB 변경 이력을 versioned migration으로 관리 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+
 		<!-- PostgreSQL JDBC 드라이버: 코드에선 직접 안 쓰지만 런타임 DB 연결에 필수 -->
 		<dependency>
 			<groupId>org.postgresql</groupId>

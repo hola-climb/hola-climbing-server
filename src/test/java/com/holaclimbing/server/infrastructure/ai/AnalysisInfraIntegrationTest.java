@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 /**
@@ -68,6 +69,14 @@ class AnalysisInfraIntegrationTest {
         assertThat(records.get(records.size() - 1).getValue())
                 .containsEntry("videoId", "10001")
                 .containsEntry("gcsPath", "videos/10001.mp4");
+    }
+
+    @Test
+    @DisplayName("작업 큐 — gcsPath가 비어 있으면 Stream에 적재하지 않는다")
+    void enqueue_whenGcsPathBlank_rejectsRecord() {
+        assertThatThrownBy(() -> jobQueue.enqueue(new AnalysisJob(10002L, " ", "http://localhost/cb")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("gcsPath");
     }
 
     @Test

@@ -13,6 +13,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * AnalysisDispatcher 단위 테스트 — 큐 적재와 상태 저장이 함께 일어나는지,
@@ -54,6 +55,17 @@ class AnalysisDispatcherTest {
         assertThat(enqueued.get(0).videoId()).isEqualTo(42L);
         assertThat(enqueued.get(0).callbackUrl()).isEqualTo("http://localhost:8080/api/analysis/videos/42");
         assertThat(saved.get(42L).stage()).isEqualTo(AnalysisStage.QUEUED);
+    }
+
+    @Test
+    @DisplayName("dispatch — gcsPath가 비어 있으면 큐에 적재하지 않는다")
+    void dispatch_whenGcsPathBlank_rejectsBeforeQueue() {
+        assertThatThrownBy(() -> dispatcher.dispatch(42L, " "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("gcsPath");
+
+        assertThat(enqueued).isEmpty();
+        assertThat(saved).isEmpty();
     }
 
     @Test

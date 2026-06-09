@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.StringUtils;
 
 /**
  * 영상 등록 시 AI 워커(Python)에 분석을 요청하는 디스패처.
@@ -33,6 +34,7 @@ public class AnalysisDispatcher {
      * 트랜잭션을 길게 만들지 않는다.</p>
      */
     public void dispatch(Long videoId, String gcsPath) {
+        requireGcsPath(gcsPath);
         String callbackUrl = baseUrl + "/api/analysis/videos/" + videoId;
         Runnable task = () -> {
             try {
@@ -53,6 +55,12 @@ public class AnalysisDispatcher {
             });
         } else {
             task.run();
+        }
+    }
+
+    private static void requireGcsPath(String gcsPath) {
+        if (!StringUtils.hasText(gcsPath)) {
+            throw new IllegalArgumentException("gcsPath must not be blank");
         }
     }
 }
