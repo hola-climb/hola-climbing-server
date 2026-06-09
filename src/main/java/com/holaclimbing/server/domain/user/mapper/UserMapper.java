@@ -32,6 +32,9 @@ public interface UserMapper {
                          @Param("keyword") String keyword,
                          @Param("emailVerified") Boolean emailVerified);
 
+    /** 활성 관리자 행을 잠가 마지막 관리자 강등 같은 운영자 변경 경쟁 상태를 방지한다. */
+    List<Long> lockActiveAdminIds();
+
     /** 이메일 인증 토큰으로 조회 (soft-delete 제외). 없으면 null. */
     User findByEmailVerificationToken(String token);
 

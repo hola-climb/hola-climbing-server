@@ -34,8 +34,8 @@ public interface VideoService {
     /** 영상 상세 조회. 비공개 영상은 소유자만 접근 가능하며, 조회 시 조회수가 증가한다. */
     VideoDetailResponse getVideoDetail(Long videoId, Long viewerId);
 
-    /** 영상 분석 진행 상태 조회. */
-    VideoStatusResponse getStatus(Long videoId);
+    /** 영상 분석 진행 상태 조회. 비공개 영상은 소유자만 접근 가능하다. */
+    VideoStatusResponse getStatus(Long videoId, Long viewerId);
 
     /** 영상 부분 수정 (소유자만). */
     VideoDetailResponse updateVideo(Long userId, Long videoId, UpdateVideoRequest request);

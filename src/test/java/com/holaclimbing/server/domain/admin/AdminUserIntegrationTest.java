@@ -108,11 +108,118 @@ class AdminUserIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    @DisplayName("관리자 회원 - 일반 회원을 관리자로 승격하면 재로그인 후 관리자 API를 사용할 수 있다")
+    void changeRole_promotesUserToAdmin_andReloginAccessesAdminApi() throws Exception {
+        String adminToken = registerAndLoginAdmin();
+        registerAndLoginUser("promote@hola.com", "promoteuser");
+        long userId = userMapper.findByEmail("promote@hola.com").getId();
+
+        mockMvc.perform(patch("/api/admin/users/" + userId + "/role")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"ADMIN\",\"reason\":\"운영자 지정\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.role").value("ADMIN"));
+
+        String promotedToken = login("promote@hola.com");
+        mockMvc.perform(get("/api/admin/users")
+                        .header("Authorization", "Bearer " + promotedToken))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 회원 - 관리자를 일반 회원으로 강등하면 기존 관리자 토큰이 무효화된다")
+    void changeRole_demotesAdminAndRevokesExistingToken() throws Exception {
+        String adminToken = registerAndLoginAdmin();
+        registerAndLoginUser("demote@hola.com", "demoteuser");
+        long userId = userMapper.findByEmail("demote@hola.com").getId();
+
+        mockMvc.perform(patch("/api/admin/users/" + userId + "/role")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"ADMIN\",\"reason\":\"보조 운영자 지정\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.role").value("ADMIN"));
+
+        String targetAdminToken = login("demote@hola.com");
+
+        Thread.sleep(1100);
+        mockMvc.perform(patch("/api/admin/users/" + userId + "/role")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"USER\",\"reason\":\"운영자 권한 회수\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.role").value("USER"));
+
+        mockMvc.perform(get("/api/admin/users")
+                        .header("Authorization", "Bearer " + targetAdminToken))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("관리자 회원 - 마지막 활성 관리자는 강등할 수 없다")
+    void changeRole_lastAdmin_returns400() throws Exception {
+        String staleAdminToken = registerAndLoginAdmin("caller@hola.com", "calleradmin");
+        long callerId = userMapper.findByEmail("caller@hola.com").getId();
+        registerAndLoginUser("lastadmin@hola.com", "lastadmin");
+        long lastAdminId = userMapper.findByEmail("lastadmin@hola.com").getId();
+        userMapper.updateRole(lastAdminId, "ADMIN");
+        userMapper.updateRole(callerId, "USER");
+
+        mockMvc.perform(patch("/api/admin/users/" + lastAdminId + "/role")
+                        .header("Authorization", "Bearer " + staleAdminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"USER\",\"reason\":\"마지막 관리자 강등 시도\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("C001"));
+    }
+
+    @Test
+    @DisplayName("관리자 회원 - 자기 자신의 역할은 변경할 수 없다")
+    void changeRole_self_returns400() throws Exception {
+        String adminToken = registerAndLoginAdmin();
+        long adminId = userMapper.findByEmail("admin@hola.com").getId();
+
+        mockMvc.perform(patch("/api/admin/users/" + adminId + "/role")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"USER\",\"reason\":\"셀프 강등\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("C001"));
+    }
+
+    @Test
+    @DisplayName("관리자 회원 - 역할 변경 요청 검증")
+    void changeRole_invalidRoleOrBlankReason_returns400() throws Exception {
+        String adminToken = registerAndLoginAdmin();
+        registerAndLoginUser("invalidrole@hola.com", "invalidrole");
+        long userId = userMapper.findByEmail("invalidrole@hola.com").getId();
+
+        mockMvc.perform(patch("/api/admin/users/" + userId + "/role")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"OWNER\",\"reason\":\"지원하지 않는 역할\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("C001"));
+
+        mockMvc.perform(patch("/api/admin/users/" + userId + "/role")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"ADMIN\",\"reason\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("C001"));
+    }
+
     private String registerAndLoginAdmin() throws Exception {
-        registerAndLoginUser("admin@hola.com", "adminuser");
-        var user = userMapper.findByEmail("admin@hola.com");
+        return registerAndLoginAdmin("admin@hola.com", "adminuser");
+    }
+
+    private String registerAndLoginAdmin(String email, String nickname) throws Exception {
+        registerAndLoginUser(email, nickname);
+        var user = userMapper.findByEmail(email);
         userMapper.updateRole(user.getId(), "ADMIN");
-        return login("admin@hola.com");
+        return login(email);
     }
 
     private String registerAndLoginUser(String email, String nickname) throws Exception {

@@ -50,6 +50,7 @@ public class VideoServiceImpl implements VideoService {
     private final GcsProperties gcsProperties;
     private final VideoUploadProperties uploadProperties;
     private final AnalysisDispatcher analysisDispatcher;
+    private final VideoAccessPolicy videoAccessPolicy;
 
     @Value("${app.frontend-base-url}")
     private String frontendBaseUrl;
@@ -134,9 +135,7 @@ public class VideoServiceImpl implements VideoService {
     @Override
     public VideoDetailResponse getVideoDetail(Long videoId, Long viewerId) {
         Video video = findActiveVideo(videoId);
-        if (!video.isPublic() && !video.getUserId().equals(viewerId)) {
-            throw new BusinessException(ErrorCode.VIDEO_NOT_ACCESSIBLE);
-        }
+        videoAccessPolicy.requireViewable(video, viewerId);
         // 의도적으로 비-트랜잭션. view counter는 eventual하게 증가해도 무방하고,
         // 단일 read에 UPDATE를 묶어 PK 락 보유 시간을 늘리지 않는다.
         videoMapper.incrementViewCount(videoId);
@@ -163,8 +162,9 @@ public class VideoServiceImpl implements VideoService {
     }
 
     @Override
-    public VideoStatusResponse getStatus(Long videoId) {
+    public VideoStatusResponse getStatus(Long videoId, Long viewerId) {
         Video video = findActiveVideo(videoId);
+        videoAccessPolicy.requireViewable(video, viewerId);
         return new VideoStatusResponse(videoId, video.getStatus());
     }
 
@@ -172,6 +172,7 @@ public class VideoServiceImpl implements VideoService {
     @Transactional
     public LikeResponse likeVideo(Long userId, Long videoId) {
         Video video = findActiveVideo(videoId);
+        videoAccessPolicy.requireViewable(video, userId);
         // ON CONFLICT DO NOTHING으로 안전화. inserted == 0이면 이미 좋아요 상태였음.
         int inserted = likeMapper.insert(userId, videoId);
         if (inserted == 0) {
@@ -186,6 +187,7 @@ public class VideoServiceImpl implements VideoService {
     @Transactional
     public LikeResponse unlikeVideo(Long userId, Long videoId) {
         Video video = findActiveVideo(videoId);
+        videoAccessPolicy.requireViewable(video, userId);
         if (likeMapper.delete(userId, videoId) > 0) {
             videoMapper.decrementLikeCount(videoId);
         }
@@ -195,10 +197,7 @@ public class VideoServiceImpl implements VideoService {
     @Override
     public ShareLinkResponse createShareLink(Long viewerId, Long videoId) {
         Video video = findActiveVideo(videoId);
-        // 비공개 영상은 소유자만 공유 링크 발급 가능 (URL 자체는 누구나 만들 수 있지만, 명세 일관성 위해 제한)
-        if (!video.isPublic() && !video.getUserId().equals(viewerId)) {
-            throw new BusinessException(ErrorCode.VIDEO_NOT_ACCESSIBLE);
-        }
+        videoAccessPolicy.requireViewable(video, viewerId);
         String shareUrl = frontendBaseUrl + "/videos/" + videoId;
         return new ShareLinkResponse(shareUrl);
     }

@@ -32,10 +32,11 @@ public class AnalysisController {
 
     private final AnalysisService analysisService;
 
-    @ApiErrorCodes({VIDEO_NOT_FOUND})
+    @ApiErrorCodes({VIDEO_NOT_FOUND, VIDEO_NOT_ACCESSIBLE})
     @GetMapping("/api/videos/{videoId}/analysis")
-    public ApiResponse<VideoAnalysisResponse> getAnalysis(@PathVariable Long videoId) {
-        return ApiResponse.success(analysisService.getAnalysis(videoId));
+    public ApiResponse<VideoAnalysisResponse> getAnalysis(@PathVariable Long videoId,
+                                                          @AuthenticationPrincipal Long viewerId) {
+        return ApiResponse.success(analysisService.getAnalysis(videoId, viewerId));
     }
 
     @ApiErrorCodes({VIDEO_NOT_FOUND, FORBIDDEN})
@@ -45,7 +46,7 @@ public class AnalysisController {
         return ApiResponse.success(analysisService.retryAnalysis(userId, videoId));
     }
 
-    @ApiErrorCodes({VIDEO_NOT_FOUND})
+    @ApiErrorCodes({VIDEO_NOT_FOUND, VIDEO_NOT_ACCESSIBLE})
     @PostMapping("/api/videos/{videoId}/analysis/feedback")
     public ResponseEntity<ApiResponse<FeedbackResponse>> submitFeedback(
             @AuthenticationPrincipal Long userId,

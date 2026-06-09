@@ -19,6 +19,12 @@
         LEFT JOIN follows f ON f.following_id = v.user_id AND f.follower_id = #{userId}
         WHERE v.is_public = TRUE AND v.deleted_at IS NULL AND v.status &lt;&gt; 'failed'
           AND v.user_id &lt;&gt; #{userId}
+          AND NOT EXISTS (
+              SELECT 1
+              FROM user_blocks ub
+              WHERE ub.blocker_id = #{userId}
+                AND ub.blocked_id = v.user_id
+          )
         ORDER BY (f.id IS NOT NULL) DESC, v.created_at DESC, v.id DESC
         LIMIT #{size} OFFSET #{offset}
     </select>
@@ -28,6 +34,12 @@
         FROM videos
         WHERE is_public = TRUE AND deleted_at IS NULL AND status &lt;&gt; 'failed'
           AND user_id &lt;&gt; #{userId}
+          AND NOT EXISTS (
+              SELECT 1
+              FROM user_blocks ub
+              WHERE ub.blocker_id = #{userId}
+                AND ub.blocked_id = videos.user_id
+          )
     </select>
 
     <select id="findFollowingIds" resultType="long">

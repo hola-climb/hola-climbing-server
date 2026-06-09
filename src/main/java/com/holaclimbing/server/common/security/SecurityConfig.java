@@ -34,13 +34,14 @@ import java.util.List;
  */
 @Configuration
 @RequiredArgsConstructor
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({JwtProperties.class, AiCallbackProperties.class})
 public class SecurityConfig {
 
     /** BCrypt 워크 팩터. 메모리: strength=12 */
     private static final int BCRYPT_STRENGTH = 12;
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final AiCallbackSecretFilter aiCallbackSecretFilter;
     private final JwtAuthenticationEntryPoint entryPoint;
     private final JwtAccessDeniedHandler accessDeniedHandler;
 
@@ -64,8 +65,11 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v1/api-docs/**",
-                                "/actuator/**",
                                 "/api/docs/**").permitAll()
+                        .requestMatchers("/actuator/health",
+                                "/actuator/health/**",
+                                "/actuator/info").permitAll()
+                        .requestMatchers("/actuator/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/ping").permitAll()
                         // WebSocket 핸드셰이크 — 인증은 StompHandshakeInterceptor가 담당
                         .requestMatchers("/ws/**").permitAll()
@@ -105,9 +109,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/climbing-logs", "/api/climbing-logs/**").authenticated()
                         // 추천 — 본인 홈 피드
                         .requestMatchers("/api/recommendations/**").authenticated()
-                        // AI 분석 — 조회 공개 + 결과 수신은 AI 워커 서버 간 콜백
-                        // TODO(release): 결과 수신(POST)에 워커 공유 시크릿 인증 추가
-                        .requestMatchers("/api/analysis/**").permitAll()
+                        // AI 분석 콜백 — AiCallbackSecretFilter가 공유 시크릿으로 보호
+                        .requestMatchers(HttpMethod.POST, "/api/analysis/**").permitAll()
                         // 영상 등록·수정·삭제·좋아요·댓글 — 인증 필요 (GET 피드/상세/댓글목록은 위에서 공개)
                         .requestMatchers(HttpMethod.POST, "/api/videos", "/api/videos/**").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/videos/**", "/api/comments/**").authenticated()
@@ -118,7 +121,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/gyms/**").authenticated()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(aiCallbackSecretFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(jwtAuthenticationFilter, AiCallbackSecretFilter.class);
 
         return http.build();
     }

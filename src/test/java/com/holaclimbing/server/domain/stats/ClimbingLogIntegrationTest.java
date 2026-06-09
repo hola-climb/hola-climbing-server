@@ -100,6 +100,33 @@ class ClimbingLogIntegrationTest {
     }
 
     @Test
+    @DisplayName("기록 작성 실패 — 난이도별 개수는 음수일 수 없다")
+    void createLog_negativeGradeCount_returns400() throws Exception {
+        String token = register("a@hola.com", "climberone");
+
+        mockMvc.perform(post("/api/climbing-logs")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CreateClimbingLogRequest(
+                                1L, LocalDate.of(2026, 5, 10), Map.of("빨강", -1), null))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("C001"));
+    }
+
+    @Test
+    @DisplayName("달력 실패 — 월 파라미터는 1~12 범위여야 한다")
+    void calendar_invalidMonth_returns400() throws Exception {
+        String token = register("a@hola.com", "climberone");
+
+        mockMvc.perform(get("/api/stats/me/calendar")
+                        .header("Authorization", "Bearer " + token)
+                        .param("year", "2026")
+                        .param("month", "13"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("C001"));
+    }
+
+    @Test
     @DisplayName("기록 수정·삭제 — 작성자만 가능하며 타인은 403")
     void updateAndDeleteLog_accessControl() throws Exception {
         String owner = register("a@hola.com", "climberone");

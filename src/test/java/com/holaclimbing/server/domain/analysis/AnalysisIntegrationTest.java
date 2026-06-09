@@ -35,7 +35,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Analysis 도메인 통합 테스트.
  * 분석 결과 조회와 AI 워커의 결과 수신(영상 상태 전환)을 검증한다.
  */
-@SpringBootTest(properties = "app.cors.allowed-origins=http://localhost:3000")
+@SpringBootTest(properties = {
+        "app.cors.allowed-origins=http://localhost:3000",
+        "ai.callback-secret=test-ai-callback-secret"
+})
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 @ActiveProfiles("test")
@@ -49,6 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AnalysisIntegrationTest {
 
     private static final String PASSWORD = "password123";
+    private static final String AI_CALLBACK_SECRET = "test-ai-callback-secret";
 
     @Autowired
     private MockMvc mockMvc;
@@ -72,6 +76,19 @@ class AnalysisIntegrationTest {
     }
 
     @Test
+    @DisplayName("분석 조회 실패 — 비공개 영상 분석 결과는 타인이 조회할 수 없다")
+    void getAnalysis_privateVideoByOther_returns403() throws Exception {
+        String owner = register("a@hola.com", "climberone");
+        String other = register("b@hola.com", "climbertwo");
+        long videoId = createVideo(owner, false);
+
+        mockMvc.perform(get("/api/videos/" + videoId + "/analysis")
+                        .header("Authorization", "Bearer " + other))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("V006"));
+    }
+
+    @Test
     @DisplayName("결과 수신 — done 결과를 받으면 세그먼트를 저장하고 영상 status=done")
     void ingest_done_storesSegments() throws Exception {
         String token = register("a@hola.com", "climberone");
@@ -81,7 +98,7 @@ class AnalysisIntegrationTest {
                 new AnalysisSegmentPayload(0, 0, 1000, "highstep", false, 0.91f),
                 new AnalysisSegmentPayload(1, 1000, 2000, "dyno", true, 0.85f)));
 
-        mockMvc.perform(post("/api/analysis/videos/" + videoId)
+        mockMvc.perform(aiCallbackPost(videoId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -119,7 +136,7 @@ class AnalysisIntegrationTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/analysis/videos/" + videoId)
+        mockMvc.perform(aiCallbackPost(videoId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(workerPayload))
                 .andExpect(status().isOk())
@@ -139,7 +156,7 @@ class AnalysisIntegrationTest {
         long videoId = createVideo(token);
 
         var request = new AnalysisIngestRequest("failed", null, null);
-        mockMvc.perform(post("/api/analysis/videos/" + videoId)
+        mockMvc.perform(aiCallbackPost(videoId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -173,7 +190,7 @@ class AnalysisIntegrationTest {
         long videoId = createVideo(token);
 
         var request = new AnalysisIngestRequest("weird", "rule_v1", List.of());
-        mockMvc.perform(post("/api/analysis/videos/" + videoId)
+        mockMvc.perform(aiCallbackPost(videoId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -193,11 +210,54 @@ class AnalysisIntegrationTest {
     void ingest_videoNotFound_returns404() throws Exception {
         var request = new AnalysisIngestRequest("done", "rule_v1", List.of(
                 new AnalysisSegmentPayload(0, 0, 1000, "highstep", false, 0.9f)));
-        mockMvc.perform(post("/api/analysis/videos/999999")
+        mockMvc.perform(aiCallbackPost(999999L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("V001"));
+    }
+
+    @Test
+    @DisplayName("결과 수신 보안 — 콜백 시크릿이 없으면 401")
+    void ingest_withoutCallbackSecret_returns401() throws Exception {
+        String token = register("a@hola.com", "climberone");
+        long videoId = createVideo(token);
+
+        var request = new AnalysisIngestRequest("done", "rule_v1", List.of());
+        mockMvc.perform(post("/api/analysis/videos/" + videoId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("C002"));
+    }
+
+    @Test
+    @DisplayName("결과 수신 보안 — 올바른 콜백 시크릿이면 성공")
+    void ingest_withCallbackSecret_returnsOk() throws Exception {
+        String token = register("a@hola.com", "climberone");
+        long videoId = createVideo(token);
+
+        var request = new AnalysisIngestRequest("done", "rule_v1", List.of());
+        mockMvc.perform(aiCallbackPost(videoId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("done"));
+    }
+
+    @Test
+    @DisplayName("결과 수신 보안 — 잘못된 콜백 시크릿이면 401")
+    void ingest_withWrongCallbackSecret_returns401() throws Exception {
+        String token = register("a@hola.com", "climberone");
+        long videoId = createVideo(token);
+
+        var request = new AnalysisIngestRequest("done", "rule_v1", List.of());
+        mockMvc.perform(post("/api/analysis/videos/" + videoId)
+                        .header("X-AI-Callback-Secret", "wrong-secret")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("C002"));
     }
 
     @Test
@@ -242,23 +302,48 @@ class AnalysisIntegrationTest {
                 .andExpect(jsonPath("$.data.labelId").isNumber());
     }
 
+    @Test
+    @DisplayName("분석 피드백 실패 — 비공개 영상 분석 피드백은 타인이 등록할 수 없다")
+    void submitFeedback_privateVideoByOther_returns403() throws Exception {
+        String owner = register("a@hola.com", "climberone");
+        String other = register("b@hola.com", "climbertwo");
+        long videoId = createVideo(owner, false);
+
+        var request = new AnalysisFeedbackRequest("highstep", 12.5, false, "flagging", "이건 플래깅이에요");
+        mockMvc.perform(post("/api/videos/" + videoId + "/analysis/feedback")
+                        .header("Authorization", "Bearer " + other)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("V006"));
+    }
+
     // ===== helpers =====
 
     private void ingest(long videoId, AnalysisIngestRequest request) throws Exception {
-        mockMvc.perform(post("/api/analysis/videos/" + videoId)
+        mockMvc.perform(aiCallbackPost(videoId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
     }
 
+    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder aiCallbackPost(long videoId) {
+        return post("/api/analysis/videos/" + videoId)
+                .header("X-AI-Callback-Secret", AI_CALLBACK_SECRET);
+    }
+
     private long createVideo(String token) throws Exception {
+        return createVideo(token, true);
+    }
+
+    private long createVideo(String token, boolean isPublic) throws Exception {
         long userId = dataOf(mockMvc.perform(
                 org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .get("/api/users/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())).path("userId").asLong();
         String path = "videos/uploads/" + userId + "/test-" + java.util.UUID.randomUUID() + ".mp4";
         var request = new CreateVideoRequest(1L, "My Send", "a clean ascent", 1003L,
-                path, null, 45, java.time.LocalDate.of(2026, 6, 3), true);
+                path, null, 45, java.time.LocalDate.of(2026, 6, 3), isPublic);
         return dataOf(mockMvc.perform(post("/api/videos")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)

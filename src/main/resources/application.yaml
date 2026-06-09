@@ -85,6 +85,13 @@ app:
   frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}  # 영상 공유 링크 생성 기준 FE URL
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}   # FE(Vue3+Vite) 개발 서버
+  admin:
+    bootstrap:
+      enabled: ${ADMIN_BOOTSTRAP_ENABLED:false}
+      email: ${ADMIN_BOOTSTRAP_EMAIL:}
+  mail:
+    mode: ${APP_MAIL_MODE:log}
+    from: ${APP_MAIL_FROM:no-reply@hola.local}
   upload:
     allowed-extensions: mp4,mov,hevc   # NF-05: MP4·MOV·HEVC
     max-duration-seconds: 60           # NF-05: 최대 60초
@@ -105,6 +112,7 @@ gcs:
 # AI 분석 워커(Python) 연동 — 영상 등록 시 분석 요청 디스패치
 ai:
   analysis-url: ${AI_ANALYSIS_URL:}    # 비어 있으면 디스패치 비활성화 (개발 환경)
+  callback-secret: ${AI_CALLBACK_SECRET:}
 # JWT 설정
 jwt:
   secret: ${JWT_SECRET:9f2b7a8c4e6d1f0a3b5c7d9e2f4a6b8c1d3e5f7a9b0c2d4e6f8a1b3c5d7e9f0a}

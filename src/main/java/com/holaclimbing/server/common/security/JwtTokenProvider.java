@@ -5,7 +5,9 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -23,6 +25,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JwtTokenProvider {
 
+    private static final String DEVELOPMENT_SECRET =
+            "9f2b7a8c4e6d1f0a3b5c7d9e2f4a6b8c1d3e5f7a9b0c2d4e6f8a1b3c5d7e9f0a";
+    private static final int HS256_MIN_SECRET_BYTES = 32;
+
     public static final String CLAIM_TYPE = "type";
     public static final String CLAIM_EMAIL = "email";
     public static final String CLAIM_ROLE = "role";
@@ -30,11 +36,26 @@ public class JwtTokenProvider {
     public static final String TYPE_REFRESH = "refresh";
 
     private final JwtProperties props;
+    private final Environment environment;
     private SecretKey key;
 
     @PostConstruct
     void init() {
+        validateSecret();
         this.key = Keys.hmacShaKeyFor(props.secret().getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void validateSecret() {
+        String secret = props.secret();
+        if (!StringUtils.hasText(secret)) {
+            throw new IllegalStateException("JWT_SECRET must be configured.");
+        }
+        if (secret.getBytes(StandardCharsets.UTF_8).length < HS256_MIN_SECRET_BYTES) {
+            throw new IllegalStateException("JWT_SECRET must be at least 32 bytes for HS256.");
+        }
+        if (environment.matchesProfiles("prod") && DEVELOPMENT_SECRET.equals(secret)) {
+            throw new IllegalStateException("JWT_SECRET must not use the development default in prod profile.");
+        }
     }
 
     public String createAccessToken(Long userId, String email, String role) {

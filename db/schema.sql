@@ -3,6 +3,7 @@
 -- =====================================================================
 
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 
 -- =====================================================================
@@ -167,6 +168,7 @@ CREATE TABLE gyms (
     deleted_at      TIMESTAMP
 );
 CREATE INDEX idx_gyms_name            ON gyms(name);
+CREATE INDEX idx_gyms_name_trgm       ON gyms USING gin (name gin_trgm_ops);
 CREATE INDEX idx_gyms_region          ON gyms(region_code) WHERE region_code IS NOT NULL;
 CREATE INDEX idx_gyms_location        ON gyms(lat, lng) WHERE lat IS NOT NULL;
 CREATE INDEX idx_gyms_status          ON gyms(status);

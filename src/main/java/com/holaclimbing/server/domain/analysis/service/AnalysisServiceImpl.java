@@ -11,6 +11,7 @@ import com.holaclimbing.server.domain.analysis.dto.response.VideoAnalysisRespons
 import com.holaclimbing.server.domain.analysis.mapper.AnalysisMapper;
 import com.holaclimbing.server.domain.video.domain.Video;
 import com.holaclimbing.server.domain.video.mapper.VideoMapper;
+import com.holaclimbing.server.domain.video.service.VideoAccessPolicy;
 import com.holaclimbing.server.infrastructure.ai.AnalysisDispatcher;
 import com.holaclimbing.server.infrastructure.ai.AnalysisProgress;
 import com.holaclimbing.server.infrastructure.ai.AnalysisProgressBus;
@@ -33,12 +34,13 @@ public class AnalysisServiceImpl implements AnalysisService {
     private final VideoMapper videoMapper;
     private final AnalysisDispatcher analysisDispatcher;
     private final AnalysisProgressBus progressBus;
+    private final VideoAccessPolicy videoAccessPolicy;
 
     @Override
-    public VideoAnalysisResponse getAnalysis(Long videoId) {
+    public VideoAnalysisResponse getAnalysis(Long videoId, Long viewerId) {
         Video video = findVideo(videoId);
-        return VideoAnalysisResponse.of(videoId, video.getStatus(),
-                analysisMapper.findByVideoId(videoId));
+        videoAccessPolicy.requireViewable(video, viewerId);
+        return toResponse(video);
     }
 
     @Override
@@ -62,7 +64,7 @@ public class AnalysisServiceImpl implements AnalysisService {
         progressBus.publish(AnalysisProgress.of(videoId,
                 STATUS_DONE.equals(status) ? AnalysisStage.COMPLETED : AnalysisStage.FAILED,
                 STATUS_DONE.equals(status) ? "분석 완료" : "분석 실패"));
-        return getAnalysis(videoId);
+        return toResponse(findVideo(videoId));
     }
 
     @Override
@@ -75,13 +77,14 @@ public class AnalysisServiceImpl implements AnalysisService {
         analysisMapper.deleteByVideoId(videoId);
         videoMapper.updateStatus(videoId, STATUS_PENDING);
         analysisDispatcher.dispatch(videoId, video.getGcsPath());
-        return getAnalysis(videoId);
+        return toResponse(findVideo(videoId));
     }
 
     @Override
     @Transactional
     public FeedbackResponse submitFeedback(Long userId, Long videoId, AnalysisFeedbackRequest request) {
-        findVideo(videoId);
+        Video video = findVideo(videoId);
+        videoAccessPolicy.requireViewable(video, userId);
         // 라벨로 누적할 기술 — 올바르면 AI 라벨 그대로, 틀렸으면 사용자가 정정한 라벨.
         String technique = request.isCorrect() || request.correctLabel() == null
                 ? request.techniqueLabel()
@@ -102,6 +105,11 @@ public class AnalysisServiceImpl implements AnalysisService {
             throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND);
         }
         return video;
+    }
+
+    private VideoAnalysisResponse toResponse(Video video) {
+        return VideoAnalysisResponse.of(video.getId(), video.getStatus(),
+                analysisMapper.findByVideoId(video.getId()));
     }
 
     private List<AnalysisResult> toResults(Long videoId, AnalysisIngestRequest request) {

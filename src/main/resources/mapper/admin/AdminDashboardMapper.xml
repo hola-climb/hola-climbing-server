@@ -23,7 +23,9 @@
     <select id="countNewUsersToday" resultType="long">
         SELECT COUNT(*)
         FROM users
-        WHERE deleted_at IS NULL AND created_at::date = CURRENT_DATE
+        WHERE deleted_at IS NULL
+          AND created_at &gt;= CURRENT_DATE
+          AND created_at &lt; CURRENT_DATE + INTERVAL '1 day'
     </select>
 
 </mapper>

@@ -1,7 +1,9 @@
 package com.holaclimbing.server.domain.stats.dto.request;
 
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
@@ -13,7 +15,7 @@ import java.util.Map;
 public record UpdateClimbingLogRequest(
         @NotNull Long gymId,
         @NotNull LocalDate climbedOn,
-        @NotEmpty Map<String, Integer> gradeCounts,
+        @NotEmpty Map<@NotBlank String, @PositiveOrZero Integer> gradeCounts,
         @Size(max = 1000) String memo
 ) {
 }

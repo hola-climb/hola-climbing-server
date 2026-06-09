@@ -28,11 +28,7 @@ public class RedisStreamAnalysisJobQueue implements AnalysisJobQueue {
         payload.put("videoId", String.valueOf(job.videoId()));
         payload.put("gcsPath", job.gcsPath() == null ? "" : job.gcsPath());
         payload.put("callbackUrl", job.callbackUrl() == null ? "" : job.callbackUrl());
-        try {
-            redis.opsForStream().add(MapRecord.create(STREAM_KEY, payload));
-            log.info("분석 요청 큐 적재 — videoId={}", job.videoId());
-        } catch (Exception e) {
-            log.warn("분석 요청 큐 적재 실패 — videoId={}: {}", job.videoId(), e.getMessage());
-        }
+        redis.opsForStream().add(MapRecord.create(STREAM_KEY, payload));
+        log.info("분석 요청 큐 적재 — videoId={}", job.videoId());
     }
 }

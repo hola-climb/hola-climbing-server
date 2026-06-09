@@ -24,6 +24,7 @@ public class CommentServiceImpl implements CommentService {
     private final CommentMapper commentMapper;
     private final VideoMapper videoMapper;
     private final NotificationService notificationService;
+    private final VideoAccessPolicy videoAccessPolicy;
 
     @Override
     @Transactional
@@ -32,6 +33,7 @@ public class CommentServiceImpl implements CommentService {
         if (video == null) {
             throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND);
         }
+        videoAccessPolicy.requireViewable(video, userId);
         Comment parent = null;
         if (request.parentId() != null) {
             parent = commentMapper.findById(request.parentId());
@@ -58,9 +60,11 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public PageResponse<CommentResponse> getComments(Long videoId, int page, int size, Long viewerId) {
-        if (videoMapper.findById(videoId) == null) {
+        Video video = videoMapper.findById(videoId);
+        if (video == null) {
             throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND);
         }
+        videoAccessPolicy.requireViewable(video, viewerId);
         long total = commentMapper.countByVideoId(videoId, viewerId);
         List<CommentResponse> content = commentMapper.findByVideoId(videoId, size, page * size, viewerId)
                 .stream().map(CommentResponse::from).toList();
@@ -77,6 +81,7 @@ public class CommentServiceImpl implements CommentService {
         if (!comment.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
+        requireVideoViewable(comment, userId);
         commentMapper.update(commentId, request.content());
         return CommentResponse.from(commentMapper.findById(commentId));
     }
@@ -91,7 +96,16 @@ public class CommentServiceImpl implements CommentService {
         if (!comment.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
+        requireVideoViewable(comment, userId);
         commentMapper.softDelete(commentId);
         videoMapper.decrementCommentCount(comment.getVideoId());
+    }
+
+    private void requireVideoViewable(Comment comment, Long userId) {
+        Video video = videoMapper.findById(comment.getVideoId());
+        if (video == null) {
+            throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND);
+        }
+        videoAccessPolicy.requireViewable(video, userId);
     }
 }

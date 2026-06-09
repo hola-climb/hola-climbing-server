@@ -100,6 +100,20 @@ class AdminGymIntegrationTest {
     }
 
     @Test
+    @DisplayName("관리자 암장 - 난이도 목록은 한 번에 100개까지만 교체할 수 있다")
+    void replaceGrades_tooManyGrades_returns400() throws Exception {
+        String adminToken = registerAndLoginAdmin();
+        long gymId = insertActiveGymWithGrade();
+
+        mockMvc.perform(put("/api/admin/gyms/" + gymId + "/grades")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"grades\":[" + repeatedGrades(101) + "],\"reason\":\"too many\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("C001"));
+    }
+
+    @Test
     @DisplayName("관리자 암장 일괄입력 - preview는 저장하지 않고 오류 행을 반환한다")
     void previewImport_returnsInvalidRowsWithoutSaving() throws Exception {
         String adminToken = registerAndLoginAdmin();
@@ -121,6 +135,19 @@ class AdminGymIntegrationTest {
         Long savedCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM gyms WHERE name = '정상 암장'", Long.class);
         org.assertj.core.api.Assertions.assertThat(savedCount).isZero();
+    }
+
+    @Test
+    @DisplayName("관리자 암장 일괄입력 - 한 번에 500행까지만 받을 수 있다")
+    void previewImport_tooManyRows_returns400() throws Exception {
+        String adminToken = registerAndLoginAdmin();
+
+        mockMvc.perform(post("/api/admin/gyms/import/preview")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rows\":[" + repeatedImportRows(501) + "]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("C001"));
     }
 
     @Test
@@ -166,6 +193,21 @@ class AdminGymIntegrationTest {
                 VALUES (?, '기존', 10)
                 """, gymId);
         return gymId;
+    }
+
+    private String repeatedGrades(int count) {
+        return java.util.stream.IntStream.rangeClosed(1, count)
+                .mapToObj(i -> "{\"label\":\"G" + i + "\",\"difficultyOrder\":" + i + "}")
+                .collect(java.util.stream.Collectors.joining(","));
+    }
+
+    private String repeatedImportRows(int count) {
+        return java.util.stream.IntStream.rangeClosed(1, count)
+                .mapToObj(i -> "{\"externalKey\":\"import-" + i
+                        + "\",\"name\":\"Gym " + i
+                        + "\",\"address\":\"서울\",\"lat\":37.1,\"lng\":127.1,"
+                        + "\"regionCode\":\"seoul\",\"grades\":[{\"label\":\"노랑\",\"difficultyOrder\":10}]}")
+                .collect(java.util.stream.Collectors.joining(","));
     }
 
     private String registerAndLoginAdmin() throws Exception {

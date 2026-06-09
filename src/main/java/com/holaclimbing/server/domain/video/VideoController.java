@@ -115,10 +115,11 @@ public class VideoController {
         return ApiResponse.success();
     }
 
-    @ApiErrorCodes({VIDEO_NOT_FOUND})
+    @ApiErrorCodes({VIDEO_NOT_FOUND, VIDEO_NOT_ACCESSIBLE})
     @GetMapping("/{videoId}/status")
-    public ApiResponse<VideoStatusResponse> getStatus(@PathVariable Long videoId) {
-        return ApiResponse.success(videoService.getStatus(videoId));
+    public ApiResponse<VideoStatusResponse> getStatus(@PathVariable Long videoId,
+                                                       @AuthenticationPrincipal Long viewerId) {
+        return ApiResponse.success(videoService.getStatus(videoId, viewerId));
     }
 
     /**
@@ -126,7 +127,9 @@ public class VideoController {
      * 1회 replay하고, 이후 Python 워커가 발행하는 진행 이벤트를 그대로 푸시한다.
      */
     @GetMapping(value = "/{videoId}/analysis/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter streamAnalysisProgress(@PathVariable Long videoId) {
+    public SseEmitter streamAnalysisProgress(@PathVariable Long videoId,
+                                             @AuthenticationPrincipal Long viewerId) {
+        videoService.getStatus(videoId, viewerId);
         SseEmitter emitter = analysisSseService.connect(videoId);
         analysisStatusStore.find(videoId).ifPresent(progress -> {
             try {
@@ -138,14 +141,14 @@ public class VideoController {
         return emitter;
     }
 
-    @ApiErrorCodes({VIDEO_NOT_FOUND, INVALID_INPUT})
+    @ApiErrorCodes({VIDEO_NOT_FOUND, VIDEO_NOT_ACCESSIBLE, INVALID_INPUT})
     @PostMapping("/{videoId}/like")
     public ApiResponse<LikeResponse> likeVideo(@AuthenticationPrincipal Long userId,
                                                @PathVariable Long videoId) {
         return ApiResponse.success(videoService.likeVideo(userId, videoId));
     }
 
-    @ApiErrorCodes({VIDEO_NOT_FOUND})
+    @ApiErrorCodes({VIDEO_NOT_FOUND, VIDEO_NOT_ACCESSIBLE})
     @DeleteMapping("/{videoId}/like")
     public ApiResponse<LikeResponse> unlikeVideo(@AuthenticationPrincipal Long userId,
                                                  @PathVariable Long videoId) {
@@ -160,7 +163,7 @@ public class VideoController {
         return ApiResponse.success(videoService.createShareLink(userId, videoId));
     }
 
-    @ApiErrorCodes({VIDEO_NOT_FOUND, INVALID_INPUT})
+    @ApiErrorCodes({VIDEO_NOT_FOUND, VIDEO_NOT_ACCESSIBLE, INVALID_INPUT})
     @PostMapping("/{videoId}/comments")
     public ResponseEntity<ApiResponse<CommentResponse>> addComment(
             @AuthenticationPrincipal Long userId,
@@ -170,7 +173,7 @@ public class VideoController {
                 .body(ApiResponse.success(commentService.addComment(userId, videoId, request)));
     }
 
-    @ApiErrorCodes({VIDEO_NOT_FOUND})
+    @ApiErrorCodes({VIDEO_NOT_FOUND, VIDEO_NOT_ACCESSIBLE})
     @GetMapping("/{videoId}/comments")
     public ApiResponse<PageResponse<CommentResponse>> getComments(
             @PathVariable Long videoId,

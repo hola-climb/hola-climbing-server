@@ -3,6 +3,7 @@ package com.holaclimbing.server.domain.admin;
 import com.holaclimbing.server.common.response.ApiResponse;
 import com.holaclimbing.server.common.response.PageResponse;
 import com.holaclimbing.server.domain.admin.dto.request.AdminReasonRequest;
+import com.holaclimbing.server.domain.admin.dto.request.AdminUserRoleRequest;
 import com.holaclimbing.server.domain.admin.dto.request.AdminUserStatusRequest;
 import com.holaclimbing.server.domain.admin.dto.response.AdminUserDetailResponse;
 import com.holaclimbing.server.domain.admin.dto.response.AdminUserSearchResponse;
@@ -52,6 +53,13 @@ public class AdminUserController {
                                                              @PathVariable Long userId,
                                                              @Valid @RequestBody AdminUserStatusRequest request) {
         return ApiResponse.success(adminUserService.changeStatus(adminId, userId, request));
+    }
+
+    @PatchMapping("/{userId}/role")
+    public ApiResponse<AdminUserDetailResponse> changeRole(@AuthenticationPrincipal Long adminId,
+                                                           @PathVariable Long userId,
+                                                           @Valid @RequestBody AdminUserRoleRequest request) {
+        return ApiResponse.success(adminUserService.changeRole(adminId, userId, request));
     }
 
     @PostMapping("/{userId}/revoke-tokens")

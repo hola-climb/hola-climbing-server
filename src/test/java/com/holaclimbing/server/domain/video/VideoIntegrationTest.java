@@ -454,6 +454,19 @@ class VideoIntegrationTest {
     }
 
     @Test
+    @DisplayName("좋아요 실패 — 비공개 영상은 타인이 좋아요할 수 없다")
+    void likeVideo_privateVideoByOther_returns403() throws Exception {
+        String owner = register("a@hola.com", "climberone");
+        String other = register("b@hola.com", "climbertwo");
+        long videoId = createVideo(owner, false);
+
+        mockMvc.perform(post("/api/videos/" + videoId + "/like")
+                        .header("Authorization", "Bearer " + other))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("V006"));
+    }
+
+    @Test
     @DisplayName("좋아요 — 이미 좋아요한 영상은 400")
     void likeVideo_duplicate_returns400() throws Exception {
         String owner = register("a@hola.com", "climberone");
@@ -484,6 +497,19 @@ class VideoIntegrationTest {
     }
 
     @Test
+    @DisplayName("좋아요 취소 실패 — 비공개 영상은 타인이 좋아요 취소할 수 없다")
+    void unlikeVideo_privateVideoByOther_returns403() throws Exception {
+        String owner = register("a@hola.com", "climberone");
+        String other = register("b@hola.com", "climbertwo");
+        long videoId = createVideo(owner, false);
+
+        mockMvc.perform(delete("/api/videos/" + videoId + "/like")
+                        .header("Authorization", "Bearer " + other))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("V006"));
+    }
+
+    @Test
     @DisplayName("댓글 작성 — 201, 영상 comment_count가 증가한다")
     void addComment_success() throws Exception {
         String owner = register("a@hola.com", "climberone");
@@ -499,6 +525,21 @@ class VideoIntegrationTest {
 
         mockMvc.perform(get("/api/videos/" + videoId))
                 .andExpect(jsonPath("$.data.commentCount").value(1));
+    }
+
+    @Test
+    @DisplayName("댓글 작성 실패 — 비공개 영상은 타인이 댓글을 달 수 없다")
+    void addComment_privateVideoByOther_returns403() throws Exception {
+        String owner = register("a@hola.com", "climberone");
+        String other = register("b@hola.com", "climbertwo");
+        long videoId = createVideo(owner, false);
+
+        mockMvc.perform(post("/api/videos/" + videoId + "/comments")
+                        .header("Authorization", "Bearer " + other)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CreateCommentRequest("nice send!", null))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("V006"));
     }
 
     @Test
@@ -527,6 +568,20 @@ class VideoIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalElements").value(2))
                 .andExpect(jsonPath("$.data.content[0].content").value("first"));
+    }
+
+    @Test
+    @DisplayName("댓글 목록 실패 — 비공개 영상 댓글은 타인이 조회할 수 없다")
+    void getComments_privateVideoByOther_returns403() throws Exception {
+        String owner = register("a@hola.com", "climberone");
+        String other = register("b@hola.com", "climbertwo");
+        long videoId = createVideo(owner, false);
+        addComment(owner, videoId, "private comment");
+
+        mockMvc.perform(get("/api/videos/" + videoId + "/comments")
+                        .header("Authorization", "Bearer " + other))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("V006"));
     }
 
     @Test
@@ -570,6 +625,32 @@ class VideoIntegrationTest {
     }
 
     @Test
+    @DisplayName("분석 진행 상태 실패 — 비공개 영상 상태는 타인이 조회할 수 없다")
+    void getStatus_privateVideoByOther_returns403() throws Exception {
+        String owner = register("a@hola.com", "climberone");
+        String other = register("b@hola.com", "climbertwo");
+        long videoId = createVideo(owner, false);
+
+        mockMvc.perform(get("/api/videos/" + videoId + "/status")
+                        .header("Authorization", "Bearer " + other))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("V006"));
+    }
+
+    @Test
+    @DisplayName("분석 진행 SSE 실패 — 비공개 영상 진행률은 타인이 구독할 수 없다")
+    void streamAnalysisProgress_privateVideoByOther_returns403() throws Exception {
+        String owner = register("a@hola.com", "climberone");
+        String other = register("b@hola.com", "climbertwo");
+        long videoId = createVideo(owner, false);
+
+        mockMvc.perform(get("/api/videos/" + videoId + "/analysis/stream")
+                        .header("Authorization", "Bearer " + other))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("V006"));
+    }
+
+    @Test
     @DisplayName("댓글 수정 — 작성자는 수정 가능, 타인은 403")
     void updateComment_accessControl() throws Exception {
         String owner = register("a@hola.com", "climberone");
@@ -588,6 +669,33 @@ class VideoIntegrationTest {
                         .header("Authorization", "Bearer " + other)
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("댓글 수정/삭제 — 공개 영상에 댓글을 쓴 사용자도 비공개 전환 후에는 수정/삭제할 수 없다")
+    void updateOrDeleteComment_afterVideoBecomesPrivateByOther_returns403() throws Exception {
+        String owner = register("a@hola.com", "climberone");
+        String commenter = register("b@hola.com", "climbertwo");
+        long videoId = createVideo(owner, true);
+        long commentId = addComment(commenter, videoId, "public comment");
+
+        var makePrivate = objectMapper.writeValueAsString(new UpdateVideoRequest(null, null, false));
+        mockMvc.perform(patch("/api/videos/" + videoId)
+                        .header("Authorization", "Bearer " + owner)
+                        .contentType(MediaType.APPLICATION_JSON).content(makePrivate))
+                .andExpect(status().isOk());
+
+        var edit = objectMapper.writeValueAsString(new UpdateCommentRequest("edited after private"));
+        mockMvc.perform(patch("/api/comments/" + commentId)
+                        .header("Authorization", "Bearer " + commenter)
+                        .contentType(MediaType.APPLICATION_JSON).content(edit))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("V006"));
+
+        mockMvc.perform(delete("/api/comments/" + commentId)
+                        .header("Authorization", "Bearer " + commenter))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("V006"));
     }
 
     @Test

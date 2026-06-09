@@ -10,9 +10,12 @@ import com.holaclimbing.server.domain.stats.dto.response.TechniqueStatsResponse;
 import com.holaclimbing.server.domain.stats.dto.response.UserStatsResponse;
 import com.holaclimbing.server.domain.stats.service.ClimbingLogService;
 import com.holaclimbing.server.domain.stats.service.StatsService;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,6 +31,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/stats")
 @RequiredArgsConstructor
+@Validated
 public class StatsController {
 
     private final StatsService statsService;
@@ -55,8 +59,8 @@ public class StatsController {
     @GetMapping("/me/calendar")
     public ApiResponse<List<CalendarDayResponse>> getMyCalendar(
             @AuthenticationPrincipal Long userId,
-            @RequestParam int year,
-            @RequestParam int month) {
+            @RequestParam @Min(2000) @Max(2100) int year,
+            @RequestParam @Min(1) @Max(12) int month) {
         return ApiResponse.success(climbingLogService.getMonthlyCalendar(userId, year, month));
     }
 

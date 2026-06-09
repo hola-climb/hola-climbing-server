@@ -52,6 +52,15 @@
         </if>
     </select>
 
+    <select id="lockActiveAdminIds" resultType="long">
+        SELECT id
+        FROM users
+        WHERE role = 'ADMIN'
+          AND status = 'ACTIVE'
+          AND deleted_at IS NULL
+        FOR UPDATE
+    </select>
+
     <select id="findByEmailVerificationToken" resultType="com.holaclimbing.server.domain.user.domain.User">
         SELECT <include refid="columns"/>
         FROM users

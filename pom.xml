@@ -86,6 +86,12 @@
 			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
 
+		<!-- Mail: 이메일 인증/비밀번호 재설정 운영 발송용 SMTP 클라이언트 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+
 
 		<!-- ========== 웹/REST API ========== -->
 

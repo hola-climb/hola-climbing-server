@@ -57,17 +57,22 @@ class AnalysisDispatcherTest {
     }
 
     @Test
-    @DisplayName("큐 적재 실패 시에도 예외를 삼키고 통과한다 (영상 등록에 영향 없음)")
-    void dispatch_whenQueueFails_swallowsError() {
+    @DisplayName("큐 적재 실패 시에도 예외를 삼키고 FAILED 상태를 저장한다")
+    void dispatch_whenQueueFails_marksFailedAndSwallowsError() {
         AnalysisJobQueue failingQueue = job -> {
             throw new RuntimeException("redis down");
         };
         AnalysisDispatcher failing = new AnalysisDispatcher(failingQueue, new AnalysisStatusStore(null, null) {
-            @Override public void save(AnalysisProgress progress) {}
+            @Override
+            public void save(AnalysisProgress progress) {
+                saved.put(progress.videoId(), progress);
+            }
         });
         ReflectionTestUtils.setField(failing, "baseUrl", "http://localhost:8080");
 
         assertThatNoException()
                 .isThrownBy(() -> failing.dispatch(1L, "videos/uploads/1/clip.mp4"));
+        assertThat(saved.get(1L).stage()).isEqualTo(AnalysisStage.FAILED);
+        assertThat(saved.get(1L).message()).contains("디스패치");
     }
 }

@@ -94,6 +94,23 @@ class RecommendationIntegrationTest {
     }
 
     @Test
+    @DisplayName("홈 피드 — 차단한 업로더의 공개 영상은 제외된다")
+    void getVideoFeed_excludesBlockedUploaderVideos() throws Exception {
+        String viewer = register("viewer@hola.com", "viewer");
+        String blocked = register("blocked@hola.com", "blockeduser");
+        long blockedId = userMapper.findByEmail("blocked@hola.com").getId();
+
+        createVideo(blocked);
+        mockMvc.perform(post("/api/users/" + blockedId + "/block")
+                        .header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/recommendations/videos").header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(0));
+    }
+
+    @Test
     @DisplayName("홈 피드 실패 — 토큰 없이 호출하면 401")
     void getVideoFeed_withoutToken_returns401() throws Exception {
         mockMvc.perform(get("/api/recommendations/videos"))

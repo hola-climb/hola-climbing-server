@@ -40,6 +40,8 @@ public class AnalysisDispatcher {
                 statusStore.save(AnalysisProgress.of(videoId, AnalysisStage.QUEUED, "분석 대기열에 등록됨"));
             } catch (Exception e) {
                 log.warn("AI 분석 디스패치 실패 — videoId={}: {}", videoId, e.getMessage());
+                statusStore.save(AnalysisProgress.of(videoId, AnalysisStage.FAILED,
+                        "분석 디스패치에 실패했습니다. 잠시 후 다시 시도해 주세요."));
             }
         };
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
