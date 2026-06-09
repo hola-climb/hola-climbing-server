@@ -62,7 +62,8 @@ build/
 .vscode/
 
 ### AI agent tooling (local-only, machine-specific) ###
-/.claude/
-/.codex/
-/AGENTS.md
-/CLAUDE.md
+.claude/
+.codex/
+.agents/
+AGENTS.md
+CLAUDE.md
