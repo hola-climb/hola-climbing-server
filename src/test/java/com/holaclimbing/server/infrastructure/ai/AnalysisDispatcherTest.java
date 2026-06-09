@@ -1,5 +1,6 @@
 package com.holaclimbing.server.infrastructure.ai;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,12 +24,14 @@ class AnalysisDispatcherTest {
 
     private List<AnalysisJob> enqueued;
     private Map<Long, AnalysisProgress> saved;
+    private SimpleMeterRegistry meterRegistry;
     private AnalysisDispatcher dispatcher;
 
     @BeforeEach
     void setUp() {
         enqueued = new ArrayList<>();
         saved = new HashMap<>();
+        meterRegistry = new SimpleMeterRegistry();
 
         AnalysisJobQueue queue = enqueued::add;
         AnalysisStatusStore store = new AnalysisStatusStore(null, null) {
@@ -42,7 +45,7 @@ class AnalysisDispatcherTest {
                 return Optional.ofNullable(saved.get(videoId));
             }
         };
-        dispatcher = new AnalysisDispatcher(queue, store);
+        dispatcher = new AnalysisDispatcher(queue, store, meterRegistry);
         ReflectionTestUtils.setField(dispatcher, "baseUrl", "http://localhost:8080");
     }
 
@@ -79,12 +82,13 @@ class AnalysisDispatcherTest {
             public void save(AnalysisProgress progress) {
                 saved.put(progress.videoId(), progress);
             }
-        });
+        }, meterRegistry);
         ReflectionTestUtils.setField(failing, "baseUrl", "http://localhost:8080");
 
         assertThatNoException()
                 .isThrownBy(() -> failing.dispatch(1L, "videos/uploads/1/clip.mp4"));
         assertThat(saved.get(1L).stage()).isEqualTo(AnalysisStage.FAILED);
         assertThat(saved.get(1L).message()).contains("디스패치");
+        assertThat(meterRegistry.counter("analysis.dispatch.failure.total").count()).isEqualTo(1.0);
     }
 }
