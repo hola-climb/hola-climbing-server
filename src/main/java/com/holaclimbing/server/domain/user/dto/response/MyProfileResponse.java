@@ -16,8 +16,12 @@ public record MyProfileResponse(
         LocalDateTime createdAt
 ) {
     public static MyProfileResponse of(User user, long followerCount, long followingCount) {
+        return of(user, followerCount, followingCount, user.getProfileImage());
+    }
+
+    public static MyProfileResponse of(User user, long followerCount, long followingCount, String profileImage) {
         return new MyProfileResponse(
-                user.getId(), user.getEmail(), user.getNickname(), user.getProfileImage(),
+                user.getId(), user.getEmail(), user.getNickname(), profileImage,
                 user.getBio(), user.isEmailVerified(), followerCount, followingCount, user.getCreatedAt());
     }
 }

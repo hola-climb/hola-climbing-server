@@ -26,6 +26,19 @@
         ORDER BY climbed_on DESC, id DESC
     </select>
 
+    <select id="findVideoStatsByUserAndPeriod" resultType="com.holaclimbing.server.domain.stats.domain.CalendarVideoStats">
+        SELECT recorded_date AS date,
+               COUNT(*)::int AS video_count,
+               COALESCE(SUM(duration_seconds), 0)::bigint AS total_duration_seconds
+        FROM videos
+        WHERE user_id = #{userId}
+          AND deleted_at IS NULL
+          AND status &lt;&gt; 'failed'
+          AND recorded_date BETWEEN #{from} AND #{to}
+        GROUP BY recorded_date
+        ORDER BY recorded_date
+    </select>
+
     <select id="findByUserAndDate" resultType="com.holaclimbing.server.domain.stats.domain.ClimbingLog">
         SELECT id, user_id, gym_id, climbed_on, grade_counts, memo,
                created_at, updated_at, deleted_at

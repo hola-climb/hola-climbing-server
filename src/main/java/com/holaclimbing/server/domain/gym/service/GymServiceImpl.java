@@ -41,8 +41,10 @@ public class GymServiceImpl implements GymService {
 
     @Override
     public PageResponse<GymSummaryResponse> searchGyms(String keyword, String region, int page, int size) {
-        long total = gymMapper.countSearch(keyword, region);
-        List<GymSummaryResponse> content = gymMapper.search(keyword, region, size, page * size)
+        String normalizedKeyword = normalizeLikeKeyword(keyword);
+        String normalizedRegion = normalizeText(region);
+        long total = gymMapper.countSearch(normalizedKeyword, normalizedRegion);
+        List<GymSummaryResponse> content = gymMapper.search(normalizedKeyword, normalizedRegion, size, page * size)
                 .stream().map(GymSummaryResponse::from).toList();
         return PageResponse.of(content, page, size, total);
     }
@@ -176,5 +178,23 @@ public class GymServiceImpl implements GymService {
             log.warn("business_hours 파싱 실패: {}", e.getMessage());
             return Map.of();
         }
+    }
+
+    private String normalizeText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private String normalizeLikeKeyword(String keyword) {
+        String normalized = normalizeText(keyword);
+        if (normalized == null) {
+            return null;
+        }
+        return normalized
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
     }
 }

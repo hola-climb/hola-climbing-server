@@ -81,6 +81,19 @@ public class GcsStorageService {
         return normalizeSchemeForCustomHost(signWithRetry(blobInfo, opts).toString());
     }
 
+    /** 서버가 직접 받은 작은 바이너리를 GCS 객체로 저장한다. */
+    public void uploadBytes(String objectPath, String contentType, byte[] bytes) {
+        BlobInfo blobInfo = BlobInfo.newBuilder(BlobId.of(properties.bucket(), objectPath))
+                .setContentType(contentType)
+                .build();
+        try {
+            storage.create(blobInfo, bytes);
+        } catch (RuntimeException e) {
+            log.warn("GCS 객체 업로드 실패 — objectPath={}, reason={}", objectPath, e.getMessage());
+            throw new BusinessException(ErrorCode.GCS_UPLOAD_FAILED);
+        }
+    }
+
     /**
      * signUrl을 지수 백오프로 최대 MAX_ATTEMPTS회 재시도. 모두 실패하면 GCS_UPLOAD_FAILED.
      * 로컬 SA 서명은 사실상 1회에 성공/실패가 확정되지만, IAM signBlob 경로의 일시적 5xx·타임아웃을 흡수한다.

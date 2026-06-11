@@ -4,6 +4,7 @@ import com.holaclimbing.server.domain.stats.dto.request.CreateClimbingLogRequest
 import com.holaclimbing.server.domain.stats.dto.request.UpdateClimbingLogRequest;
 import com.holaclimbing.server.domain.stats.dto.response.CalendarDayResponse;
 import com.holaclimbing.server.domain.stats.dto.response.ClimbingLogResponse;
+import com.holaclimbing.server.domain.stats.dto.response.MonthlyCalendarResponse;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -23,7 +24,7 @@ public interface ClimbingLogService {
     void deleteLog(Long userId, Long logId);
 
     /** 월간 달력 — 날짜별 기록 수·푼 문제 수 요약. */
-    List<CalendarDayResponse> getMonthlyCalendar(Long userId, int year, int month);
+    MonthlyCalendarResponse getMonthlyCalendar(Long userId, int year, int month);
 
     /** 특정 날짜의 기록 목록. */
     List<ClimbingLogResponse> getLogsByDate(Long userId, LocalDate date);

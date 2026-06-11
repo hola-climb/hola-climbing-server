@@ -122,6 +122,25 @@ class RecommendationIntegrationTest {
     }
 
     @Test
+    @DisplayName("홈 피드 — 나를 차단한 업로더의 공개 영상도 제외된다")
+    void getVideoFeed_excludesUploaderWhoBlockedViewer() throws Exception {
+        String viewer = register("viewer-blocked@hola.com", "viewer");
+        String blocker = register("blocker@hola.com", "blockeruser");
+        long viewerId = userMapper.findByEmail("viewer-blocked@hola.com").getId();
+
+        createVideo(blocker);
+        mockMvc.perform(post("/api/users/" + viewerId + "/block")
+                        .header("Authorization", "Bearer " + blocker))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/recommendations/videos").header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(0))
+                .andExpect(jsonPath("$.data.hasNext").value(false))
+                .andExpect(jsonPath("$.data.totalElements").doesNotExist());
+    }
+
+    @Test
     @DisplayName("홈 피드 — 임베딩이 있으면 가까운 암장 영상이 먼저 노출된다")
     void getVideoFeed_whenEmbeddingsExist_ordersByVectorSimilarity() throws Exception {
         String viewer = register("viewer-vector@hola.com", "viewer");

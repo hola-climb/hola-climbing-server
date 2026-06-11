@@ -51,10 +51,12 @@ public class GymController {
     @GetMapping
     public ApiResponse<PageResponse<GymSummaryResponse>> searchGyms(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false, name = "q") String query,
+            @RequestParam(required = false) String name,
             @RequestParam(required = false) String region,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Positive @Max(100) int size) {
-        return ApiResponse.success(gymService.searchGyms(keyword, region, page, size));
+        return ApiResponse.success(gymService.searchGyms(firstNonBlank(keyword, query, name), region, page, size));
     }
 
     @ApiErrorCodes({INVALID_INPUT})
@@ -77,6 +79,15 @@ public class GymController {
     @GetMapping("/{gymId}/grades")
     public ApiResponse<List<GymGradeResponse>> getGymGrades(@PathVariable Long gymId) {
         return ApiResponse.success(gymService.getGrades(gymId));
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 
     @GetMapping("/{gymId}/videos")

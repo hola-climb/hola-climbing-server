@@ -5,11 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.holaclimbing.server.common.exception.BusinessException;
 import com.holaclimbing.server.common.exception.error.ErrorCode;
 import com.holaclimbing.server.domain.gym.mapper.GymMapper;
+import com.holaclimbing.server.domain.stats.domain.CalendarVideoStats;
 import com.holaclimbing.server.domain.stats.domain.ClimbingLog;
 import com.holaclimbing.server.domain.stats.dto.request.CreateClimbingLogRequest;
 import com.holaclimbing.server.domain.stats.dto.request.UpdateClimbingLogRequest;
 import com.holaclimbing.server.domain.stats.dto.response.CalendarDayResponse;
 import com.holaclimbing.server.domain.stats.dto.response.ClimbingLogResponse;
+import com.holaclimbing.server.domain.stats.dto.response.MonthlyCalendarResponse;
 import com.holaclimbing.server.domain.stats.mapper.ClimbingLogMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -72,18 +74,34 @@ public class ClimbingLogServiceImpl implements ClimbingLogService {
     }
 
     @Override
-    public List<CalendarDayResponse> getMonthlyCalendar(Long userId, int year, int month) {
+    public MonthlyCalendarResponse getMonthlyCalendar(Long userId, int year, int month) {
         LocalDate from = LocalDate.of(year, month, 1);
         LocalDate to = from.withDayOfMonth(from.lengthOfMonth());
-        Map<LocalDate, int[]> byDate = new TreeMap<>();
+        Map<LocalDate, DayAggregate> byDate = new TreeMap<>();
+        int totalProblems = 0;
+        int totalGymVisits = 0;
         for (ClimbingLog log : logMapper.findByUserAndPeriod(userId, from, to)) {
-            int[] agg = byDate.computeIfAbsent(log.getClimbedOn(), d -> new int[2]);
-            agg[0]++;
-            agg[1] += sum(parseGradeCounts(log.getGradeCounts()));
+            DayAggregate agg = byDate.computeIfAbsent(log.getClimbedOn(), d -> new DayAggregate());
+            int problems = sum(parseGradeCounts(log.getGradeCounts()));
+            agg.logCount++;
+            agg.totalProblems += problems;
+            totalProblems += problems;
+            totalGymVisits++;
         }
-        return byDate.entrySet().stream()
-                .map(e -> new CalendarDayResponse(e.getKey(), e.getValue()[0], e.getValue()[1]))
+        int totalVideos = 0;
+        long totalVideoDurationSeconds = 0;
+        for (CalendarVideoStats stats : logMapper.findVideoStatsByUserAndPeriod(userId, from, to)) {
+            DayAggregate agg = byDate.computeIfAbsent(stats.getDate(), d -> new DayAggregate());
+            agg.videoCount = stats.getVideoCount();
+            totalVideos += stats.getVideoCount();
+            totalVideoDurationSeconds += stats.getTotalDurationSeconds();
+        }
+        List<CalendarDayResponse> days = byDate.entrySet().stream()
+                .map(e -> new CalendarDayResponse(
+                        e.getKey(), e.getValue().logCount, e.getValue().totalProblems, e.getValue().videoCount))
                 .toList();
+        return new MonthlyCalendarResponse(
+                year, month, totalVideos, totalProblems, totalVideoDurationSeconds, totalGymVisits, days);
     }
 
     @Override
@@ -135,5 +153,11 @@ public class ClimbingLogServiceImpl implements ClimbingLogService {
 
     private int sum(Map<String, Integer> counts) {
         return counts.values().stream().filter(v -> v != null).mapToInt(Integer::intValue).sum();
+    }
+
+    private static class DayAggregate {
+        private int logCount;
+        private int totalProblems;
+        private int videoCount;
     }
 }

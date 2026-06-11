@@ -11,4 +11,8 @@ public record UserSummaryResponse(
     public static UserSummaryResponse from(User user) {
         return new UserSummaryResponse(user.getId(), user.getNickname(), user.getProfileImage(), user.getBio());
     }
+
+    public static UserSummaryResponse from(User user, String profileImage) {
+        return new UserSummaryResponse(user.getId(), user.getNickname(), profileImage, user.getBio());
+    }
 }

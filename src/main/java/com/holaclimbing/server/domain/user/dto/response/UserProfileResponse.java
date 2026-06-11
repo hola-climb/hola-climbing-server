@@ -15,8 +15,13 @@ public record UserProfileResponse(
         LocalDateTime createdAt
 ) {
     public static UserProfileResponse of(User user, long followerCount, long followingCount, boolean isFollowing) {
+        return of(user, followerCount, followingCount, isFollowing, user.getProfileImage());
+    }
+
+    public static UserProfileResponse of(User user, long followerCount, long followingCount,
+                                         boolean isFollowing, String profileImage) {
         return new UserProfileResponse(
-                user.getId(), user.getNickname(), user.getProfileImage(), user.getBio(),
+                user.getId(), user.getNickname(), profileImage, user.getBio(),
                 followerCount, followingCount, isFollowing, user.getCreatedAt());
     }
 }

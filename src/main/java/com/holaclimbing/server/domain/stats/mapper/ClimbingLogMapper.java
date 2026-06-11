@@ -1,5 +1,6 @@
 package com.holaclimbing.server.domain.stats.mapper;
 
+import com.holaclimbing.server.domain.stats.domain.CalendarVideoStats;
 import com.holaclimbing.server.domain.stats.domain.ClimbingLog;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -20,6 +21,11 @@ public interface ClimbingLogMapper {
     List<ClimbingLog> findByUserAndPeriod(@Param("userId") Long userId,
                                           @Param("from") LocalDate from,
                                           @Param("to") LocalDate to);
+
+    /** 특정 사용자의 recorded_date 기간 내 영상 일별 집계. */
+    List<CalendarVideoStats> findVideoStatsByUserAndPeriod(@Param("userId") Long userId,
+                                                           @Param("from") LocalDate from,
+                                                           @Param("to") LocalDate to);
 
     /** 특정 사용자의 특정 날짜 기록 (최신순). */
     List<ClimbingLog> findByUserAndDate(@Param("userId") Long userId,

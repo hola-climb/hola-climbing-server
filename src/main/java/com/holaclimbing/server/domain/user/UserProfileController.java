@@ -16,6 +16,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -26,7 +27,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 회원 프로필 / 팔로우 / 차단 API.
@@ -50,6 +53,13 @@ public class UserProfileController {
     public ApiResponse<MyProfileResponse> updateMyProfile(@AuthenticationPrincipal Long userId,
                                                           @Valid @RequestBody UpdateProfileRequest request) {
         return ApiResponse.success(userProfileService.updateMyProfile(userId, request));
+    }
+
+    @ApiErrorCodes({INVALID_INPUT, GCS_UPLOAD_FAILED})
+    @PostMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<MyProfileResponse> uploadProfileImage(@AuthenticationPrincipal Long userId,
+                                                             @RequestPart("image") MultipartFile image) {
+        return ApiResponse.success(userProfileService.uploadProfileImage(userId, image));
     }
 
     @ApiErrorCodes({PASSWORD_MISMATCH, USER_NOT_FOUND})

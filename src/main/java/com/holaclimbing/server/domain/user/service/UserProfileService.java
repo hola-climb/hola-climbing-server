@@ -5,6 +5,7 @@ import com.holaclimbing.server.domain.user.dto.request.UpdateProfileRequest;
 import com.holaclimbing.server.domain.user.dto.response.MyProfileResponse;
 import com.holaclimbing.server.domain.user.dto.response.UserProfileResponse;
 import com.holaclimbing.server.domain.user.dto.response.UserSummaryResponse;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface UserProfileService {
 
@@ -13,6 +14,9 @@ public interface UserProfileService {
 
     /** 내 프로필 부분 수정. */
     MyProfileResponse updateMyProfile(Long userId, UpdateProfileRequest request);
+
+    /** 내 프로필 이미지 업로드. */
+    MyProfileResponse uploadProfileImage(Long userId, MultipartFile image);
 
     /** 다른 사용자 프로필 조회. viewerId가 있으면 팔로우 여부를 함께 반환. */
     UserProfileResponse getUserProfile(Long targetUserId, Long viewerId);

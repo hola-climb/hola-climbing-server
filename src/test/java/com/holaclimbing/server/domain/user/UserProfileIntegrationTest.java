@@ -17,6 +17,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
@@ -27,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -98,6 +100,52 @@ class UserProfileIntegrationTest {
                 .andExpect(jsonPath("$.data.bio").value("bouldering for 6 months"));
 
         assertThat(userMapper.findById(me.id()).getNickname()).isEqualTo("newnickname");
+    }
+
+    @Test
+    @DisplayName("프로필 이미지 등록 — multipart 이미지를 GCS에 업로드하고 읽기 URL을 반환한다")
+    void uploadProfileImage_success() throws Exception {
+        TestUser me = register("image@hola.com", "imageuser");
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "profile.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                "fake-jpeg-profile-image".getBytes(StandardCharsets.UTF_8));
+
+        mockMvc.perform(multipart("/api/users/me/profile-image")
+                        .file(image)
+                        .header("Authorization", "Bearer " + me.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.profileImage").isString())
+                .andExpect(jsonPath("$.data.profileImage").value(org.hamcrest.Matchers.containsString(
+                        "profile-images/" + me.id() + "/")))
+                .andExpect(jsonPath("$.data.profileImage").value(org.hamcrest.Matchers.containsString(
+                        "X-Goog-Signature=")));
+
+        String stored = jdbcTemplate.queryForObject(
+                "SELECT profile_image FROM users WHERE id = ?",
+                String.class,
+                me.id());
+        assertThat(stored)
+                .startsWith("profile-images/" + me.id() + "/")
+                .endsWith(".jpg");
+    }
+
+    @Test
+    @DisplayName("프로필 이미지 등록 실패 — 지원하지 않는 이미지 형식은 400")
+    void uploadProfileImage_unsupportedFormat_returns400() throws Exception {
+        TestUser me = register("gif@hola.com", "gifuser");
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "profile.gif",
+                MediaType.IMAGE_GIF_VALUE,
+                "fake-gif-profile-image".getBytes(StandardCharsets.UTF_8));
+
+        mockMvc.perform(multipart("/api/users/me/profile-image")
+                        .file(image)
+                        .header("Authorization", "Bearer " + me.token()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("C001"));
     }
 
     @Test

@@ -36,8 +36,8 @@
               AND NOT EXISTS (
                   SELECT 1
                   FROM user_blocks ub
-                  WHERE ub.blocker_id = #{userId}
-                    AND ub.blocked_id = v.user_id
+                  WHERE (ub.blocker_id = #{userId} AND ub.blocked_id = v.user_id)
+                     OR (ub.blocker_id = v.user_id AND ub.blocked_id = #{userId})
               )
         ),
         ranked AS (

@@ -49,6 +49,24 @@ class GymIntegrationTest {
     }
 
     @Test
+    @DisplayName("암장 검색 — q 별칭도 키워드와 동일하게 이름 부분일치로 필터링한다")
+    void searchGyms_byQueryAlias() throws Exception {
+        mockMvc.perform(get("/api/gyms").param("q", "Pangyo"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.content[0].name").value("BoulderProject Pangyo"));
+    }
+
+    @Test
+    @DisplayName("암장 검색 — LIKE wildcard 문자는 실제 포함 문자로만 검색한다")
+    void searchGyms_escapesLikeWildcards() throws Exception {
+        mockMvc.perform(get("/api/gyms").param("keyword", "%"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(0))
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+    }
+
+    @Test
     @DisplayName("암장 검색 — 지역 코드로 필터링한다")
     void searchGyms_byRegion() throws Exception {
         mockMvc.perform(get("/api/gyms").param("region", "gyeonggi"))

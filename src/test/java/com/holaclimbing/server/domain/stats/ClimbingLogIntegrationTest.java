@@ -16,6 +16,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
@@ -43,7 +44,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "classpath:sql/users-schema.sql",
         "classpath:sql/gyms-schema.sql",
         "classpath:sql/gyms-data.sql",
-        "classpath:sql/climbing-logs-schema.sql"
+        "classpath:sql/climbing-logs-schema.sql",
+        "classpath:sql/videos-schema.sql"
 }, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 class ClimbingLogIntegrationTest {
 
@@ -57,6 +59,9 @@ class ClimbingLogIntegrationTest {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     @DisplayName("기록 작성 — 201, 난이도별 개수와 총합이 저장된다")
@@ -159,21 +164,40 @@ class ClimbingLogIntegrationTest {
     }
 
     @Test
-    @DisplayName("달력 — 월간 요약과 특정 날짜 기록 조회")
+    @DisplayName("달력 — 일별 기록·영상 수와 월간 합계를 반환한다")
     void calendar_monthlyAndByDate() throws Exception {
         String token = register("a@hola.com", "climberone");
+        long userId = userMapper.findByEmail("a@hola.com").getId();
         createLog(token, LocalDate.of(2026, 5, 10), Map.of("빨강", 3));
         createLog(token, LocalDate.of(2026, 5, 10), Map.of("파랑", 2));
         createLog(token, LocalDate.of(2026, 5, 20), Map.of("초록", 1));
+        createVideo(userId, 1L, 1002L, LocalDate.of(2026, 5, 10), 30);
+        createVideo(userId, 1L, 1003L, LocalDate.of(2026, 5, 10), 40);
+        createVideo(userId, 2L, 1004L, LocalDate.of(2026, 5, 11), 50);
 
         mockMvc.perform(get("/api/stats/me/calendar")
                         .header("Authorization", "Bearer " + token)
                         .param("year", "2026").param("month", "5"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2))
-                .andExpect(jsonPath("$.data[0].date").value("2026-05-10"))
-                .andExpect(jsonPath("$.data[0].logCount").value(2))
-                .andExpect(jsonPath("$.data[0].totalProblems").value(5));
+                .andExpect(jsonPath("$.data.year").value(2026))
+                .andExpect(jsonPath("$.data.month").value(5))
+                .andExpect(jsonPath("$.data.totalVideos").value(3))
+                .andExpect(jsonPath("$.data.totalProblems").value(6))
+                .andExpect(jsonPath("$.data.totalVideoDurationSeconds").value(120))
+                .andExpect(jsonPath("$.data.totalGymVisits").value(3))
+                .andExpect(jsonPath("$.data.days.length()").value(3))
+                .andExpect(jsonPath("$.data.days[0].date").value("2026-05-10"))
+                .andExpect(jsonPath("$.data.days[0].logCount").value(2))
+                .andExpect(jsonPath("$.data.days[0].totalProblems").value(5))
+                .andExpect(jsonPath("$.data.days[0].videoCount").value(2))
+                .andExpect(jsonPath("$.data.days[1].date").value("2026-05-11"))
+                .andExpect(jsonPath("$.data.days[1].logCount").value(0))
+                .andExpect(jsonPath("$.data.days[1].totalProblems").value(0))
+                .andExpect(jsonPath("$.data.days[1].videoCount").value(1))
+                .andExpect(jsonPath("$.data.days[2].date").value("2026-05-20"))
+                .andExpect(jsonPath("$.data.days[2].logCount").value(1))
+                .andExpect(jsonPath("$.data.days[2].totalProblems").value(1))
+                .andExpect(jsonPath("$.data.days[2].videoCount").value(0));
 
         mockMvc.perform(get("/api/stats/me/calendar/2026-05-10")
                         .header("Authorization", "Bearer " + token))
@@ -190,6 +214,20 @@ class ClimbingLogIntegrationTest {
                         .content(objectMapper.writeValueAsString(
                                 new CreateClimbingLogRequest(1L, date, counts, null))))
                 .andExpect(status().isCreated());
+    }
+
+    private void createVideo(long userId, long gymId, long gymGradeId,
+                             LocalDate recordedDate, int durationSeconds) {
+        jdbcTemplate.update("""
+                INSERT INTO videos (
+                    user_id, gym_id, gym_grade_id, title, gcs_path,
+                    duration_seconds, recorded_date, mime_type, status, is_public
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'video/mp4', 'completed', TRUE)
+                """,
+                userId, gymId, gymGradeId, "calendar clip",
+                "videos/uploads/" + userId + "/calendar-" + recordedDate + "-" + durationSeconds + ".mp4",
+                durationSeconds, recordedDate);
     }
 
     private String register(String email, String nickname) throws Exception {

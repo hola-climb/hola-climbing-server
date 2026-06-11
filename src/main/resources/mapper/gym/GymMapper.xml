@@ -27,7 +27,7 @@
         FROM gyms
         WHERE status = 'active' AND deleted_at IS NULL
         <if test="keyword != null and keyword != ''">
-            AND name ILIKE '%' || #{keyword} || '%'
+            AND name ILIKE '%' || #{keyword} || '%' ESCAPE '\'
         </if>
         <if test="region != null and region != ''">
             AND region_code = #{region}
@@ -41,7 +41,7 @@
         FROM gyms
         WHERE status = 'active' AND deleted_at IS NULL
         <if test="keyword != null and keyword != ''">
-            AND name ILIKE '%' || #{keyword} || '%'
+            AND name ILIKE '%' || #{keyword} || '%' ESCAPE '\'
         </if>
         <if test="region != null and region != ''">
             AND region_code = #{region}

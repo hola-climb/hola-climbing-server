@@ -4,8 +4,8 @@ import static com.holaclimbing.server.common.exception.error.ErrorCode.*;
 
 import com.holaclimbing.server.common.exception.docs.ApiErrorCodes;
 import com.holaclimbing.server.common.response.ApiResponse;
-import com.holaclimbing.server.domain.stats.dto.response.CalendarDayResponse;
 import com.holaclimbing.server.domain.stats.dto.response.ClimbingLogResponse;
+import com.holaclimbing.server.domain.stats.dto.response.MonthlyCalendarResponse;
 import com.holaclimbing.server.domain.stats.dto.response.TechniqueStatsResponse;
 import com.holaclimbing.server.domain.stats.dto.response.UserStatsResponse;
 import com.holaclimbing.server.domain.stats.service.ClimbingLogService;
@@ -57,7 +57,7 @@ public class StatsController {
 
     /** 월간 달력 — 날짜별 클라이밍 기록 요약. */
     @GetMapping("/me/calendar")
-    public ApiResponse<List<CalendarDayResponse>> getMyCalendar(
+    public ApiResponse<MonthlyCalendarResponse> getMyCalendar(
             @AuthenticationPrincipal Long userId,
             @RequestParam @Min(2000) @Max(2100) int year,
             @RequestParam @Min(1) @Max(12) int month) {
