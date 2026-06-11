@@ -358,6 +358,25 @@ class VideoIntegrationTest {
     }
 
     @Test
+    @DisplayName("피드 — 인증 사용자는 recordedDate 조회에서 자기 비공개 영상도 본다")
+    void getFeed_filtersByRecordedDate_includesOwnPrivateVideo() throws Exception {
+        String owner = register("a@hola.com", "climberone");
+        String other = register("b@hola.com", "climbertwo");
+        long ownPrivate = createVideoOn(owner, false, LocalDate.of(2026, 6, 3));
+        createVideoOn(other, false, LocalDate.of(2026, 6, 3));
+        createVideoOn(owner, false, LocalDate.of(2026, 6, 1));
+
+        var page = dataOf(mockMvc.perform(get("/api/videos")
+                        .param("recordedDate", "2026-06-03")
+                        .header("Authorization", "Bearer " + owner))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].recordedDate").value("2026-06-03")));
+        org.assertj.core.api.Assertions.assertThat(page.path("content").get(0).path("id").asLong())
+                .isEqualTo(ownPrivate);
+    }
+
+    @Test
     @DisplayName("피드 — 잘못된 형식의 recordedDate는 400")
     void getFeed_invalidRecordedDate_returns400() throws Exception {
         mockMvc.perform(get("/api/videos").param("recordedDate", "06-03-2026"))
@@ -726,6 +745,23 @@ class VideoIntegrationTest {
                 .andExpect(jsonPath("$.data.content[0].gymGrade.gymId").value(1))
                 .andExpect(jsonPath("$.data.content[0].gymGrade.label").value("파랑"))
                 .andExpect(jsonPath("$.data.content[0].grade").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("암장 영상 목록 — 인증 사용자는 자기 비공개 영상도 본다")
+    void getGymVideos_includesOwnPrivateVideo() throws Exception {
+        String owner = register("a@hola.com", "climberone");
+        String other = register("b@hola.com", "climbertwo");
+        long ownPrivate = createVideo(owner, false);
+        createVideo(other, false);
+
+        var page = dataOf(mockMvc.perform(get("/api/gyms/1/videos")
+                        .header("Authorization", "Bearer " + owner))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.content.length()").value(1)));
+        org.assertj.core.api.Assertions.assertThat(page.path("content").get(0).path("id").asLong())
+                .isEqualTo(ownPrivate);
     }
 
     @Test

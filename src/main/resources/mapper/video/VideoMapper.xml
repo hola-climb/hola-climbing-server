@@ -42,13 +42,26 @@
         </if>
     </sql>
 
+    <!-- 공개 영상은 누구나, 비공개 영상은 소유자만 목록에서 볼 수 있다. -->
+    <sql id="viewableByViewer">
+        <choose>
+            <when test="viewerId != null">
+                AND (videos.is_public = TRUE OR videos.user_id = #{viewerId})
+            </when>
+            <otherwise>
+                AND videos.is_public = TRUE
+            </otherwise>
+        </choose>
+    </sql>
+
     <!-- 커서 keyset 스캔: id는 BIGSERIAL이라 created_at DESC와 동일 순서. cursorId보다 작은 id부터. -->
     <select id="findFeedByCursor" resultType="com.holaclimbing.server.domain.video.domain.Video">
         SELECT <include refid="columns"/>
         FROM videos
         JOIN gyms g ON g.id = videos.gym_id
         JOIN gym_grades gg ON gg.id = videos.gym_grade_id AND gg.gym_id = videos.gym_id
-        WHERE videos.is_public = TRUE AND videos.deleted_at IS NULL AND videos.status &lt;&gt; 'failed'
+        WHERE videos.deleted_at IS NULL AND videos.status &lt;&gt; 'failed'
+        <include refid="viewableByViewer"/>
         <if test="userId != null">
             AND videos.user_id = #{userId}
         </if>
@@ -68,7 +81,8 @@
         FROM videos
         JOIN gyms g ON g.id = videos.gym_id
         JOIN gym_grades gg ON gg.id = videos.gym_grade_id AND gg.gym_id = videos.gym_id
-        WHERE videos.is_public = TRUE AND videos.deleted_at IS NULL AND videos.status &lt;&gt; 'failed'
+        WHERE videos.deleted_at IS NULL AND videos.status &lt;&gt; 'failed'
+        <include refid="viewableByViewer"/>
           AND videos.gym_id = #{gymId}
         <include refid="notBlockedByViewer"/>
         ORDER BY videos.created_at DESC, videos.id DESC
@@ -78,7 +92,8 @@
     <select id="countByGym" resultType="long">
         SELECT COUNT(*)
         FROM videos
-        WHERE is_public = TRUE AND deleted_at IS NULL AND status &lt;&gt; 'failed'
+        WHERE deleted_at IS NULL AND status &lt;&gt; 'failed'
+        <include refid="viewableByViewer"/>
           AND gym_id = #{gymId}
         <include refid="notBlockedByViewer"/>
     </select>

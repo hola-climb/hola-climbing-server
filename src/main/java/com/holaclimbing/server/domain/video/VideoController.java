@@ -49,7 +49,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 영상 피드·CRUD·좋아요·댓글 API.
- * 조회(GET)는 공개, 등록·수정·삭제·좋아요·댓글작성은 SecurityConfig에서 인증을 요구한다.
+ * 목록 조회(GET)는 공개 영상과 요청자 본인의 비공개 영상을 반환하고,
+ * 등록·수정·삭제·좋아요·댓글작성은 SecurityConfig에서 인증을 요구한다.
  */
 @Slf4j
 @RestController

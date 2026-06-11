@@ -22,13 +22,13 @@ public interface VideoService {
     /** 영상 등록 (메타데이터). */
     VideoDetailResponse createVideo(Long userId, CreateVideoRequest request);
 
-    /** 공개 피드 (커서 기반 무한 스크롤). cursor가 null이면 첫 페이지. uploaderId가 있으면 해당 업로더로 필터.
+    /** 공개 영상 + viewer 본인 비공개 영상 피드 (커서 기반 무한 스크롤). cursor가 null이면 첫 페이지. uploaderId가 있으면 해당 업로더로 필터.
      *  recordedDate가 있으면 해당 촬영일의 영상만 필터.
      *  viewerId가 있으면 차단한 업로더의 영상을 결과에서 제외. */
     CursorPageResponse<VideoSummaryResponse> getFeed(Long uploaderId, String cursor, LocalDate recordedDate,
                                                      int size, Long viewerId);
 
-    /** 특정 암장의 공개 영상 목록. viewerId가 있으면 차단한 업로더 영상 제외. */
+    /** 특정 암장의 공개 영상 + viewer 본인 비공개 영상 목록. viewerId가 있으면 차단한 업로더 영상 제외. */
     PageResponse<VideoSummaryResponse> getGymVideos(Long gymId, int page, int size, Long viewerId);
 
     /** 영상 상세 조회. 비공개 영상은 소유자만 접근 가능하며, 조회 시 조회수가 증가한다. */

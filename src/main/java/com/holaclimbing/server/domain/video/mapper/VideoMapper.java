@@ -17,7 +17,7 @@ public interface VideoMapper {
     Video findById(Long id);
 
     /**
-     * 커서 기반 공개 피드. id 내림차순 keyset 스캔.
+     * 커서 기반 영상 피드. 공개 영상과 viewer 본인의 비공개 영상을 id 내림차순으로 keyset 스캔.
      * cursorId가 null이면 첫 페이지, 아니면 id가 cursorId보다 작은 것부터.
      * recordedDate가 있으면 해당 촬영일의 영상만 필터.
      * hasNext 판정을 위해 limit는 보통 size+1로 넘긴다.
@@ -28,7 +28,7 @@ public interface VideoMapper {
                                  @Param("limit") int limit,
                                  @Param("viewerId") Long viewerId);
 
-    /** 특정 암장의 공개 영상 (최신순). viewerId가 있으면 차단한 업로더 영상 제외. */
+    /** 특정 암장의 영상 목록. 공개 영상과 viewer 본인의 비공개 영상. viewerId가 있으면 차단한 업로더 영상 제외. */
     List<Video> findByGym(@Param("gymId") Long gymId,
                           @Param("size") int size,
                           @Param("offset") int offset,
