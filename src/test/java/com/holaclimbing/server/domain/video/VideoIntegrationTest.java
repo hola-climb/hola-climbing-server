@@ -13,6 +13,9 @@ import com.holaclimbing.server.domain.video.dto.request.UpdateCommentRequest;
 import com.holaclimbing.server.domain.video.dto.request.UpdateVideoRequest;
 import com.holaclimbing.server.domain.video.dto.request.UploadUrlRequest;
 import com.holaclimbing.server.domain.video.mapper.VideoMapper;
+import com.holaclimbing.server.infrastructure.ai.AnalysisProgress;
+import com.holaclimbing.server.infrastructure.ai.AnalysisStage;
+import com.holaclimbing.server.infrastructure.ai.AnalysisStatusStore;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,6 +71,9 @@ class VideoIntegrationTest {
 
     @Autowired
     private VideoMapper videoMapper;
+
+    @Autowired
+    private AnalysisStatusStore analysisStatusStore;
 
     @Test
     @DisplayName("영상 등록 실패 — 자기 소유 prefix가 아닌 objectPath면 403 FORBIDDEN")
@@ -743,7 +749,25 @@ class VideoIntegrationTest {
         mockMvc.perform(get("/api/videos/" + videoId + "/status"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.videoId").value(videoId))
-                .andExpect(jsonPath("$.data.status").value("pending"));
+                .andExpect(jsonPath("$.data.status").value("pending"))
+                .andExpect(jsonPath("$.data.progress").value(0))
+                .andExpect(jsonPath("$.data.stage").value("queued"));
+    }
+
+    @Test
+    @DisplayName("분석 진행 상태 — 워커 PROCESSING 이벤트가 있으면 analyzing/progress/stage로 반환한다")
+    void getStatus_whenProcessingProgressExists_returnsAnalyzingProgress() throws Exception {
+        String token = register("a@hola.com", "climberone");
+        long videoId = createVideo(token, true);
+        analysisStatusStore.save(AnalysisProgress.of(videoId, AnalysisStage.PROCESSING, "포즈 추정 완료"));
+
+        mockMvc.perform(get("/api/videos/" + videoId + "/status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.videoId").value(videoId))
+                .andExpect(jsonPath("$.data.status").value("analyzing"))
+                .andExpect(jsonPath("$.data.progress").value(70))
+                .andExpect(jsonPath("$.data.stage").value("pose_estimation"))
+                .andExpect(jsonPath("$.data.estimatedSecondsRemaining").doesNotExist());
     }
 
     @Test

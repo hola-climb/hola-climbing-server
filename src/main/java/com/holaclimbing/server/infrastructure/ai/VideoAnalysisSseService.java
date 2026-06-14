@@ -40,7 +40,7 @@ public class VideoAnalysisSseService {
         }
         for (SseEmitter em : set) {
             try {
-                em.send(SseEmitter.event().name("progress").data(progress));
+                em.send(SseEmitter.event().name("progress").data(AnalysisProgressView.from(progress)));
                 if (progress.stage() == AnalysisStage.COMPLETED || progress.stage() == AnalysisStage.FAILED) {
                     em.complete();
                 }

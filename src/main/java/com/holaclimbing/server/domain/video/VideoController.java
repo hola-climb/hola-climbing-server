@@ -20,6 +20,7 @@ import com.holaclimbing.server.domain.video.dto.response.VideoStatusResponse;
 import com.holaclimbing.server.domain.video.dto.response.VideoSummaryResponse;
 import com.holaclimbing.server.domain.video.service.CommentService;
 import com.holaclimbing.server.domain.video.service.VideoService;
+import com.holaclimbing.server.infrastructure.ai.AnalysisProgressView;
 import com.holaclimbing.server.infrastructure.ai.AnalysisStatusStore;
 import com.holaclimbing.server.infrastructure.ai.VideoAnalysisSseService;
 import jakarta.validation.Valid;
@@ -145,7 +146,7 @@ public class VideoController {
         SseEmitter emitter = analysisSseService.connect(videoId);
         analysisStatusStore.find(videoId).ifPresent(progress -> {
             try {
-                emitter.send(SseEmitter.event().name("progress").data(progress));
+                emitter.send(SseEmitter.event().name("progress").data(AnalysisProgressView.from(progress)));
             } catch (IOException e) {
                 log.debug("SSE 초기 replay 실패 — videoId={}", videoId);
             }

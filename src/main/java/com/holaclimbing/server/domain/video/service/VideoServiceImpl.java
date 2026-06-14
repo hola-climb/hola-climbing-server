@@ -26,6 +26,7 @@ import com.holaclimbing.server.domain.video.dto.response.VideoSummaryResponse;
 import com.holaclimbing.server.domain.video.mapper.LikeMapper;
 import com.holaclimbing.server.domain.video.mapper.VideoMapper;
 import com.holaclimbing.server.infrastructure.ai.AnalysisDispatcher;
+import com.holaclimbing.server.infrastructure.ai.AnalysisStatusStore;
 import com.holaclimbing.server.infrastructure.gcs.GcsProperties;
 import com.holaclimbing.server.infrastructure.gcs.GcsStorageService;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +58,7 @@ public class VideoServiceImpl implements VideoService {
     private final GcsProperties gcsProperties;
     private final VideoUploadProperties uploadProperties;
     private final AnalysisDispatcher analysisDispatcher;
+    private final AnalysisStatusStore analysisStatusStore;
     private final VideoAccessPolicy videoAccessPolicy;
 
     @Value("${app.frontend-base-url}")
@@ -190,7 +192,8 @@ public class VideoServiceImpl implements VideoService {
     public VideoStatusResponse getStatus(Long videoId, Long viewerId) {
         Video video = findActiveVideo(videoId);
         videoAccessPolicy.requireViewable(video, viewerId);
-        return new VideoStatusResponse(videoId, video.getStatus());
+        return VideoStatusResponse.from(videoId, video.getStatus(),
+                analysisStatusStore.find(videoId).orElse(null));
     }
 
     @Override
