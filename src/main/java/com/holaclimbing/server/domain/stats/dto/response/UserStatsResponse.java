@@ -11,8 +11,8 @@ import java.util.Map;
  *
  * <ul>
  *   <li>{@code techniqueCounts}: 동작별 누적 횟수 (예: {@code {"highstep": 12, "flagging": 8}}).</li>
- *   <li>{@code dynamicCount}/{@code staticCount}: 사용자가 올린 모든 영상의 분석 세그먼트 중
- *       동적/정적 동작 개수. 분석이 없으면 둘 다 0.</li>
+ *   <li>{@code dynamicCount}/{@code staticCount}: 사용자가 올린 영상의 대표 분석 결과 중
+ *       동적/정적 영상 개수. 분석이 없으면 둘 다 0.</li>
  *   <li>{@code isDynamic}: dynamicCount &gt; staticCount면 true (다이나믹한 사람).
  *       동률·데이터 없음은 false.</li>
  * </ul>

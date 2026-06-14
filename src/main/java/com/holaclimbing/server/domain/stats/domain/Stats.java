@@ -11,7 +11,6 @@ import java.time.LocalDateTime;
  * 사용자 클라이밍 통계 엔티티. user_stats 테이블 매핑.
  * AI 분석 파이프라인이 갱신하며, 서버는 조회만 한다.
  * techniqueCounts는 JSONB 컬럼을 raw JSON 문자열로 읽어 서비스에서 파싱한다.
- * avg_e_trajectory/avg_e_arm 컬럼은 효율 점수 미구현 방침에 따라 매핑하지 않는다.
  */
 @Getter
 @Builder

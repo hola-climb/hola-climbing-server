@@ -24,6 +24,85 @@
         DELETE FROM analysis_results WHERE video_id = #{videoId}
     </delete>
 
+    <insert id="upsertVideoResult" parameterType="com.holaclimbing.server.domain.analysis.domain.AnalysisVideoResult">
+        INSERT INTO analysis_video_results (
+            video_id, model_version, ai_techniques, ai_is_dynamic, ai_dynamic_probability,
+            final_techniques, final_is_dynamic, feedback_applied,
+            feedback_note, corrected_by, corrected_at, updated_at
+        )
+        VALUES (
+            #{videoId}, #{modelVersion}, #{aiTechniques}::jsonb, #{aiIsDynamic}, #{aiDynamicProbability},
+            #{finalTechniques}::jsonb, #{finalIsDynamic}, #{feedbackApplied},
+            NULL, NULL, NULL, NOW()
+        )
+        ON CONFLICT (video_id) DO UPDATE SET
+            model_version = EXCLUDED.model_version,
+            ai_techniques = EXCLUDED.ai_techniques,
+            ai_is_dynamic = EXCLUDED.ai_is_dynamic,
+            ai_dynamic_probability = EXCLUDED.ai_dynamic_probability,
+            final_techniques = EXCLUDED.final_techniques,
+            final_is_dynamic = EXCLUDED.final_is_dynamic,
+            feedback_applied = FALSE,
+            feedback_note = NULL,
+            corrected_by = NULL,
+            corrected_at = NULL,
+            updated_at = NOW()
+    </insert>
+
+    <select id="findVideoResultByVideoId"
+            resultType="com.holaclimbing.server.domain.analysis.domain.AnalysisVideoResult">
+        SELECT video_id, model_version,
+               ai_techniques::text AS ai_techniques,
+               ai_is_dynamic,
+               ai_dynamic_probability,
+               final_techniques::text AS final_techniques,
+               final_is_dynamic,
+               feedback_applied,
+               feedback_note,
+               corrected_by,
+               corrected_at,
+               created_at,
+               updated_at
+        FROM analysis_video_results
+        WHERE video_id = #{videoId}
+    </select>
+
+    <delete id="deleteVideoResultByVideoId">
+        DELETE FROM analysis_video_results WHERE video_id = #{videoId}
+    </delete>
+
+    <update id="updateFinalResultFromFeedback">
+        UPDATE analysis_video_results
+        SET final_techniques = #{finalTechniques}::jsonb,
+            final_is_dynamic = #{finalIsDynamic},
+            feedback_applied = TRUE,
+            feedback_note = #{feedbackNote},
+            corrected_by = #{correctedBy},
+            corrected_at = NOW(),
+            updated_at = NOW()
+        WHERE video_id = #{videoId}
+    </update>
+
+    <select id="findFeedbackAppliedByModelVersion"
+            resultType="com.holaclimbing.server.domain.analysis.domain.AnalysisVideoResult">
+        SELECT video_id, model_version,
+               ai_techniques::text AS ai_techniques,
+               ai_is_dynamic,
+               ai_dynamic_probability,
+               final_techniques::text AS final_techniques,
+               final_is_dynamic,
+               feedback_applied,
+               feedback_note,
+               corrected_by,
+               corrected_at,
+               created_at,
+               updated_at
+        FROM analysis_video_results
+        WHERE model_version = #{modelVersion}
+          AND feedback_applied = TRUE
+        ORDER BY video_id ASC
+    </select>
+
     <insert id="insertLabel" parameterType="com.holaclimbing.server.domain.analysis.domain.Label"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO labels (video_id, user_id, technique, is_correct)

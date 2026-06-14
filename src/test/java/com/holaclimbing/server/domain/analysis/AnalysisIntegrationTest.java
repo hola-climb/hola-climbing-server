@@ -18,6 +18,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
@@ -63,8 +64,11 @@ class AnalysisIntegrationTest {
     @Autowired
     private UserMapper userMapper;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @Test
-    @DisplayName("분석 조회 — 분석 전 영상은 status=pending, segments 비어 있음")
+    @DisplayName("분석 조회 — 분석 전 영상은 status=pending, 영상 대표 결과는 비어 있음")
     void getAnalysis_beforeAnalysis() throws Exception {
         String token = register("a@hola.com", "climberone");
         long videoId = createVideo(token);
@@ -72,7 +76,9 @@ class AnalysisIntegrationTest {
         mockMvc.perform(get("/api/videos/" + videoId + "/analysis"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("pending"))
-                .andExpect(jsonPath("$.data.segments").isEmpty());
+                .andExpect(jsonPath("$.data.techniques").isEmpty())
+                .andExpect(jsonPath("$.data.feedbackApplied").value(false))
+                .andExpect(jsonPath("$.data.segments").doesNotExist());
     }
 
     @Test
@@ -89,33 +95,75 @@ class AnalysisIntegrationTest {
     }
 
     @Test
-    @DisplayName("결과 수신 — done 결과를 받으면 세그먼트를 저장하고 영상 status=done")
-    void ingest_done_storesSegments() throws Exception {
+    @DisplayName("결과 수신 — done 결과를 받으면 세그먼트 raw와 영상 대표 결과를 저장한다")
+    void ingest_done_storesSegmentsAndVideoResult() throws Exception {
         String token = register("a@hola.com", "climberone");
         long videoId = createVideo(token);
 
-        var request = new AnalysisIngestRequest("done", "rule_v1", List.of(
-                new AnalysisSegmentPayload(0, 0, 1000, "highstep", false, 0.91f),
-                new AnalysisSegmentPayload(1, 1000, 2000, "dyno", true, 0.85f)));
+        String workerPayload = """
+                {
+                  "status": "done",
+                  "model_version": "rule_v3+flow_rf_v2",
+                  "segments": [
+                    {
+                      "sequence_index": 0,
+                      "start_time_ms": 0,
+                      "end_time_ms": 1000,
+                      "technique": "high_step",
+                      "is_dynamic": false,
+                      "confidence": 0.91
+                    },
+                    {
+                      "sequence_index": 1,
+                      "start_time_ms": 1000,
+                      "end_time_ms": 2000,
+                      "technique": "flagging",
+                      "is_dynamic": false,
+                      "confidence": 0.85
+                    }
+                  ],
+                  "techniques": ["high_step", "flagging"],
+                  "is_dynamic": false,
+                  "dynamic_probability": 0.18
+                }
+                """;
 
         mockMvc.perform(aiCallbackPost(videoId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(workerPayload))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("done"))
-                .andExpect(jsonPath("$.data.modelVersion").value("rule_v1"))
-                .andExpect(jsonPath("$.data.segments.length()").value(2))
-                .andExpect(jsonPath("$.data.segments[0].technique").value("highstep"))
-                .andExpect(jsonPath("$.data.segments[1].isDynamic").value(true));
+                .andExpect(jsonPath("$.data.modelVersion").value("rule_v3+flow_rf_v2"))
+                .andExpect(jsonPath("$.data.techniques[0]").value("high_step"))
+                .andExpect(jsonPath("$.data.techniques[1]").value("flagging"))
+                .andExpect(jsonPath("$.data.isDynamic").value(false))
+                .andExpect(jsonPath("$.data.dynamicProbability").value(0.18))
+                .andExpect(jsonPath("$.data.feedbackApplied").value(false))
+                .andExpect(jsonPath("$.data.segments").doesNotExist());
 
         mockMvc.perform(get("/api/videos/" + videoId + "/analysis"))
                 .andExpect(jsonPath("$.data.status").value("done"))
-                .andExpect(jsonPath("$.data.segments.length()").value(2));
+                .andExpect(jsonPath("$.data.techniques.length()").value(2))
+                .andExpect(jsonPath("$.data.segments").doesNotExist());
+
+        Integer segmentCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM analysis_results WHERE video_id = ?",
+                Integer.class, videoId);
+        String aiTechniques = jdbcTemplate.queryForObject(
+                "SELECT ai_techniques::text FROM analysis_video_results WHERE video_id = ?",
+                String.class, videoId);
+        Boolean aiIsDynamic = jdbcTemplate.queryForObject(
+                "SELECT ai_is_dynamic FROM analysis_video_results WHERE video_id = ?",
+                Boolean.class, videoId);
+
+        org.assertj.core.api.Assertions.assertThat(segmentCount).isEqualTo(2);
+        org.assertj.core.api.Assertions.assertThat(aiTechniques).isEqualTo("[\"high_step\", \"flagging\"]");
+        org.assertj.core.api.Assertions.assertThat(aiIsDynamic).isFalse();
     }
 
     @Test
-    @DisplayName("결과 수신 — AI 워커 snake_case JSON을 그대로 수신해 저장한다")
-    void ingest_workerSnakeCasePayload_storesSegments() throws Exception {
+    @DisplayName("결과 수신 — AI 워커 snake_case 영상 대표 JSON을 그대로 수신해 저장한다")
+    void ingest_workerSnakeCasePayload_storesVideoResult() throws Exception {
         String token = register("a@hola.com", "climberone");
         long videoId = createVideo(token);
 
@@ -132,7 +180,10 @@ class AnalysisIntegrationTest {
                       "is_dynamic": false,
                       "confidence": 0.91
                     }
-                  ]
+                  ],
+                  "techniques": ["high_step"],
+                  "is_dynamic": true,
+                  "dynamic_probability": 0.73
                 }
                 """;
 
@@ -142,11 +193,10 @@ class AnalysisIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("done"))
                 .andExpect(jsonPath("$.data.modelVersion").value("rule_v1"))
-                .andExpect(jsonPath("$.data.segments.length()").value(1))
-                .andExpect(jsonPath("$.data.segments[0].sequenceIndex").value(0))
-                .andExpect(jsonPath("$.data.segments[0].startTimeMs").value(0))
-                .andExpect(jsonPath("$.data.segments[0].endTimeMs").value(1000))
-                .andExpect(jsonPath("$.data.segments[0].isDynamic").value(false));
+                .andExpect(jsonPath("$.data.techniques[0]").value("high_step"))
+                .andExpect(jsonPath("$.data.isDynamic").value(true))
+                .andExpect(jsonPath("$.data.dynamicProbability").value(0.73))
+                .andExpect(jsonPath("$.data.segments").doesNotExist());
     }
 
     @Test
@@ -161,7 +211,8 @@ class AnalysisIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("failed"))
-                .andExpect(jsonPath("$.data.segments").isEmpty());
+                .andExpect(jsonPath("$.data.techniques").isEmpty())
+                .andExpect(jsonPath("$.data.segments").doesNotExist());
     }
 
     @Test
@@ -173,14 +224,18 @@ class AnalysisIntegrationTest {
         ingest(videoId, new AnalysisIngestRequest("done", "rule_v1", List.of(
                 new AnalysisSegmentPayload(0, 0, 1000, "highstep", false, 0.9f),
                 new AnalysisSegmentPayload(1, 1000, 2000, "flagging", false, 0.8f),
-                new AnalysisSegmentPayload(2, 2000, 3000, "dyno", true, 0.7f))));
+                new AnalysisSegmentPayload(2, 2000, 3000, "dyno", true, 0.7f)),
+                List.of("high_step", "flagging", "dyno"), true, 0.72f));
         ingest(videoId, new AnalysisIngestRequest("done", "lstm_v1", List.of(
-                new AnalysisSegmentPayload(0, 0, 1500, "lock_off", false, 0.95f))));
+                new AnalysisSegmentPayload(0, 0, 1500, "lock_off", false, 0.95f)),
+                List.of("lock_off"), false, 0.12f));
 
         mockMvc.perform(get("/api/videos/" + videoId + "/analysis"))
-                .andExpect(jsonPath("$.data.segments.length()").value(1))
+                .andExpect(jsonPath("$.data.techniques.length()").value(1))
                 .andExpect(jsonPath("$.data.modelVersion").value("lstm_v1"))
-                .andExpect(jsonPath("$.data.segments[0].technique").value("lock_off"));
+                .andExpect(jsonPath("$.data.techniques[0]").value("lock_off"))
+                .andExpect(jsonPath("$.data.isDynamic").value(false))
+                .andExpect(jsonPath("$.data.segments").doesNotExist());
     }
 
     @Test
@@ -272,7 +327,8 @@ class AnalysisIntegrationTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("pending"))
-                .andExpect(jsonPath("$.data.segments").isEmpty());
+                .andExpect(jsonPath("$.data.techniques").isEmpty())
+                .andExpect(jsonPath("$.data.segments").doesNotExist());
     }
 
     @Test
@@ -288,34 +344,74 @@ class AnalysisIntegrationTest {
     }
 
     @Test
-    @DisplayName("분석 피드백 — 등록하면 201과 labelId를 반환한다")
-    void submitFeedback_success() throws Exception {
+    @DisplayName("분석 피드백 — 소유자가 등록하면 final 결과만 갱신하고 AI 원본은 유지한다")
+    void submitFeedback_byOwner_updatesFinalOnly() throws Exception {
         String token = register("a@hola.com", "climberone");
         long videoId = createVideo(token);
 
-        var request = new AnalysisFeedbackRequest("highstep", 12.5, false, "flagging", "이건 플래깅이에요");
+        ingest(videoId, new AnalysisIngestRequest("done", "rule_v3+flow_rf_v2", List.of(
+                new AnalysisSegmentPayload(0, 0, 1000, "high_step", false, 0.9f)),
+                List.of("high_step"), false, 0.18f));
+
+        String request = """
+                {
+                  "techniques": ["flagging", "lock_off"],
+                  "isDynamic": true,
+                  "note": "lock_off도 사용한 것 같아요"
+                }
+                """;
         mockMvc.perform(post("/api/videos/" + videoId + "/analysis/feedback")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(request))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.labelId").isNumber());
+                .andExpect(jsonPath("$.data.videoId").value(videoId));
+
+        mockMvc.perform(get("/api/videos/" + videoId + "/analysis"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.techniques[0]").value("flagging"))
+                .andExpect(jsonPath("$.data.techniques[1]").value("lock_off"))
+                .andExpect(jsonPath("$.data.isDynamic").value(true))
+                .andExpect(jsonPath("$.data.feedbackApplied").value(true));
+
+        String aiTechniques = jdbcTemplate.queryForObject(
+                "SELECT ai_techniques::text FROM analysis_video_results WHERE video_id = ?",
+                String.class, videoId);
+        String finalTechniques = jdbcTemplate.queryForObject(
+                "SELECT final_techniques::text FROM analysis_video_results WHERE video_id = ?",
+                String.class, videoId);
+        Boolean aiIsDynamic = jdbcTemplate.queryForObject(
+                "SELECT ai_is_dynamic FROM analysis_video_results WHERE video_id = ?",
+                Boolean.class, videoId);
+        Boolean finalIsDynamic = jdbcTemplate.queryForObject(
+                "SELECT final_is_dynamic FROM analysis_video_results WHERE video_id = ?",
+                Boolean.class, videoId);
+
+        org.assertj.core.api.Assertions.assertThat(aiTechniques).isEqualTo("[\"high_step\"]");
+        org.assertj.core.api.Assertions.assertThat(finalTechniques).isEqualTo("[\"flagging\", \"lock_off\"]");
+        org.assertj.core.api.Assertions.assertThat(aiIsDynamic).isFalse();
+        org.assertj.core.api.Assertions.assertThat(finalIsDynamic).isTrue();
     }
 
     @Test
-    @DisplayName("분석 피드백 실패 — 비공개 영상 분석 피드백은 타인이 등록할 수 없다")
-    void submitFeedback_privateVideoByOther_returns403() throws Exception {
+    @DisplayName("분석 피드백 실패 — 공개 영상이어도 소유자가 아니면 등록할 수 없다")
+    void submitFeedback_publicVideoByOther_returns403() throws Exception {
         String owner = register("a@hola.com", "climberone");
         String other = register("b@hola.com", "climbertwo");
-        long videoId = createVideo(owner, false);
+        long videoId = createVideo(owner, true);
 
-        var request = new AnalysisFeedbackRequest("highstep", 12.5, false, "flagging", "이건 플래깅이에요");
+        String request = """
+                {
+                  "techniques": ["flagging"],
+                  "isDynamic": false
+                }
+                """;
         mockMvc.perform(post("/api/videos/" + videoId + "/analysis/feedback")
                         .header("Authorization", "Bearer " + other)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(request))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("V006"));
+                .andExpect(jsonPath("$.code").value("C003"));
     }
 
     // ===== helpers =====

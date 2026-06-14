@@ -298,16 +298,36 @@ CREATE TABLE analysis_results (
     technique       VARCHAR(50),
     is_dynamic      BOOLEAN,
     confidence      REAL,
-    -- 효율 지표 (PoC, 발표 제외이지만 컬럼은 유지)
-    e_trajectory    DOUBLE PRECISION,
-    e_arm           DOUBLE PRECISION,
     -- 메타
     model_version   VARCHAR(50),  -- 'rule_v1' | 'lstm_v1' | 'videomae_v1'
-    raw_data        JSONB,
     created_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_analysis_video     ON analysis_results(video_id, sequence_index);
 CREATE INDEX idx_analysis_technique ON analysis_results(technique) WHERE technique IS NOT NULL;
+
+
+CREATE TABLE analysis_video_results (
+    video_id                BIGINT PRIMARY KEY REFERENCES videos(id) ON DELETE CASCADE,
+    model_version           VARCHAR(50),
+    ai_techniques           JSONB NOT NULL DEFAULT '[]'::jsonb,
+    ai_is_dynamic           BOOLEAN,
+    ai_dynamic_probability  REAL,
+    final_techniques        JSONB NOT NULL DEFAULT '[]'::jsonb,
+    final_is_dynamic        BOOLEAN,
+    feedback_applied        BOOLEAN NOT NULL DEFAULT FALSE,
+    feedback_note           TEXT,
+    corrected_by            BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    corrected_at            TIMESTAMP,
+    created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_analysis_video_dynamic_probability
+        CHECK (ai_dynamic_probability IS NULL OR (ai_dynamic_probability >= 0 AND ai_dynamic_probability <= 1))
+);
+CREATE INDEX idx_analysis_video_results_model_feedback
+    ON analysis_video_results(model_version, feedback_applied);
+CREATE INDEX idx_analysis_video_results_corrected_by
+    ON analysis_video_results(corrected_by)
+    WHERE corrected_by IS NOT NULL;
 
 
 CREATE TABLE labels (
@@ -435,8 +455,6 @@ CREATE TABLE user_stats (
     user_id                 BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     total_videos            INTEGER NOT NULL DEFAULT 0,
     total_climbing_seconds  BIGINT NOT NULL DEFAULT 0,
-    avg_e_trajectory        DOUBLE PRECISION,
-    avg_e_arm               DOUBLE PRECISION,
     -- 동작별 빈도: {"highstep": 12, "flagging": 8, ...}
     technique_counts        JSONB NOT NULL DEFAULT '{}'::jsonb,
     last_climbed_at         TIMESTAMP,

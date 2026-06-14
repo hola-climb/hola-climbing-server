@@ -6,6 +6,7 @@ import com.holaclimbing.server.common.exception.docs.ApiErrorCodes;
 import com.holaclimbing.server.common.response.ApiResponse;
 import com.holaclimbing.server.domain.analysis.dto.request.AnalysisFeedbackRequest;
 import com.holaclimbing.server.domain.analysis.dto.request.AnalysisIngestRequest;
+import com.holaclimbing.server.domain.analysis.dto.response.AnalysisModelMetricsResponse;
 import com.holaclimbing.server.domain.analysis.dto.response.FeedbackResponse;
 import com.holaclimbing.server.domain.analysis.dto.response.VideoAnalysisResponse;
 import com.holaclimbing.server.domain.analysis.service.AnalysisService;
@@ -63,5 +64,11 @@ public class AnalysisController {
             @PathVariable Long videoId,
             @Valid @RequestBody AnalysisIngestRequest request) {
         return ApiResponse.success(analysisService.ingestResult(videoId, request));
+    }
+
+    @ApiErrorCodes({UNAUTHORIZED, FORBIDDEN})
+    @GetMapping("/api/admin/analysis/models/{modelVersion}/metrics")
+    public ApiResponse<AnalysisModelMetricsResponse> getModelMetrics(@PathVariable String modelVersion) {
+        return ApiResponse.success(analysisService.getModelMetrics(modelVersion));
     }
 }

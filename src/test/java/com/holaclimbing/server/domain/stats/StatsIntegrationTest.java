@@ -90,29 +90,27 @@ class StatsIntegrationTest {
     }
 
     @Test
-    @DisplayName("내 통계 — 내가 올린 모든 영상의 분석 세그먼트에서 dynamic/static 개수가 집계된다")
-    void getMyStats_dynamicAndStaticCounts() throws Exception {
+    @DisplayName("내 통계 — 내가 올린 모든 영상의 대표 분석 결과에서 dynamic/static 영상 개수가 집계된다")
+    void getMyStats_dynamicAndStaticVideoCounts() throws Exception {
         String token = register("a@hola.com", "climberone");
         long userId = userMapper.findByEmail("a@hola.com").getId();
-        // 영상 2개 등록 — 한 영상에 dynamic 3, static 1 / 다른 영상에 dynamic 0, static 2
+        // 영상 3개 등록 — 영상 단위 대표 결과 기준 dynamic 1, static 1, unknown 1
         long videoA = seedVideo(userId);
         long videoB = seedVideo(userId);
-        seedSegment(videoA, true);
-        seedSegment(videoA, true);
-        seedSegment(videoA, true);
-        seedSegment(videoA, false);
-        seedSegment(videoB, false);
-        seedSegment(videoB, false);
-        // 다른 사용자의 영상·세그먼트는 집계에 포함되지 않아야 한다.
+        long videoC = seedVideo(userId);
+        seedVideoResult(videoA, true);
+        seedVideoResult(videoB, false);
+        seedVideoResult(videoC, null);
+        // 다른 사용자의 영상 대표 결과는 집계에 포함되지 않아야 한다.
         register("other@hola.com", "other");
         long otherId = userMapper.findByEmail("other@hola.com").getId();
         long otherVideo = seedVideo(otherId);
-        seedSegment(otherVideo, true);
+        seedVideoResult(otherVideo, true);
 
         mockMvc.perform(get("/api/stats/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.dynamicCount").value(3))
-                .andExpect(jsonPath("$.data.staticCount").value(3))
+                .andExpect(jsonPath("$.data.dynamicCount").value(1))
+                .andExpect(jsonPath("$.data.staticCount").value(1))
                 // 동률은 dynamic > static 이 아니므로 false
                 .andExpect(jsonPath("$.data.isDynamic").value(false));
     }
@@ -122,10 +120,9 @@ class StatsIntegrationTest {
     void getUserStats_isDynamic_true() throws Exception {
         register("dyn@hola.com", "dyn");
         long userId = userMapper.findByEmail("dyn@hola.com").getId();
-        long video = seedVideo(userId);
-        seedSegment(video, true);
-        seedSegment(video, true);
-        seedSegment(video, false);
+        seedVideoResult(seedVideo(userId), true);
+        seedVideoResult(seedVideo(userId), true);
+        seedVideoResult(seedVideo(userId), false);
 
         mockMvc.perform(get("/api/stats/users/" + userId))
                 .andExpect(status().isOk())
@@ -139,10 +136,9 @@ class StatsIntegrationTest {
     void getUserStats_isDynamic_false() throws Exception {
         register("sta@hola.com", "sta");
         long userId = userMapper.findByEmail("sta@hola.com").getId();
-        long video = seedVideo(userId);
-        seedSegment(video, false);
-        seedSegment(video, false);
-        seedSegment(video, true);
+        seedVideoResult(seedVideo(userId), false);
+        seedVideoResult(seedVideo(userId), false);
+        seedVideoResult(seedVideo(userId), true);
 
         mockMvc.perform(get("/api/stats/users/" + userId))
                 .andExpect(status().isOk())
@@ -216,11 +212,16 @@ class StatsIntegrationTest {
                 Long.class, userId);
     }
 
-    private void seedSegment(long videoId, boolean isDynamic) {
+    private void seedVideoResult(long videoId, Boolean isDynamic) {
         jdbcTemplate.update(
-                "INSERT INTO analysis_results (video_id, sequence_index, technique, is_dynamic) "
-                        + "VALUES (?, 0, 'highstep', ?)",
-                videoId, isDynamic);
+                """
+                        INSERT INTO analysis_video_results (
+                            video_id, model_version, ai_techniques, ai_is_dynamic,
+                            ai_dynamic_probability, final_techniques, final_is_dynamic, feedback_applied
+                        )
+                        VALUES (?, 'rule_v3', '["high_step"]'::jsonb, ?, 0.5, '["high_step"]'::jsonb, ?, FALSE)
+                        """,
+                videoId, isDynamic, isDynamic);
     }
 
     /** 회원가입 → 이메일 인증 → 로그인까지 완료하고 accessToken을 반환. */

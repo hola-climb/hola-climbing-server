@@ -2,13 +2,16 @@ package com.holaclimbing.server.infrastructure.gcs;
 
 import com.google.auth.ServiceAccountSigner;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.NoCredentials;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.holaclimbing.server.domain.video.VideoUploadProperties;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 
@@ -22,7 +25,15 @@ public class GcsConfig {
 
     @Bean
     @Profile("!test")
-    public Storage storage() {
+    public Storage storage(@Value("${STORAGE_EMULATOR_HOST:}") String emulatorHost) {
+        if (StringUtils.hasText(emulatorHost)) {
+            return StorageOptions.newBuilder()
+                    .setHost(trimTrailingSlash(emulatorHost.trim()))
+                    .setProjectId("hola-local")
+                    .setCredentials(NoCredentials.getInstance())
+                    .build()
+                    .getService();
+        }
         return StorageOptions.getDefaultInstance().getService();
     }
 
@@ -40,5 +51,12 @@ public class GcsConfig {
         throw new IllegalStateException(
                 "GCS Signed URL 발급에는 ServiceAccountSigner-구현 자격증명이 필요합니다. " +
                         "GOOGLE_APPLICATION_CREDENTIALS가 서비스 계정 키 JSON을 가리키는지 확인하세요.");
+    }
+
+    private String trimTrailingSlash(String value) {
+        while (value.endsWith("/")) {
+            value = value.substring(0, value.length() - 1);
+        }
+        return value;
     }
 }

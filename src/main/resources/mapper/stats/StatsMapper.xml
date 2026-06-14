@@ -11,16 +11,16 @@
     </select>
 
     <!--
-      사용자 영상(soft-delete 제외)의 모든 분석 세그먼트를 is_dynamic 컬럼으로 집계.
-      NULL은 어느 쪽에도 카운트하지 않는다(분류 불가 세그먼트 제외).
+      사용자 영상(soft-delete 제외)의 영상 단위 대표 결과를 final_is_dynamic 컬럼으로 집계.
+      NULL은 어느 쪽에도 카운트하지 않는다(분류 불가 영상 제외).
       집계가 0행이어도 COALESCE로 0을 반환하므로 항상 한 행이 나온다.
     -->
     <select id="findDynamicSegmentCountsByUserId"
             resultType="com.holaclimbing.server.domain.stats.domain.DynamicSegmentCounts">
         SELECT
-            COALESCE(SUM(CASE WHEN r.is_dynamic = TRUE  THEN 1 ELSE 0 END), 0) AS dynamic_count,
-            COALESCE(SUM(CASE WHEN r.is_dynamic = FALSE THEN 1 ELSE 0 END), 0) AS static_count
-        FROM analysis_results r
+            COALESCE(SUM(CASE WHEN r.final_is_dynamic = TRUE  THEN 1 ELSE 0 END), 0) AS dynamic_count,
+            COALESCE(SUM(CASE WHEN r.final_is_dynamic = FALSE THEN 1 ELSE 0 END), 0) AS static_count
+        FROM analysis_video_results r
         JOIN videos v ON v.id = r.video_id
         WHERE v.user_id = #{userId} AND v.deleted_at IS NULL
     </select>

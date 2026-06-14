@@ -6,8 +6,6 @@ CREATE TABLE user_stats (
     user_id                 BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     total_videos            INTEGER NOT NULL DEFAULT 0,
     total_climbing_seconds  BIGINT NOT NULL DEFAULT 0,
-    avg_e_trajectory        DOUBLE PRECISION,
-    avg_e_arm               DOUBLE PRECISION,
     technique_counts        JSONB NOT NULL DEFAULT '{}'::jsonb,
     last_climbed_at         TIMESTAMP,
     updated_at              TIMESTAMP NOT NULL DEFAULT NOW()
