@@ -5,6 +5,8 @@ import com.holaclimbing.server.common.exception.error.ErrorCode;
 import com.holaclimbing.server.common.response.CursorCodec;
 import com.holaclimbing.server.common.response.CursorPageResponse;
 import com.holaclimbing.server.common.response.PageResponse;
+import com.holaclimbing.server.common.upload.ImageUploadValidator;
+import com.holaclimbing.server.common.upload.ImageUploadValidator.ImageUpload;
 import com.holaclimbing.server.domain.gym.domain.GymGrade;
 import com.holaclimbing.server.domain.gym.mapper.GymGradeMapper;
 import com.holaclimbing.server.domain.gym.mapper.GymMapper;
@@ -16,6 +18,7 @@ import com.holaclimbing.server.domain.video.dto.request.UpdateVideoRequest;
 import com.holaclimbing.server.domain.video.dto.request.UploadUrlRequest;
 import com.holaclimbing.server.domain.video.dto.response.LikeResponse;
 import com.holaclimbing.server.domain.video.dto.response.ShareLinkResponse;
+import com.holaclimbing.server.domain.video.dto.response.ThumbnailUploadResponse;
 import com.holaclimbing.server.domain.video.dto.response.UploadUrlResponse;
 import com.holaclimbing.server.domain.video.dto.response.VideoDetailResponse;
 import com.holaclimbing.server.domain.video.dto.response.VideoStatusResponse;
@@ -29,7 +32,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -40,6 +45,8 @@ public class VideoServiceImpl implements VideoService {
 
     /** 영상 등록 시 초기 상태 — AI 분석 대기. */
     private static final String STATUS_PENDING = "pending";
+    private static final long MAX_THUMBNAIL_IMAGE_BYTES = 5L * 1024 * 1024;
+    private static final String THUMBNAIL_PREFIX = "videos/thumbnails";
 
     private final VideoMapper videoMapper;
     private final LikeMapper likeMapper;
@@ -72,6 +79,19 @@ public class VideoServiceImpl implements VideoService {
     }
 
     @Override
+    public ThumbnailUploadResponse uploadThumbnail(Long userId, MultipartFile image) {
+        ImageUpload upload = ImageUploadValidator.validate(image, "썸네일 이미지", MAX_THUMBNAIL_IMAGE_BYTES);
+        String thumbnailPath = "%s/%d/%s.%s".formatted(
+                THUMBNAIL_PREFIX, userId, UUID.randomUUID(), upload.extension());
+        try {
+            gcsStorageService.uploadBytes(thumbnailPath, upload.contentType(), image.getBytes());
+        } catch (IOException e) {
+            throw new BusinessException(ErrorCode.GCS_UPLOAD_FAILED);
+        }
+        return new ThumbnailUploadResponse(thumbnailPath, gcsStorageService.createReadUrl(thumbnailPath));
+    }
+
+    @Override
     @Transactional
     public VideoDetailResponse createVideo(Long userId, CreateVideoRequest request) {
         if (gymMapper.findById(request.gymId()) == null) {
@@ -88,6 +108,7 @@ public class VideoServiceImpl implements VideoService {
         // objectPath는 createUploadUrl()이 발급한 자기 소유 경로(videos/uploads/{userId}/...)여야 한다.
         // 그렇지 않으면 다른 사용자의 GCS 객체를 자기 영상으로 등록할 수 있다.
         requireOwnedObjectPath(userId, request.objectPath());
+        String thumbnailPath = normalizeOwnedThumbnailPath(userId, request.thumbnailPath());
         Video video = Video.builder()
                 .userId(userId)
                 .gymId(request.gymId())
@@ -95,7 +116,7 @@ public class VideoServiceImpl implements VideoService {
                 .title(request.title())
                 .description(request.description())
                 .gcsPath(request.objectPath())
-                .thumbnailPath(request.thumbnailPath())
+                .thumbnailPath(thumbnailPath)
                 .durationSeconds(request.durationSeconds())
                 .recordedDate(request.recordedDate())
                 .status(STATUS_PENDING)
@@ -116,7 +137,9 @@ public class VideoServiceImpl implements VideoService {
         boolean hasNext = rows.size() > size;
         List<Video> pageRows = hasNext ? rows.subList(0, size) : rows;
         List<VideoSummaryResponse> content = pageRows.stream()
-                .map(v -> VideoSummaryResponse.from(v, gcsStorageService.createReadUrl(v.getGcsPath())))
+                .map(v -> VideoSummaryResponse.from(v,
+                        gcsStorageService.createReadUrl(v.getGcsPath()),
+                        gcsStorageService.createReadUrl(v.getThumbnailPath())))
                 .toList();
         String nextCursor = hasNext ? CursorCodec.encode(pageRows.get(pageRows.size() - 1).getId()) : null;
         return CursorPageResponse.of(content, nextCursor, hasNext);
@@ -127,7 +150,9 @@ public class VideoServiceImpl implements VideoService {
         long total = videoMapper.countByGym(gymId, viewerId);
         List<VideoSummaryResponse> content = videoMapper.findByGym(gymId, size, page * size, viewerId)
                 .stream()
-                .map(v -> VideoSummaryResponse.from(v, gcsStorageService.createReadUrl(v.getGcsPath())))
+                .map(v -> VideoSummaryResponse.from(v,
+                        gcsStorageService.createReadUrl(v.getGcsPath()),
+                        gcsStorageService.createReadUrl(v.getThumbnailPath())))
                 .toList();
         return PageResponse.of(content, page, size, total);
     }
@@ -203,7 +228,9 @@ public class VideoServiceImpl implements VideoService {
     }
 
     private VideoDetailResponse toDetail(Video video, boolean isLiked) {
-        return VideoDetailResponse.of(video, isLiked, gcsStorageService.createReadUrl(video.getGcsPath()));
+        return VideoDetailResponse.of(video, isLiked,
+                gcsStorageService.createReadUrl(video.getGcsPath()),
+                gcsStorageService.createReadUrl(video.getThumbnailPath()));
     }
 
     private String extractExtension(String fileName) {
@@ -240,5 +267,16 @@ public class VideoServiceImpl implements VideoService {
         if (!objectPath.startsWith(expectedPrefix)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "본인이 업로드한 영상 경로가 아닙니다.");
         }
+    }
+
+    private String normalizeOwnedThumbnailPath(Long userId, String thumbnailPath) {
+        if (thumbnailPath == null || thumbnailPath.isBlank()) {
+            return null;
+        }
+        String expectedPrefix = THUMBNAIL_PREFIX + "/" + userId + "/";
+        if (!thumbnailPath.startsWith(expectedPrefix)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "본인이 업로드한 썸네일 경로가 아닙니다.");
+        }
+        return thumbnailPath;
     }
 }

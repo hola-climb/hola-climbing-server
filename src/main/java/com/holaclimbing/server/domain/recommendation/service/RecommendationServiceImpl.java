@@ -40,6 +40,7 @@ public class RecommendationServiceImpl implements RecommendationService {
                 .stream()
                 .map(v -> RecommendedVideoResponse.of(v,
                         gcsStorageService.createReadUrl(v.getGcsPath()),
+                        gcsStorageService.createReadUrl(v.getThumbnailPath()),
                         Integer.valueOf(1).equals(v.getFollowingRank()) ? SOURCE_FOLLOWING : SOURCE_RECOMMENDED))
                 .toList();
 

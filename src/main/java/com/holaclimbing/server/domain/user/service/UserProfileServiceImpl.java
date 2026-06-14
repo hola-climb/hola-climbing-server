@@ -3,6 +3,8 @@ package com.holaclimbing.server.domain.user.service;
 import com.holaclimbing.server.common.exception.BusinessException;
 import com.holaclimbing.server.common.exception.error.ErrorCode;
 import com.holaclimbing.server.common.response.PageResponse;
+import com.holaclimbing.server.common.upload.ImageUploadValidator;
+import com.holaclimbing.server.common.upload.ImageUploadValidator.ImageUpload;
 import com.holaclimbing.server.domain.user.domain.User;
 import com.holaclimbing.server.domain.user.dto.request.UpdateProfileRequest;
 import com.holaclimbing.server.domain.user.dto.response.MyProfileResponse;
@@ -16,7 +18,6 @@ import com.holaclimbing.server.domain.user.mapper.UserBlockMapper;
 import com.holaclimbing.server.domain.user.mapper.UserMapper;
 import com.holaclimbing.server.infrastructure.gcs.GcsStorageService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,8 +25,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -34,9 +33,6 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     private static final long MAX_PROFILE_IMAGE_BYTES = 5L * 1024 * 1024;
     private static final String PROFILE_IMAGE_PREFIX = "profile-images";
-    private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of("jpg", "jpeg", "png");
-    private static final Set<String> ALLOWED_IMAGE_CONTENT_TYPES =
-            Set.of(MediaType.IMAGE_JPEG_VALUE, MediaType.IMAGE_PNG_VALUE);
 
     private final UserMapper userMapper;
     private final FollowMapper followMapper;
@@ -79,7 +75,7 @@ public class UserProfileServiceImpl implements UserProfileService {
     @Transactional
     public MyProfileResponse uploadProfileImage(Long userId, MultipartFile image) {
         findActiveUser(userId);
-        ProfileImageUpload upload = validateProfileImage(image);
+        ImageUpload upload = ImageUploadValidator.validate(image, "프로필 이미지", MAX_PROFILE_IMAGE_BYTES);
         String objectPath = PROFILE_IMAGE_PREFIX + "/" + userId + "/" + UUID.randomUUID() + "." + upload.extension();
         try {
             gcsStorageService.uploadBytes(objectPath, upload.contentType(), image.getBytes());
@@ -200,38 +196,6 @@ public class UserProfileServiceImpl implements UserProfileService {
         return user;
     }
 
-    private ProfileImageUpload validateProfileImage(MultipartFile image) {
-        if (image == null || image.isEmpty()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "프로필 이미지 파일이 필요합니다.");
-        }
-        if (image.getSize() > MAX_PROFILE_IMAGE_BYTES) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "프로필 이미지는 5MB 이하만 업로드할 수 있습니다.");
-        }
-        String extension = extensionOf(image.getOriginalFilename());
-        if (!ALLOWED_IMAGE_EXTENSIONS.contains(extension)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "지원하지 않는 이미지 확장자입니다.");
-        }
-        String contentType = image.getContentType();
-        if (contentType == null || !ALLOWED_IMAGE_CONTENT_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "지원하지 않는 이미지 형식입니다.");
-        }
-        String normalizedContentType = "png".equals(extension)
-                ? MediaType.IMAGE_PNG_VALUE
-                : MediaType.IMAGE_JPEG_VALUE;
-        return new ProfileImageUpload(extension, normalizedContentType);
-    }
-
-    private String extensionOf(String filename) {
-        if (filename == null || filename.isBlank()) {
-            return "";
-        }
-        int dot = filename.lastIndexOf('.');
-        if (dot < 0 || dot == filename.length() - 1) {
-            return "";
-        }
-        return filename.substring(dot + 1).toLowerCase(Locale.ROOT);
-    }
-
     private String resolveProfileImage(String storedProfileImage) {
         if (storedProfileImage == null || storedProfileImage.isBlank()) {
             return null;
@@ -240,8 +204,5 @@ public class UserProfileServiceImpl implements UserProfileService {
             return storedProfileImage;
         }
         return gcsStorageService.createReadUrl(storedProfileImage);
-    }
-
-    private record ProfileImageUpload(String extension, String contentType) {
     }
 }

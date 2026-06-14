@@ -13,6 +13,7 @@ import com.holaclimbing.server.domain.video.dto.request.UploadUrlRequest;
 import com.holaclimbing.server.domain.video.dto.response.CommentResponse;
 import com.holaclimbing.server.domain.video.dto.response.LikeResponse;
 import com.holaclimbing.server.domain.video.dto.response.ShareLinkResponse;
+import com.holaclimbing.server.domain.video.dto.response.ThumbnailUploadResponse;
 import com.holaclimbing.server.domain.video.dto.response.UploadUrlResponse;
 import com.holaclimbing.server.domain.video.dto.response.VideoDetailResponse;
 import com.holaclimbing.server.domain.video.dto.response.VideoStatusResponse;
@@ -45,7 +46,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 영상 피드·CRUD·좋아요·댓글 API.
@@ -70,6 +73,14 @@ public class VideoController {
             @AuthenticationPrincipal Long userId,
             @Valid @RequestBody UploadUrlRequest request) {
         return ApiResponse.success(videoService.createUploadUrl(userId, request));
+    }
+
+    @ApiErrorCodes({INVALID_INPUT, GCS_UPLOAD_FAILED})
+    @PostMapping(value = "/thumbnail", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<ThumbnailUploadResponse> uploadThumbnail(
+            @AuthenticationPrincipal Long userId,
+            @RequestPart("image") MultipartFile image) {
+        return ApiResponse.success(videoService.uploadThumbnail(userId, image));
     }
 
     @ApiErrorCodes({GYM_NOT_FOUND, INVALID_GYM_GRADE, VIDEO_TOO_LONG, INVALID_INPUT, FORBIDDEN})

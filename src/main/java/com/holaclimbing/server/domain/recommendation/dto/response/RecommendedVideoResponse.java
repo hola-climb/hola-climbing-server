@@ -17,6 +17,7 @@ public record RecommendedVideoResponse(
         GymGradeResponse gymGrade,
         String title,
         String thumbnailPath,
+        String thumbnailUrl,
         String streamUrl,
         Integer durationSeconds,
         LocalDate recordedDate,
@@ -27,9 +28,13 @@ public record RecommendedVideoResponse(
         LocalDateTime createdAt
 ) {
     public static RecommendedVideoResponse of(Video video, String streamUrl, String source) {
+        return of(video, streamUrl, null, source);
+    }
+
+    public static RecommendedVideoResponse of(Video video, String streamUrl, String thumbnailUrl, String source) {
         return new RecommendedVideoResponse(
                 video.getId(), video.getUserId(), video.getGymId(), video.getGymName(), gymGradeOf(video), video.getTitle(),
-                video.getThumbnailPath(), streamUrl, video.getDurationSeconds(), video.getRecordedDate(), video.getViewCount(),
+                video.getThumbnailPath(), thumbnailUrl, streamUrl, video.getDurationSeconds(), video.getRecordedDate(), video.getViewCount(),
                 video.getLikeCount(), video.getCommentCount(), source, video.getCreatedAt());
     }
 

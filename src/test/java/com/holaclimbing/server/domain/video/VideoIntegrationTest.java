@@ -21,6 +21,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -29,6 +30,7 @@ import java.time.LocalDate;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -286,6 +288,78 @@ class VideoIntegrationTest {
                                 new UploadUrlRequest("send.mp4", 209_715_201L, "video/mp4"))))
                 .andExpect(status().isPayloadTooLarge())
                 .andExpect(jsonPath("$.code").value("V002"));
+    }
+
+    @Test
+    @DisplayName("썸네일 업로드 — multipart 이미지를 서버가 GCS에 업로드하고 경로와 읽기 URL을 반환한다")
+    void uploadThumbnail_success() throws Exception {
+        String token = register("thumbnail@hola.com", "thumbuser");
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "thumbnail.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                "fake-jpeg-thumbnail".getBytes(StandardCharsets.UTF_8));
+
+        mockMvc.perform(multipart("/api/videos/thumbnail")
+                        .file(image)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.thumbnailPath").value(org.hamcrest.Matchers.containsString(
+                        "videos/thumbnails/")))
+                .andExpect(jsonPath("$.data.thumbnailPath").value(org.hamcrest.Matchers.endsWith(".jpg")))
+                .andExpect(jsonPath("$.data.thumbnailUrl").value(org.hamcrest.Matchers.containsString(
+                        "X-Goog-Signature=")));
+    }
+
+    @Test
+    @DisplayName("영상 등록 성공 — 서버가 업로드한 썸네일 경로를 저장하고 읽기 URL을 반환한다")
+    void createVideo_withUploadedThumbnail_returnsThumbnailUrl() throws Exception {
+        String token = register("thumb-video@hola.com", "thumbvideo");
+        String thumbnailPath = uploadedThumbnailPath(token);
+
+        var req = new CreateVideoRequest(1L, "My Send", "with thumbnail", 1003L,
+                ownedObjectPath(token), thumbnailPath, 45, RECORDED_DATE, true);
+
+        mockMvc.perform(post("/api/videos")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.thumbnailPath").value(thumbnailPath))
+                .andExpect(jsonPath("$.data.thumbnailUrl").value(org.hamcrest.Matchers.containsString(
+                        "X-Goog-Signature=")));
+    }
+
+    @Test
+    @DisplayName("영상 등록 실패 — 외부 썸네일 URL은 저장할 수 없다")
+    void createVideo_externalThumbnailUrl_returns403() throws Exception {
+        String token = register("external-thumb@hola.com", "externalthumb");
+        var req = new CreateVideoRequest(1L, "bad thumbnail", null, 1003L,
+                ownedObjectPath(token), "https://storage.googleapis.com/bucket/external.jpg",
+                45, RECORDED_DATE, true);
+
+        mockMvc.perform(post("/api/videos")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("C003"));
+    }
+
+    @Test
+    @DisplayName("영상 등록 실패 — 다른 사용자 썸네일 prefix는 저장할 수 없다")
+    void createVideo_foreignThumbnailPath_returns403() throws Exception {
+        String token = register("foreign-thumb@hola.com", "foreignthumb");
+        var req = new CreateVideoRequest(1L, "bad thumbnail", null, 1003L,
+                ownedObjectPath(token), "videos/thumbnails/9999/other.jpg",
+                45, RECORDED_DATE, true);
+
+        mockMvc.perform(post("/api/videos")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("C003"));
     }
 
     @Test
@@ -829,6 +903,20 @@ class VideoIntegrationTest {
                                 10_000_000L, "video/mp4"))))
                 .andExpect(status().isOk()))
                 .path("objectPath").asText();
+    }
+
+    /** 자기 소유 prefix(videos/thumbnails/{userId}/)에 해당하는 thumbnailPath를 multipart API로 업로드한다. */
+    private String uploadedThumbnailPath(String token) throws Exception {
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "thumbnail-" + java.util.UUID.randomUUID() + ".jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                "fake-jpeg-thumbnail".getBytes(StandardCharsets.UTF_8));
+        return dataOf(mockMvc.perform(multipart("/api/videos/thumbnail")
+                .file(image)
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk()))
+                .path("thumbnailPath").asText();
     }
 
     /** 회원가입 → 이메일 인증 → 로그인까지 완료하고 accessToken을 반환. */

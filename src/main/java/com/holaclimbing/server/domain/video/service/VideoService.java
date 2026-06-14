@@ -7,10 +7,12 @@ import com.holaclimbing.server.domain.video.dto.request.UpdateVideoRequest;
 import com.holaclimbing.server.domain.video.dto.request.UploadUrlRequest;
 import com.holaclimbing.server.domain.video.dto.response.LikeResponse;
 import com.holaclimbing.server.domain.video.dto.response.ShareLinkResponse;
+import com.holaclimbing.server.domain.video.dto.response.ThumbnailUploadResponse;
 import com.holaclimbing.server.domain.video.dto.response.UploadUrlResponse;
 import com.holaclimbing.server.domain.video.dto.response.VideoDetailResponse;
 import com.holaclimbing.server.domain.video.dto.response.VideoStatusResponse;
 import com.holaclimbing.server.domain.video.dto.response.VideoSummaryResponse;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 
@@ -18,6 +20,9 @@ public interface VideoService {
 
     /** 업로드용 GCS Signed URL 발급. 클라이언트는 이 URL로 영상을 직접 PUT 업로드한다. */
     UploadUrlResponse createUploadUrl(Long userId, UploadUrlRequest request);
+
+    /** 영상 썸네일 이미지 업로드. 작은 이미지는 서버가 받아 GCS에 저장한다. */
+    ThumbnailUploadResponse uploadThumbnail(Long userId, MultipartFile image);
 
     /** 영상 등록 (메타데이터). */
     VideoDetailResponse createVideo(Long userId, CreateVideoRequest request);
