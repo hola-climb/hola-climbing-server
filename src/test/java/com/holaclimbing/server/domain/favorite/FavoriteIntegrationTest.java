@@ -77,7 +77,13 @@ class FavoriteIntegrationTest {
         mockMvc.perform(get("/api/favorites/gyms").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalElements").value(2))
-                .andExpect(jsonPath("$.data.content.length()").value(2));
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[1].id").value(1))
+                .andExpect(jsonPath("$.data.content[1].thumbnailUrl").isString())
+                .andExpect(jsonPath("$.data.content[1].thumbnailUrl").value(org.hamcrest.Matchers.containsString(
+                        "gyms/profile-images/1/seed.jpg")))
+                .andExpect(jsonPath("$.data.content[1].thumbnailUrl").value(org.hamcrest.Matchers.containsString(
+                        "X-Goog-Signature=")));
     }
 
     @Test

@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.holaclimbing.server.common.exception.BusinessException;
 import com.holaclimbing.server.common.exception.error.ErrorCode;
 import com.holaclimbing.server.common.response.PageResponse;
+import com.holaclimbing.server.common.upload.ImageUploadValidator;
+import com.holaclimbing.server.common.upload.ImageUploadValidator.ImageUpload;
 import com.holaclimbing.server.domain.admin.dto.request.AdminGymGradeReplaceRequest;
 import com.holaclimbing.server.domain.admin.dto.request.AdminGymGradeRequest;
 import com.holaclimbing.server.domain.admin.dto.request.AdminGymImportRequest;
@@ -20,17 +22,21 @@ import com.holaclimbing.server.domain.gym.domain.Gym;
 import com.holaclimbing.server.domain.gym.dto.DayHours;
 import com.holaclimbing.server.domain.gym.dto.response.GymDetailResponse;
 import com.holaclimbing.server.domain.gym.dto.response.GymGradeResponse;
-import com.holaclimbing.server.domain.gym.dto.response.GymPhotoResponse;
 import com.holaclimbing.server.domain.gym.mapper.GymGradeMapper;
 import com.holaclimbing.server.domain.gym.mapper.GymMapper;
+import com.holaclimbing.server.domain.gym.service.GymProfileImageUrlResolver;
+import com.holaclimbing.server.infrastructure.gcs.GcsStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -39,6 +45,8 @@ public class AdminGymServiceImpl implements AdminGymService {
 
     private static final String STATUS_ACTIVE = "active";
     private static final String STATUS_CLOSED = "closed";
+    private static final long MAX_GYM_PROFILE_IMAGE_BYTES = 5L * 1024 * 1024;
+    private static final String GYM_PROFILE_IMAGE_PREFIX = "gyms/profile-images";
     private static final TypeReference<Map<String, DayHours>> BUSINESS_HOURS_TYPE =
             new TypeReference<>() {
             };
@@ -48,6 +56,8 @@ public class AdminGymServiceImpl implements AdminGymService {
     private final GymGradeMapper gymGradeMapper;
     private final AdminAuditService adminAuditService;
     private final ObjectMapper objectMapper;
+    private final GcsStorageService gcsStorageService;
+    private final GymProfileImageUrlResolver profileImageUrlResolver;
 
     @Override
     @Transactional(readOnly = true)
@@ -97,6 +107,24 @@ public class AdminGymServiceImpl implements AdminGymService {
                 request.regionCode());
         Gym after = requireGymAnyStatus(gymId);
         adminAuditService.record(adminId, "GYM_UPDATE", "gym", gymId, null, before, after);
+        return toDetail(after);
+    }
+
+    @Override
+    @Transactional
+    public GymDetailResponse uploadProfileImage(Long adminId, Long gymId, MultipartFile image) {
+        Gym before = requireGymAnyStatus(gymId);
+        ImageUpload upload = ImageUploadValidator.validate(image, "암장 프로필 이미지", MAX_GYM_PROFILE_IMAGE_BYTES);
+        String objectPath = "%s/%d/%s.%s".formatted(
+                GYM_PROFILE_IMAGE_PREFIX, gymId, UUID.randomUUID(), upload.extension());
+        try {
+            gcsStorageService.uploadBytes(objectPath, upload.contentType(), image.getBytes());
+        } catch (IOException e) {
+            throw new BusinessException(ErrorCode.GCS_UPLOAD_FAILED);
+        }
+        adminGymMapper.updateThumbnailUrl(gymId, objectPath);
+        Gym after = requireGymAnyStatus(gymId);
+        adminAuditService.record(adminId, "GYM_PROFILE_IMAGE_UPDATE", "gym", gymId, null, before, after);
         return toDetail(after);
     }
 
@@ -244,11 +272,8 @@ public class AdminGymServiceImpl implements AdminGymService {
     }
 
     private GymDetailResponse toDetail(Gym gym) {
-        List<GymPhotoResponse> photos = gymMapper.findPhotosByGymId(gym.getId())
-                .stream()
-                .map(GymPhotoResponse::from)
-                .toList();
-        return GymDetailResponse.of(gym, parseBusinessHours(gym.getBusinessHours()), photos);
+        return GymDetailResponse.of(gym, parseBusinessHours(gym.getBusinessHours()),
+                profileImageUrlResolver.resolve(gym.getThumbnailUrl()));
     }
 
     private String writeBusinessHours(Map<String, DayHours> businessHours) {

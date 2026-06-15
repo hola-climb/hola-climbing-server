@@ -67,6 +67,13 @@
         WHERE id = #{gymId} AND deleted_at IS NULL
     </update>
 
+    <update id="updateThumbnailUrl">
+        UPDATE gyms
+        SET thumbnail_url = #{thumbnailUrl},
+            updated_at = NOW()
+        WHERE id = #{gymId} AND deleted_at IS NULL
+    </update>
+
     <update id="deactivateGrades">
         UPDATE gym_grades
         SET is_active = FALSE, updated_at = NOW()

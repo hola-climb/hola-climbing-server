@@ -45,7 +45,13 @@ class GymIntegrationTest {
     void searchGyms_byKeyword() throws Exception {
         mockMvc.perform(get("/api/gyms").param("keyword", "TheClimb"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.totalElements").value(2));
+                .andExpect(jsonPath("$.data.totalElements").value(2))
+                .andExpect(jsonPath("$.data.content[1].id").value(1))
+                .andExpect(jsonPath("$.data.content[1].thumbnailUrl").isString())
+                .andExpect(jsonPath("$.data.content[1].thumbnailUrl").value(org.hamcrest.Matchers.containsString(
+                        "gyms/profile-images/1/seed.jpg")))
+                .andExpect(jsonPath("$.data.content[1].thumbnailUrl").value(org.hamcrest.Matchers.containsString(
+                        "X-Goog-Signature=")));
     }
 
     @Test
@@ -136,14 +142,18 @@ class GymIntegrationTest {
     }
 
     @Test
-    @DisplayName("암장 상세 — 사진 목록을 포함해 반환한다")
+    @DisplayName("암장 상세 — 프로필 이미지 URL을 포함해 반환한다")
     void getGymDetail_success() throws Exception {
         mockMvc.perform(get("/api/gyms/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(1))
                 .andExpect(jsonPath("$.data.name").value("TheClimb Gangnam"))
-                .andExpect(jsonPath("$.data.photos.length()").value(2))
-                .andExpect(jsonPath("$.data.photos[0].displayOrder").value(0));
+                .andExpect(jsonPath("$.data.thumbnailUrl").isString())
+                .andExpect(jsonPath("$.data.thumbnailUrl").value(org.hamcrest.Matchers.containsString(
+                        "gyms/profile-images/1/seed.jpg")))
+                .andExpect(jsonPath("$.data.thumbnailUrl").value(org.hamcrest.Matchers.containsString(
+                        "X-Goog-Signature=")))
+                .andExpect(jsonPath("$.data.photos").doesNotExist());
     }
 
     @Test

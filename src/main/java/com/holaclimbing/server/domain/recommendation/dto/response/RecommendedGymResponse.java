@@ -22,11 +22,15 @@ public record RecommendedGymResponse(
     private static final String SOURCE_NEARBY = "nearby";
 
     public static RecommendedGymResponse from(RecommendedGym gym) {
+        return from(gym, gym.getThumbnailUrl());
+    }
+
+    public static RecommendedGymResponse from(RecommendedGym gym, String thumbnailUrl) {
         return new RecommendedGymResponse(
                 gym.getId(),
                 gym.getName(),
                 gym.getAddress(),
-                gym.getThumbnailUrl(),
+                thumbnailUrl,
                 gym.getRegionCode(),
                 gym.getRatingAvg(),
                 gym.getRatingCount(),

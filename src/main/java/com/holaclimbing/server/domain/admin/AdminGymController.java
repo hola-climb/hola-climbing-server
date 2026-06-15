@@ -17,6 +17,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,7 +28,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -77,6 +80,13 @@ public class AdminGymController {
                                                     @PathVariable Long gymId,
                                                     @Valid @RequestBody AdminGymUpsertRequest request) {
         return ApiResponse.success(adminGymService.updateGym(adminId, gymId, request));
+    }
+
+    @PostMapping(value = "/{gymId}/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<GymDetailResponse> uploadProfileImage(@AuthenticationPrincipal Long adminId,
+                                                             @PathVariable Long gymId,
+                                                             @RequestPart("image") MultipartFile image) {
+        return ApiResponse.success(adminGymService.uploadProfileImage(adminId, gymId, image));
     }
 
     @PostMapping("/{gymId}/approve")

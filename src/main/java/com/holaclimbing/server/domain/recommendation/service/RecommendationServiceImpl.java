@@ -8,6 +8,7 @@ import com.holaclimbing.server.domain.recommendation.dto.RecommendationCursorCod
 import com.holaclimbing.server.domain.recommendation.dto.response.RecommendedGymResponse;
 import com.holaclimbing.server.domain.recommendation.dto.response.RecommendedVideoResponse;
 import com.holaclimbing.server.domain.recommendation.mapper.RecommendationMapper;
+import com.holaclimbing.server.domain.gym.service.GymProfileImageUrlResolver;
 import com.holaclimbing.server.domain.video.domain.Video;
 import com.holaclimbing.server.infrastructure.gcs.GcsStorageService;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class RecommendationServiceImpl implements RecommendationService {
 
     private final RecommendationMapper recommendationMapper;
     private final GcsStorageService gcsStorageService;
+    private final GymProfileImageUrlResolver profileImageUrlResolver;
 
     @Override
     public CursorPageResponse<RecommendedVideoResponse> getVideoFeed(Long userId, String cursor, int size) {
@@ -55,7 +57,7 @@ public class RecommendationServiceImpl implements RecommendationService {
         validateNearbyGymRequest(lat, lng, radiusKm);
         return recommendationMapper.findNearbyGyms(userId, lat, lng, radiusKm, size)
                 .stream()
-                .map(RecommendedGymResponse::from)
+                .map(gym -> RecommendedGymResponse.from(gym, profileImageUrlResolver.resolve(gym.getThumbnailUrl())))
                 .toList();
     }
 

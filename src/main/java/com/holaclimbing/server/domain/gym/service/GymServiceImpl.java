@@ -6,15 +6,12 @@ import com.holaclimbing.server.common.exception.BusinessException;
 import com.holaclimbing.server.common.exception.error.ErrorCode;
 import com.holaclimbing.server.common.response.PageResponse;
 import com.holaclimbing.server.domain.gym.domain.Gym;
-import com.holaclimbing.server.domain.gym.domain.GymPhoto;
 import com.holaclimbing.server.domain.gym.dto.DayHours;
-import com.holaclimbing.server.domain.gym.dto.request.CreateGymPhotoRequest;
 import com.holaclimbing.server.domain.gym.dto.request.CreateGymRequest;
 import com.holaclimbing.server.domain.gym.dto.request.UpdateBusinessHoursRequest;
 import com.holaclimbing.server.domain.gym.dto.response.CreateGymResponse;
 import com.holaclimbing.server.domain.gym.dto.response.GymDetailResponse;
 import com.holaclimbing.server.domain.gym.dto.response.GymGradeResponse;
-import com.holaclimbing.server.domain.gym.dto.response.GymPhotoResponse;
 import com.holaclimbing.server.domain.gym.dto.response.GymSummaryResponse;
 import com.holaclimbing.server.domain.gym.mapper.GymGradeMapper;
 import com.holaclimbing.server.domain.gym.mapper.GymMapper;
@@ -38,6 +35,7 @@ public class GymServiceImpl implements GymService {
     private final GymMapper gymMapper;
     private final GymGradeMapper gymGradeMapper;
     private final ObjectMapper objectMapper;
+    private final GymProfileImageUrlResolver profileImageUrlResolver;
 
     @Override
     public PageResponse<GymSummaryResponse> searchGyms(String keyword, String region, int page, int size) {
@@ -45,7 +43,9 @@ public class GymServiceImpl implements GymService {
         String normalizedRegion = normalizeText(region);
         long total = gymMapper.countSearch(normalizedKeyword, normalizedRegion);
         List<GymSummaryResponse> content = gymMapper.search(normalizedKeyword, normalizedRegion, size, page * size)
-                .stream().map(GymSummaryResponse::from).toList();
+                .stream()
+                .map(gym -> GymSummaryResponse.from(gym, profileImageUrlResolver.resolve(gym.getThumbnailUrl())))
+                .toList();
         return PageResponse.of(content, page, size, total);
     }
 
@@ -58,7 +58,9 @@ public class GymServiceImpl implements GymService {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "경도는 -180~180 범위여야 합니다.");
         }
         return gymMapper.findNearby(lat, lng, radiusKm, size)
-                .stream().map(GymSummaryResponse::from).toList();
+                .stream()
+                .map(gym -> GymSummaryResponse.from(gym, profileImageUrlResolver.resolve(gym.getThumbnailUrl())))
+                .toList();
     }
 
     @Override
@@ -67,9 +69,8 @@ public class GymServiceImpl implements GymService {
         if (gym == null) {
             throw new BusinessException(ErrorCode.GYM_NOT_FOUND);
         }
-        List<GymPhotoResponse> photos = gymMapper.findPhotosByGymId(gymId)
-                .stream().map(GymPhotoResponse::from).toList();
-        return GymDetailResponse.of(gym, parseBusinessHours(gym.getBusinessHours()), photos);
+        return GymDetailResponse.of(gym, parseBusinessHours(gym.getBusinessHours()),
+                profileImageUrlResolver.resolve(gym.getThumbnailUrl()));
     }
 
     @Override
@@ -120,33 +121,10 @@ public class GymServiceImpl implements GymService {
                 : pendingDetail(gymMapper.findByIdIncludingPending(gymId));
     }
 
-    /** pending 상태 암장의 detail (사진 포함). getGymDetail의 active 필터를 우회. */
+    /** pending 상태 암장의 detail. getGymDetail의 active 필터를 우회. */
     private GymDetailResponse pendingDetail(Gym gym) {
-        List<GymPhotoResponse> photos = gymMapper.findPhotosByGymId(gym.getId())
-                .stream().map(GymPhotoResponse::from).toList();
-        return GymDetailResponse.of(gym, parseBusinessHours(gym.getBusinessHours()), photos);
-    }
-
-    @Override
-    @Transactional
-    public GymPhotoResponse uploadPhoto(Long userId, Long gymId, CreateGymPhotoRequest request) {
-        requireGym(gymId);
-        GymPhoto photo = GymPhoto.builder()
-                .gymId(gymId)
-                .uploadedBy(userId)
-                .gcsPath(request.gcsPath())
-                .caption(request.caption())
-                .displayOrder(request.displayOrder() == null ? 0 : request.displayOrder())
-                .build();
-        gymMapper.insertPhoto(photo);
-        return GymPhotoResponse.from(photo);
-    }
-
-    @Override
-    public List<GymPhotoResponse> getPhotos(Long gymId) {
-        requireGym(gymId);
-        return gymMapper.findPhotosByGymId(gymId)
-                .stream().map(GymPhotoResponse::from).toList();
+        return GymDetailResponse.of(gym, parseBusinessHours(gym.getBusinessHours()),
+                profileImageUrlResolver.resolve(gym.getThumbnailUrl()));
     }
 
     private void requireGym(Long gymId) {

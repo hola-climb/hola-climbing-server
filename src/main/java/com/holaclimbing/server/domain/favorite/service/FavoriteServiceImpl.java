@@ -6,6 +6,7 @@ import com.holaclimbing.server.common.response.PageResponse;
 import com.holaclimbing.server.domain.favorite.mapper.FavoriteMapper;
 import com.holaclimbing.server.domain.gym.dto.response.GymSummaryResponse;
 import com.holaclimbing.server.domain.gym.mapper.GymMapper;
+import com.holaclimbing.server.domain.gym.service.GymProfileImageUrlResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ public class FavoriteServiceImpl implements FavoriteService {
 
     private final FavoriteMapper favoriteMapper;
     private final GymMapper gymMapper;
+    private final GymProfileImageUrlResolver profileImageUrlResolver;
 
     @Override
     @Transactional
@@ -41,7 +43,9 @@ public class FavoriteServiceImpl implements FavoriteService {
     public PageResponse<GymSummaryResponse> getFavoriteGyms(Long userId, int page, int size) {
         long total = favoriteMapper.countByUser(userId);
         List<GymSummaryResponse> content = favoriteMapper.findFavoriteGyms(userId, size, page * size)
-                .stream().map(GymSummaryResponse::from).toList();
+                .stream()
+                .map(gym -> GymSummaryResponse.from(gym, profileImageUrlResolver.resolve(gym.getThumbnailUrl())))
+                .toList();
         return PageResponse.of(content, page, size, total);
     }
 }

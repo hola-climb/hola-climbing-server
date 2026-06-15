@@ -34,6 +34,9 @@ public interface AdminGymMapper {
                   @Param("businessHours") String businessHours,
                   @Param("regionCode") String regionCode);
 
+    int updateThumbnailUrl(@Param("gymId") Long gymId,
+                           @Param("thumbnailUrl") String thumbnailUrl);
+
     int deactivateGrades(Long gymId);
 
     void insertGrade(@Param("gymId") Long gymId,

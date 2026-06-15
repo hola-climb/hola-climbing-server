@@ -5,13 +5,11 @@ import static com.holaclimbing.server.common.exception.error.ErrorCode.*;
 import com.holaclimbing.server.common.exception.docs.ApiErrorCodes;
 import com.holaclimbing.server.common.response.ApiResponse;
 import com.holaclimbing.server.common.response.PageResponse;
-import com.holaclimbing.server.domain.gym.dto.request.CreateGymPhotoRequest;
 import com.holaclimbing.server.domain.gym.dto.request.CreateGymRequest;
 import com.holaclimbing.server.domain.gym.dto.request.UpdateBusinessHoursRequest;
 import com.holaclimbing.server.domain.gym.dto.response.CreateGymResponse;
 import com.holaclimbing.server.domain.gym.dto.response.GymDetailResponse;
 import com.holaclimbing.server.domain.gym.dto.response.GymGradeResponse;
-import com.holaclimbing.server.domain.gym.dto.response.GymPhotoResponse;
 import com.holaclimbing.server.domain.gym.dto.response.GymSummaryResponse;
 import com.holaclimbing.server.domain.gym.service.GymService;
 import com.holaclimbing.server.domain.video.dto.response.VideoSummaryResponse;
@@ -106,24 +104,6 @@ public class GymController {
             @Valid @RequestBody CreateGymRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(gymService.suggestGym(userId, request)));
-    }
-
-    /** 암장 사진 업로드 (인증 필요). */
-    @ApiErrorCodes({GYM_NOT_FOUND})
-    @PostMapping("/{gymId}/photos")
-    public ResponseEntity<ApiResponse<GymPhotoResponse>> uploadGymPhoto(
-            @AuthenticationPrincipal Long userId,
-            @PathVariable Long gymId,
-            @Valid @RequestBody CreateGymPhotoRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(gymService.uploadPhoto(userId, gymId, request)));
-    }
-
-    /** 암장 사진 목록 조회 (공개). */
-    @ApiErrorCodes({GYM_NOT_FOUND})
-    @GetMapping("/{gymId}/photos")
-    public ApiResponse<List<GymPhotoResponse>> getGymPhotos(@PathVariable Long gymId) {
-        return ApiResponse.success(gymService.getPhotos(gymId));
     }
 
     /** 암장 요일별 운영시간 수정 (등록 제안자만 허용). */

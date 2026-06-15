@@ -1,7 +1,6 @@
 package com.holaclimbing.server.domain.gym.mapper;
 
 import com.holaclimbing.server.domain.gym.domain.Gym;
-import com.holaclimbing.server.domain.gym.domain.GymPhoto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -31,14 +30,8 @@ public interface GymMapper {
                          @Param("radiusKm") double radiusKm,
                          @Param("size") int size);
 
-    /** 암장 사진 목록 (display_order 순). */
-    List<GymPhoto> findPhotosByGymId(Long gymId);
-
     /** 암장 등록. 생성된 PK는 gym.id로 채워진다. */
     void insertGym(Gym gym);
-
-    /** 암장 사진 등록. 생성된 PK는 photo.id로 채워진다. */
-    void insertPhoto(GymPhoto photo);
 
     /** 암장 요일별 운영시간(business_hours jsonb) 갱신. */
     int updateBusinessHours(@Param("gymId") Long gymId,

@@ -66,13 +66,6 @@
         LIMIT #{size}
     </select>
 
-    <select id="findPhotosByGymId" resultType="com.holaclimbing.server.domain.gym.domain.GymPhoto">
-        SELECT id, gym_id, uploaded_by, gcs_path, caption, display_order, created_at
-        FROM gym_photos
-        WHERE gym_id = #{gymId}
-        ORDER BY display_order, id
-    </select>
-
     <insert id="insertGym" parameterType="com.holaclimbing.server.domain.gym.domain.Gym"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO gyms (name, address, lat, lng, description, phone, website,
@@ -86,11 +79,5 @@
         SET business_hours = #{businessHours}::jsonb, updated_at = NOW()
         WHERE id = #{gymId}
     </update>
-
-    <insert id="insertPhoto" parameterType="com.holaclimbing.server.domain.gym.domain.GymPhoto"
-            useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO gym_photos (gym_id, uploaded_by, gcs_path, caption, display_order)
-        VALUES (#{gymId}, #{uploadedBy}, #{gcsPath}, #{caption}, #{displayOrder})
-    </insert>
 
 </mapper>

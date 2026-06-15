@@ -287,6 +287,11 @@ class RecommendationIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(2))
                 .andExpect(jsonPath("$.data[0].id").value(1))
+                .andExpect(jsonPath("$.data[0].thumbnailUrl").isString())
+                .andExpect(jsonPath("$.data[0].thumbnailUrl").value(org.hamcrest.Matchers.containsString(
+                        "gyms/profile-images/1/seed.jpg")))
+                .andExpect(jsonPath("$.data[0].thumbnailUrl").value(org.hamcrest.Matchers.containsString(
+                        "X-Goog-Signature=")))
                 .andExpect(jsonPath("$.data[0].rankingDistance").doesNotExist())
                 .andExpect(jsonPath("$.data[0].source").value("nearby"))
                 .andExpect(jsonPath("$.data[1].id").value(2))

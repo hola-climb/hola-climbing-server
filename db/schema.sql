@@ -191,17 +191,6 @@ CREATE INDEX idx_gym_grades_gym_order
     WHERE is_active = TRUE;
 
 
-CREATE TABLE gym_photos (
-    id              BIGSERIAL PRIMARY KEY,
-    gym_id          BIGINT NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
-    uploaded_by     BIGINT REFERENCES users(id),
-    gcs_path        VARCHAR(500) NOT NULL,
-    caption         VARCHAR(200),
-    display_order   INTEGER NOT NULL DEFAULT 0,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
-);
-CREATE INDEX idx_gym_photos_gym ON gym_photos(gym_id, display_order);
-
 CREATE TABLE gym_reviews (
     id          BIGSERIAL PRIMARY KEY,
     gym_id      BIGINT NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,

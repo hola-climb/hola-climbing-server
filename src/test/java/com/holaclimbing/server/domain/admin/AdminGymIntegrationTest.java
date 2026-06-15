@@ -14,11 +14,16 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.nio.charset.StandardCharsets;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -111,6 +116,38 @@ class AdminGymIntegrationTest {
                         .content("{\"grades\":[" + repeatedGrades(101) + "],\"reason\":\"too many\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("C001"));
+    }
+
+    @Test
+    @DisplayName("관리자 암장 - 프로필 이미지 업로드 시 대표 이미지가 교체된다")
+    void uploadProfileImage_updatesThumbnailUrl() throws Exception {
+        String adminToken = registerAndLoginAdmin();
+        long gymId = insertActiveGymWithGrade();
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "gym-profile.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                "fake-gym-profile-image".getBytes(StandardCharsets.UTF_8));
+
+        mockMvc.perform(multipart("/api/admin/gyms/" + gymId + "/profile-image")
+                        .file(image)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(gymId))
+                .andExpect(jsonPath("$.data.thumbnailUrl").isString())
+                .andExpect(jsonPath("$.data.thumbnailUrl").value(org.hamcrest.Matchers.containsString(
+                        "gyms/profile-images/" + gymId + "/")))
+                .andExpect(jsonPath("$.data.thumbnailUrl").value(org.hamcrest.Matchers.containsString(
+                        "X-Goog-Signature=")))
+                .andExpect(jsonPath("$.data.photos").doesNotExist());
+
+        String stored = jdbcTemplate.queryForObject(
+                "SELECT thumbnail_url FROM gyms WHERE id = ?",
+                String.class,
+                gymId);
+        assertThat(stored)
+                .startsWith("gyms/profile-images/" + gymId + "/")
+                .endsWith(".jpg");
     }
 
     @Test

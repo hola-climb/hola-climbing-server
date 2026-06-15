@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.holaclimbing.server.TestcontainersConfiguration;
 import com.holaclimbing.server.domain.gym.dto.DayHours;
-import com.holaclimbing.server.domain.gym.dto.request.CreateGymPhotoRequest;
 import com.holaclimbing.server.domain.gym.dto.request.CreateGymRequest;
 import com.holaclimbing.server.domain.gym.dto.request.UpdateBusinessHoursRequest;
 import com.holaclimbing.server.domain.user.dto.request.LoginRequest;
@@ -33,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Gym 도메인 등록·사진 관리 통합 테스트 — 암장 등록 제안, 사진 업로드·조회.
+ * Gym 도메인 등록·관리 통합 테스트 — 암장 등록 제안, 운영시간 수정.
  */
 @SpringBootTest(properties = "app.cors.allowed-origins=http://localhost:3000")
 @AutoConfigureMockMvc
@@ -85,46 +84,24 @@ class GymManageIntegrationTest {
     }
 
     @Test
-    @DisplayName("암장 사진 업로드 — 201, 목록 조회에 반영된다")
-    void uploadPhoto_success() throws Exception {
+    @DisplayName("레거시 암장 다중 사진 API — 업로드 엔드포인트는 더 이상 제공하지 않는다")
+    void legacyUploadPhotoEndpoint_returns404() throws Exception {
         String token = register("a@hola.com", "climberone");
 
         mockMvc.perform(post("/api/gyms/1/photos")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                new CreateGymPhotoRequest("gyms/1/photo-c.jpg", "새 사진", 2))))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.id").isNumber())
-                .andExpect(jsonPath("$.data.gcsPath").value("gyms/1/photo-c.jpg"))
-                .andExpect(jsonPath("$.data.displayOrder").value(2));
-
-        mockMvc.perform(get("/api/gyms/1/photos"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(3));
+                        .content("""
+                                {"gcsPath":"gyms/1/photo-c.jpg","caption":"새 사진","displayOrder":2}
+                                """))
+                .andExpect(status().isNotFound());
     }
 
     @Test
-    @DisplayName("암장 사진 업로드 실패 — 없는 암장은 404 G001")
-    void uploadPhoto_nonexistentGym_returns404() throws Exception {
-        String token = register("a@hola.com", "climberone");
-
-        mockMvc.perform(post("/api/gyms/999999/photos")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                new CreateGymPhotoRequest("gyms/x/photo.jpg", null, null))))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("G001"));
-    }
-
-    @Test
-    @DisplayName("암장 사진 조회 — 공개 엔드포인트, 시드 사진 2개를 순서대로 반환한다")
-    void getPhotos_list() throws Exception {
+    @DisplayName("레거시 암장 다중 사진 API — 목록 조회 엔드포인트는 더 이상 제공하지 않는다")
+    void legacyGetPhotosEndpoint_returns404() throws Exception {
         mockMvc.perform(get("/api/gyms/1/photos"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2))
-                .andExpect(jsonPath("$.data[0].displayOrder").value(0));
+                .andExpect(status().isNotFound());
     }
 
     @Test
