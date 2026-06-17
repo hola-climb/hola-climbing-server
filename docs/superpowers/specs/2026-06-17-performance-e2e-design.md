@@ -8,6 +8,8 @@ The primary story is recommendation feed optimization: reproduce latency under A
 
 The secondary stories are key user-flow regression checks and the AI analysis pipeline. They are intentionally measured separately because their bottlenecks have different causes.
 
+Every before/after claim must be backed by saved evidence. The implementation must capture both machine-readable result files and human-readable screenshots for code, k6 output, SQL execution plans, Grafana dashboards, Cloud Run metrics, and API-flow results.
+
 ## Scope
 
 Primary target:
@@ -207,6 +209,37 @@ The report should call out:
 
 Store baseline and after-optimization reports in the same structure so the comparison is mechanical.
 
+### Required Evidence
+
+For recommendation feed, save a complete before/after evidence package:
+
+```text
+perf/results/recommendation-feed/before/
+perf/results/recommendation-feed/after/
+```
+
+Each package must contain:
+
+| evidence | required capture |
+|---|---|
+| code state | git commit hash, `git diff --stat`, and screenshots of the changed mapper/migration/script sections |
+| k6 result | raw k6 JSON/summary plus screenshot of the terminal or report summary showing p50/p95/p99, requests, and error rate |
+| SQL plan | raw `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` plus screenshot of the readable plan summary |
+| Grafana | screenshots of HTTP latency, request rate, JVM/Tomcat, CPU/memory, and DB connection panels during the run |
+| Cloud Run | screenshot of `hola-backend-perf` revisions/metrics showing max instances and request behavior |
+| seed data | row count report plus screenshot of the row count summary |
+
+Screenshot names must include the phase and API name, for example:
+
+```text
+01-before-recommendation-feed-k6-summary.png
+02-before-recommendation-feed-sql-plan.png
+03-before-recommendation-feed-grafana-http-latency.png
+11-after-recommendation-feed-k6-summary.png
+12-after-recommendation-feed-sql-plan.png
+13-after-recommendation-feed-grafana-http-latency.png
+```
+
 ## Phase 2: Video Detail Screen Fan-out
 
 ### Scenario
@@ -241,6 +274,23 @@ Record:
 
 This phase is a secondary regression test. It should not block the recommendation feed optimization unless it reveals 5xx errors or severe contention.
 
+### Required Evidence
+
+Save video detail screenshots separately from recommendation feed:
+
+```text
+perf/results/video-detail-flow/before/
+perf/results/video-detail-flow/after/
+```
+
+Each package must contain:
+
+- screenshot of the k6 grouped flow summary
+- screenshot of per-API latency breakdown for `GET /api/videos/{id}`, user, gym, analysis, and comments
+- screenshot of Grafana HTTP latency during the flow
+- screenshot or exported JSON showing the total number of API calls for one detail-screen open
+- screenshot of any code change that affects fan-out, response composition, signed URL caching, view count behavior, or comments pagination
+
 ## Phase 3: Like And Comment Concurrency Smoke
 
 ### Scenario
@@ -265,6 +315,23 @@ Assertions:
 - notifications do not cause request failures
 
 This gives portfolio support for "performance tests also checked write-path stability and counter consistency."
+
+### Required Evidence
+
+Save concurrency evidence separately:
+
+```text
+perf/results/like-comment-concurrency/before/
+perf/results/like-comment-concurrency/after/
+```
+
+Each package must contain:
+
+- screenshot of the k6 or script summary showing concurrent like/comment attempts and error rate
+- screenshot of final `like_count` and persisted like row count comparison
+- screenshot of final `comment_count` and persisted comment row count comparison
+- screenshot of any 4xx duplicate-like behavior that is expected and not treated as a server failure
+- screenshot of any code change that affects counters, uniqueness, transactions, or notifications
 
 ## Phase 4: Upload And AI Worker Pipeline
 
@@ -331,6 +398,27 @@ The AI pipeline was decomposed into upload, queue, download, inference, callback
 The dominant latency came from the worker CPU-bound pose extraction phase, so the next improvements should target worker concurrency, VM sizing, frame sampling, and model settings rather than Spring API scaling.
 ```
 
+### Required Evidence
+
+Save AI pipeline evidence by flow:
+
+```text
+perf/results/ai-pipeline/e2e-smoke/
+perf/results/ai-pipeline/worker-benchmark/
+perf/results/ai-pipeline/upload-benchmark/
+```
+
+Each package must contain:
+
+- screenshot of the upload URL response and GCS PUT completion for real upload smoke
+- screenshot of video registration response with `videoId`
+- screenshot of Redis Stream state, including enqueue and pending/ack state
+- screenshot of worker logs or benchmark output showing phase timestamps
+- screenshot of Spring callback/status result showing terminal `done` or `failed`
+- screenshot of Grafana or VM metrics showing CPU/memory during worker processing
+- raw CSV/JSON phase timing data
+- screenshot of any worker or Spring code change that affects timestamp collection, queue behavior, callback, or persistence
+
 ## Artifacts
 
 Create these implementation artifacts after this design is approved:
@@ -345,9 +433,43 @@ perf/scripts/ai_pipeline_benchmark.*
 perf/results/local-baseline/
 perf/results/gcp-baseline/
 perf/results/after-optimization/
+perf/results/recommendation-feed/before/screenshots/
+perf/results/recommendation-feed/after/screenshots/
+perf/results/video-detail-flow/before/screenshots/
+perf/results/video-detail-flow/after/screenshots/
+perf/results/like-comment-concurrency/before/screenshots/
+perf/results/like-comment-concurrency/after/screenshots/
+perf/results/ai-pipeline/e2e-smoke/screenshots/
+perf/results/ai-pipeline/worker-benchmark/screenshots/
+perf/results/ai-pipeline/upload-benchmark/screenshots/
 docs/performance/recommendation-feed-report.md
+docs/performance/video-detail-flow-report.md
+docs/performance/like-comment-concurrency-report.md
 docs/performance/ai-pipeline-report.md
 ```
+
+## Evidence Rules
+
+Screenshots are required artifacts, not optional decoration.
+
+For every API or flow under test:
+
+1. Save raw output first.
+2. Save screenshots that make the result understandable without rerunning the test.
+3. Save code screenshots for the exact code or SQL that changed between before and after.
+4. Name screenshots with a numeric prefix, phase, flow/API name, and subject.
+5. Link screenshots from the final performance report.
+
+Required before/after pairings:
+
+| flow | before evidence | after evidence |
+|---|---|---|
+| recommendation feed | k6, SQL plan, Grafana, Cloud Run, seed counts, code state | same captures after query/index/code changes |
+| video detail flow | group duration, per-API latency, API-call count, Grafana, code state | same captures after any fan-out or caching change |
+| like/comment concurrency | mutation summary, final DB counts, expected duplicate behavior, code state | same captures after any concurrency-related change |
+| AI pipeline | phase timing, Redis state, worker logs, callback/status, VM metrics, code state | same captures after any worker/config/instrumentation change |
+
+Final report sections must include image links near the claim they support. A before/after performance claim is incomplete if it only has prose and no saved screenshot.
 
 ## Portfolio Output
 
