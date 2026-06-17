@@ -42,11 +42,19 @@ apply query or index improvements, and compare before/after evidence.
 
 ![local baseline sql plan](../../perf/results/recommendation-feed/local-baseline/screenshots/03-local-recommendation-feed-sql-plan.png)
 
+### k6 Scenario Code
+
+![local baseline k6 scenario code](../../perf/results/recommendation-feed/local-baseline/screenshots/04-local-recommendation-feed-k6-script.png)
+
 ## Before Evidence
 
 ### Code State
 
 ![before code state](../../perf/results/recommendation-feed/before/screenshots/01-before-recommendation-feed-code-state.png)
+
+### Code Snapshot
+
+![before code snapshot](../../perf/results/recommendation-feed/before/screenshots/06-before-recommendation-feed-code.png)
 
 ### k6 Summary
 
@@ -69,6 +77,10 @@ apply query or index improvements, and compare before/after evidence.
 ### Code State
 
 ![after code state](../../perf/results/recommendation-feed/after/screenshots/11-after-recommendation-feed-code-state.png)
+
+### Code Change
+
+![after code change](../../perf/results/recommendation-feed/after/screenshots/16-after-recommendation-feed-code-change.png)
 
 ### k6 Summary
 

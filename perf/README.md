@@ -174,10 +174,12 @@ Save at least these screenshots before treating a run as complete:
 perf/results/recommendation-feed/local-baseline/screenshots/01-local-recommendation-feed-code-state.png
 perf/results/recommendation-feed/local-baseline/screenshots/02-local-recommendation-feed-k6-summary.png
 perf/results/recommendation-feed/local-baseline/screenshots/03-local-recommendation-feed-sql-plan.png
+perf/results/recommendation-feed/local-baseline/screenshots/04-local-recommendation-feed-k6-script.png
 ```
 
 For cloud before/after runs, also save Grafana and Cloud Run metric screenshots
-next to the raw outputs.
+next to the raw outputs. When code changes are part of the performance claim,
+save a code screenshot next to the metric screenshots.
 
 ### 7. Validate evidence
 
