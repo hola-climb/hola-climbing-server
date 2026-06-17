@@ -181,6 +181,26 @@ For cloud before/after runs, also save Grafana and Cloud Run metric screenshots
 next to the raw outputs. When code changes are part of the performance claim,
 save a code screenshot next to the metric screenshots.
 
+### Presentation screenshot QA
+
+Raw screenshots can be long and dense. For portfolio review, also create
+presentation screenshots that summarize the raw evidence.
+
+```bash
+python3 perf/scripts/render_recommendation_presentation.py local-baseline
+```
+
+The renderer requires Pillow. In Codex desktop, the bundled Python runtime has
+Pillow available.
+
+Presentation screenshots must pass these checks before use:
+
+- text stays inside its card or panel
+- no text overlaps another label, number, or border
+- long findings are wrapped or shortened instead of shrinking into unreadable text
+- raw evidence paths remain visible so the summary can be traced back
+- the image is opened once for a visual review before it is committed
+
 ### 7. Validate evidence
 
 ```bash
