@@ -224,7 +224,7 @@ def render(root, run_label):
     draw_bullet(r, 866, 708, "user_blocks 조회가 순차 스캔", "현재는 작지만 소셜 그래프가 커지면 위험")
 
     d.rounded_rectangle((82, 825, 1718, 1075), radius=22, fill=PALETTE["white"], outline=PALETTE["line"], width=2)
-    r.text_box((118, 863, 1660, 905), "포트폴리오 해석", 32, PALETTE["ink"], max_lines=1)
+    r.text_box((118, 863, 1660, 905), "성능결과 해석", 32, PALETTE["ink"], max_lines=1)
     summary = [
         f"local-baseline API 지연은 p95 {values['p95']:.0f}ms로 기준 안에 있지만, feed query 한 번에 SQL이 약 {values['sql_time']:.0f}ms를 사용한다.",
         "현재 실행 계획은 큰 후보군을 정렬하고 disk spill을 만들며, 최종 20개만 반환하기 전 videos를 넓게 스캔한다.",
