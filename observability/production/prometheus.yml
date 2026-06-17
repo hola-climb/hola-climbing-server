@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+
+scrape_configs:
+  - job_name: hola-climbing-backend
+    scheme: https
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - hola-climbing-backend-xoc5tjsghq-du.a.run.app
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/secrets/metrics-token

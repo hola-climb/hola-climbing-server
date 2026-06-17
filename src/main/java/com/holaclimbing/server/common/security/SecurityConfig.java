@@ -34,7 +34,7 @@ import java.util.List;
  */
 @Configuration
 @RequiredArgsConstructor
-@EnableConfigurationProperties({JwtProperties.class, AiCallbackProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, AiCallbackProperties.class, MetricsTokenProperties.class})
 public class SecurityConfig {
 
     /** BCrypt 워크 팩터. 메모리: strength=12 */
@@ -42,6 +42,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final AiCallbackSecretFilter aiCallbackSecretFilter;
+    private final MetricsTokenFilter metricsTokenFilter;
     private final JwtAuthenticationEntryPoint entryPoint;
     private final JwtAccessDeniedHandler accessDeniedHandler;
 
@@ -122,7 +123,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(aiCallbackSecretFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(jwtAuthenticationFilter, AiCallbackSecretFilter.class);
+                .addFilterAfter(metricsTokenFilter, AiCallbackSecretFilter.class)
+                .addFilterAfter(jwtAuthenticationFilter, MetricsTokenFilter.class);
 
         return http.build();
     }

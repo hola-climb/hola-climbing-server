@@ -13,7 +13,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = "app.cors.allowed-origins=http://localhost:3000")
+@SpringBootTest(properties = {
+        "app.cors.allowed-origins=http://localhost:3000",
+        "management.endpoints.web.exposure.include=health,info,metrics,prometheus",
+        "metrics.token=test-metrics-token"
+})
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 @ActiveProfiles("test")
@@ -36,6 +40,22 @@ class SecurityConfigIntegrationTest {
     @DisplayName("Actuator metrics는 인증 없이 조회할 수 없다")
     void actuatorMetrics_withoutToken_returns401() throws Exception {
         mockMvc.perform(get("/actuator/metrics"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Actuator prometheus는 모니터링 토큰으로 조회할 수 있다")
+    void actuatorPrometheus_metricsToken_returnsOk() throws Exception {
+        mockMvc.perform(get("/actuator/prometheus")
+                        .header("Authorization", "Bearer test-metrics-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Actuator prometheus는 잘못된 모니터링 토큰으로 조회할 수 없다")
+    void actuatorPrometheus_wrongMetricsToken_returns401() throws Exception {
+        mockMvc.perform(get("/actuator/prometheus")
+                        .header("Authorization", "Bearer wrong-token"))
                 .andExpect(status().isUnauthorized());
     }
 

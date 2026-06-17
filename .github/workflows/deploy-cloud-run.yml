@@ -107,6 +107,7 @@ jobs:
             SPRING_DATA_REDIS_PASSWORD=hola-redis-password:latest
             JWT_SECRET=hola-jwt-secret:latest
             AI_CALLBACK_SECRET=hola-ai-callback-secret:latest
+            METRICS_TOKEN=hola-metrics-token:latest
             SPRING_MAIL_PASSWORD=hola-smtp-password:latest
             /secrets/gcp/gcp-sa.json=hola-gcp-service-account-json:latest
             /secrets/firebase/firebase-sa.json=hola-firebase-service-account-json:latest
