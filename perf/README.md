@@ -193,6 +193,19 @@ python3 perf/scripts/render_recommendation_presentation.py local-baseline
 The renderer requires Pillow. In Codex desktop, the bundled Python runtime has
 Pillow available.
 
+The command creates the current presentation evidence set:
+
+```text
+screenshots/presentation/01-local-baseline-summary-card.png
+screenshots/presentation/02-local-baseline-sql-bottleneck.png
+screenshots/presentation/03-local-baseline-k6-result-interpretation.png
+screenshots/presentation/04-local-baseline-before-after-template.png
+screenshots/presentation/05-local-baseline-code-change-template.png
+```
+
+Use `--kind sql-bottleneck`, `--kind k6-results`, `--kind before-after`, or
+`--kind code-change` when regenerating one card during layout edits.
+
 Presentation screenshots must pass these checks before use:
 
 - result explanations are written in Korean
