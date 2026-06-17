@@ -116,12 +116,22 @@ export default function (data) {
 
 export function handleSummary(data) {
   const summary = textSummary(data)
+  const sanitized = redactedSummary(data)
   const resultDir = `perf/results/recommendation-feed/${RUN_LABEL}`
   return {
     stdout: summary,
-    [`${resultDir}/k6-summary.json`]: JSON.stringify(data, null, 2),
+    [`${resultDir}/k6-summary.json`]: JSON.stringify(sanitized, null, 2),
     [`${resultDir}/k6-summary.txt`]: summary,
   }
+}
+
+function redactedSummary(data) {
+  const sanitized = JSON.parse(JSON.stringify(data))
+  const tokens = sanitized.setup_data && sanitized.setup_data.tokens
+  if (Array.isArray(tokens)) {
+    sanitized.setup_data = { tokens_redacted: tokens.length }
+  }
+  return sanitized
 }
 
 function textSummary(data) {
