@@ -125,6 +125,20 @@ PAGE_SIZE=20 \
 ./perf/scripts/report_recommendation_sql.sh
 ```
 
+After applying the recommendation feed query optimization, use the same report
+path with the application candidate window:
+
+```bash
+DATABASE_URL=postgresql://hola:hola@127.0.0.1:5432/hola_perf \
+RUN_LABEL=after \
+VIEWER_ID=1 \
+PAGE_SIZE=20 \
+CANDIDATE_WINDOW=5000 \
+./perf/scripts/report_recommendation_sql.sh
+```
+
+`CANDIDATE_WINDOW` must match the value used by the running application.
+
 ### 5. Run k6 smoke
 
 Use this when `k6` is installed on the host:

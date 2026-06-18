@@ -15,6 +15,20 @@ blocked_users AS (
     FROM user_blocks ub
     WHERE ub.blocked_id = :viewer_id
 ),
+candidate_videos AS (
+    SELECT v.*
+    FROM videos v
+    WHERE v.is_public = TRUE
+      AND v.deleted_at IS NULL
+      AND v.user_id <> :viewer_id
+      AND NOT EXISTS (
+          SELECT 1
+          FROM blocked_users bu
+          WHERE bu.user_id = v.user_id
+      )
+    ORDER BY v.created_at DESC, v.id DESC
+    LIMIT :candidate_window
+),
 feed AS (
     SELECT v.id, v.user_id, v.gym_id, v.gym_grade_id,
            g.name AS gym_name,
@@ -32,18 +46,11 @@ feed AS (
                     - CASE WHEN f.id IS NOT NULL THEN 0.25 ELSE 0 END
                ELSE NULL
            END AS ranking_distance
-    FROM videos v
+    FROM candidate_videos v
     JOIN gyms g ON g.id = v.gym_id
     JOIN gym_grades gg ON gg.id = v.gym_grade_id AND gg.gym_id = v.gym_id
     CROSS JOIN viewer
     LEFT JOIN follows f ON f.following_id = v.user_id AND f.follower_id = :viewer_id
-    WHERE v.is_public = TRUE AND v.deleted_at IS NULL
-      AND v.user_id <> :viewer_id
-      AND NOT EXISTS (
-          SELECT 1
-          FROM blocked_users bu
-          WHERE bu.user_id = v.user_id
-      )
 ),
 ranked AS (
     SELECT *,
