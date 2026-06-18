@@ -9,6 +9,15 @@
             FROM users
             WHERE id = #{userId}
         ),
+        blocked_users AS (
+            SELECT ub.blocked_id AS user_id
+            FROM user_blocks ub
+            WHERE ub.blocker_id = #{userId}
+            UNION
+            SELECT ub.blocker_id AS user_id
+            FROM user_blocks ub
+            WHERE ub.blocked_id = #{userId}
+        ),
         feed AS (
             SELECT v.id, v.user_id, v.gym_id, v.gym_grade_id,
                    g.name AS gym_name,
@@ -35,9 +44,8 @@
               AND v.user_id &lt;&gt; #{userId}
               AND NOT EXISTS (
                   SELECT 1
-                  FROM user_blocks ub
-                  WHERE (ub.blocker_id = #{userId} AND ub.blocked_id = v.user_id)
-                     OR (ub.blocker_id = v.user_id AND ub.blocked_id = #{userId})
+                  FROM blocked_users bu
+                  WHERE bu.user_id = v.user_id
               )
         ),
         ranked AS (

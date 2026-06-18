@@ -6,6 +6,15 @@ WITH viewer AS (
     FROM users
     WHERE id = :viewer_id
 ),
+blocked_users AS (
+    SELECT ub.blocked_id AS user_id
+    FROM user_blocks ub
+    WHERE ub.blocker_id = :viewer_id
+    UNION
+    SELECT ub.blocker_id AS user_id
+    FROM user_blocks ub
+    WHERE ub.blocked_id = :viewer_id
+),
 feed AS (
     SELECT v.id, v.user_id, v.gym_id, v.gym_grade_id,
            g.name AS gym_name,
@@ -32,9 +41,8 @@ feed AS (
       AND v.user_id <> :viewer_id
       AND NOT EXISTS (
           SELECT 1
-          FROM user_blocks ub
-          WHERE (ub.blocker_id = :viewer_id AND ub.blocked_id = v.user_id)
-             OR (ub.blocker_id = v.user_id AND ub.blocked_id = :viewer_id)
+          FROM blocked_users bu
+          WHERE bu.user_id = v.user_id
       )
 ),
 ranked AS (
