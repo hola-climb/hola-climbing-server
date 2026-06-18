@@ -220,6 +220,9 @@ screenshots/presentation/05-local-baseline-code-change-template.png
 Use `--kind sql-bottleneck`, `--kind k6-results`, `--kind before-after`, or
 `--kind code-change` when regenerating one card during layout edits.
 
+The renderer uses the run label in visible titles and filenames. Do not use an
+after image that still says local-baseline.
+
 Presentation screenshots must pass these checks before use:
 
 - result explanations are written in Korean

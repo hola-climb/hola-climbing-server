@@ -174,13 +174,15 @@ def plan_values(root, run_label):
     plan = explain["Plan"]
     videos_scan = _first_plan_node(
         plan,
-        lambda node: node.get("Node Type") == "Seq Scan" and node.get("Relation Name") == "videos",
+        lambda node: node.get("Relation Name") == "videos"
+        and node.get("Node Type") in {"Seq Scan", "Index Scan", "Index Only Scan", "Bitmap Heap Scan"},
     )
     sort = _first_plan_node(plan, lambda node: node.get("Node Type") == "Sort")
     gather = _first_plan_node(plan, lambda node: node.get("Node Type") == "Gather Merge")
-    user_blocks = _first_plan_node(
-        plan,
-        lambda node: node.get("Node Type") == "Seq Scan" and node.get("Relation Name") == "user_blocks",
+    user_blocks_removed = sum(
+        int(node.get("Rows Removed by Filter", 0) or 0)
+        for node in _walk_plan(plan)
+        if node.get("Relation Name") == "user_blocks"
     )
     rows_per_loop = int(videos_scan.get("Actual Rows", 0) or 0)
     loops = int(videos_scan.get("Actual Loops", 0) or 0)
@@ -194,12 +196,13 @@ def plan_values(root, run_label):
         "videos_rows_per_loop": rows_per_loop,
         "videos_loops": loops,
         "videos_rows_scanned": rows_per_loop * max(loops, 1),
-        "sort_method": sort.get("Sort Method", "unknown"),
+        "videos_scan_type": videos_scan.get("Node Type", "unknown"),
+        "sort_method": sort.get("Sort Method", "not used"),
         "sort_space_used": int(sort.get("Sort Space Used", 0) or 0),
-        "sort_space_type": sort.get("Sort Space Type", "unknown"),
+        "sort_space_type": sort.get("Sort Space Type", "none"),
         "worker_sort_space": worker_sort_space,
         "workers_launched": gather.get("Workers Launched", 0),
-        "user_blocks_removed": user_blocks.get("Rows Removed by Filter", 0),
+        "user_blocks_removed": user_blocks_removed,
     }
 
 
@@ -221,6 +224,27 @@ def code_state_values(root, run_label):
 
 def presentation_output(root, run_label, filename):
     return root / "perf/results/recommendation-feed" / run_label / "screenshots/presentation" / filename
+
+
+def run_display_name(run_label):
+    if run_label == "local-baseline":
+        return "local-baseline"
+    if run_label == "after":
+        return "after"
+    return run_label
+
+
+def run_has_results(root, run_label):
+    run_dir = root / "perf/results/recommendation-feed" / run_label
+    return (run_dir / "k6-summary.json").exists() and (run_dir / "recommendation-feed-explain.json").exists()
+
+
+def delta_text(before, after, suffix=""):
+    diff = after - before
+    if abs(diff) < 0.5:
+        return "변화 없음"
+    direction = "증가" if diff > 0 else "감소"
+    return f"{abs(diff):.0f}{suffix} {direction}"
 
 
 def new_canvas(root, title, subtitle, badge):
@@ -277,7 +301,9 @@ def draw_bullet(renderer, x, y, title, desc):
 
 
 def render(root, run_label):
+    label = run_display_name(run_label)
     values = metric_values(root, run_label)
+    plan = plan_values(root, run_label)
     width, height = 1800, 1260
     image = Image.new("RGB", (width, height), PALETTE["bg"])
     r = Renderer(image, root)
@@ -287,7 +313,7 @@ def render(root, run_label):
     d.rectangle((44, 36, width - 44, 156), fill="#EFF6FF")
     d.line((44, 156, width - 44, 156), fill=PALETTE["line"], width=2)
     r.text_box((82, 64, 1220, 112), "추천 피드 성능 테스트", 44, PALETTE["blue"], max_lines=1)
-    r.text_box((82, 118, 1220, 148), "local-baseline 결과 요약 - GET /api/recommendations/videos?size=20", 24, PALETTE["muted"], max_lines=1)
+    r.text_box((82, 118, 1220, 148), f"{label} 결과 요약 - GET /api/recommendations/videos?size=20", 24, PALETTE["muted"], max_lines=1)
     d.rounded_rectangle((1285, 70, 1680, 124), radius=14, fill=PALETTE["green_bg"], outline=PALETTE["green_line"], width=1)
     r.text_box((1315, 84, 1650, 112), "seed: videos 100k - users 10k", 22, PALETTE["green"], max_lines=1)
 
@@ -323,17 +349,17 @@ def render(root, run_label):
         x += 240
 
     d.rounded_rectangle((830, 445, 1718, 780), radius=22, fill=PALETTE["amber_bg"], outline=PALETTE["amber_line"], width=2)
-    r.text_box((866, 480, 1660, 522), "현재 병목 신호", 32, PALETTE["ink"], max_lines=1)
-    draw_bullet(r, 866, 548, "Parallel Seq Scan on videos", "랭킹 계산 전 videos 10만 건 후보 스캔")
-    draw_bullet(r, 866, 628, "External merge sort on disk", f"temp blocks read {values['temp_read']}, written {values['temp_written']}")
-    draw_bullet(r, 866, 708, "user_blocks 조회가 순차 스캔", "현재는 작지만 소셜 그래프가 커지면 위험")
+    r.text_box((866, 480, 1660, 522), "관찰된 성능 신호", 32, PALETTE["ink"], max_lines=1)
+    draw_bullet(r, 866, 548, f"{plan['videos_scan_type']} on videos", f"랭킹 계산 전 scan rows {plan['videos_rows_scanned']:,}건")
+    draw_bullet(r, 866, 628, f"Sort method: {plan['sort_method']}", f"temp blocks read {values['temp_read']}, written {values['temp_written']}")
+    draw_bullet(r, 866, 708, "user_blocks 필터링 비용", f"Rows Removed by Filter {plan['user_blocks_removed']:,}건")
 
     d.rounded_rectangle((82, 825, 1718, 1075), radius=22, fill=PALETTE["white"], outline=PALETTE["line"], width=2)
     r.text_box((118, 863, 1660, 905), "성능결과 해석", 32, PALETTE["ink"], max_lines=1)
     summary = [
-        f"local-baseline API 지연은 p95 {values['p95']:.0f}ms로 기준 안에 있지만, feed query 한 번에 SQL이 약 {values['sql_time']:.0f}ms를 사용한다.",
-        "현재 실행 계획은 큰 후보군을 정렬하고 disk spill을 만들며, 최종 20개만 반환하기 전 videos를 넓게 스캔한다.",
-        "다음 실험은 후보군 축소 또는 feed 후보 사전 랭킹/cache 적용 후, 동일 seed와 k6 script로 p95/p99와 SQL 시간을 비교한다.",
+        f"{label} API 지연은 p95 {values['p95']:.0f}ms이고, feed query 한 번에 SQL이 약 {values['sql_time']:.0f}ms를 사용한다.",
+        "실행 계획은 scan rows, temp blocks, 정렬 방식이 API 지연으로 이어지는지 확인하는 핵심 근거다.",
+        "다음 비교는 동일 seed와 k6 script로 p95/p99, SQL 시간, temp blocks가 함께 줄었는지 확인한다.",
     ]
     y = 925
     for line in summary:
@@ -364,13 +390,14 @@ def render(root, run_label):
 
 
 def render_sql_bottleneck(root, run_label):
+    label = run_display_name(run_label)
     values = metric_values(root, run_label)
     plan = plan_values(root, run_label)
     sql_share = plan["execution_time"] / values["p95"] * 100 if values["p95"] else 0
     image, r, d = new_canvas(
         root,
-        "추천 피드 SQL 병목 확대",
-        "local-baseline EXPLAIN ANALYZE - 후보군 스캔과 정렬 비용",
+        "추천 피드 SQL 실행계획 확대",
+        f"{label} EXPLAIN ANALYZE - 후보군 스캔과 정렬 비용",
         f"SQL {plan['execution_time']:.0f}ms",
     )
 
@@ -390,10 +417,12 @@ def render_sql_bottleneck(root, run_label):
 
     d.rounded_rectangle((82, 425, 1718, 720), radius=22, fill=PALETTE["panel_bg"], outline=PALETTE["line"], width=2)
     r.text_box((118, 462, 1660, 504), "실행 계획 흐름", 32, PALETTE["ink"], max_lines=1)
+    sort_label = "Sort 없음" if plan["sort_method"] == "not used" else plan["sort_method"]
+    sort_detail = "disk spill 없음" if plan["temp_written"] == 0 else f"temp write {plan['temp_written']:,}"
     flow = [
-        ("Parallel Seq Scan", "videos 10만 건 후보"),
+        (plan["videos_scan_type"], f"videos {plan['videos_rows_scanned']:,} rows"),
         ("Hash Join", "gym/users/follows 결합"),
-        ("External Sort", "ranking 정렬 disk spill"),
+        (sort_label, sort_detail),
         ("Gather Merge", f"workers {plan['workers_launched']}"),
         ("Limit 20", "최종 응답"),
     ]
@@ -409,11 +438,18 @@ def render_sql_bottleneck(root, run_label):
 
     d.rounded_rectangle((82, 765, 1718, 1090), radius=22, fill=PALETTE["white"], outline=PALETTE["line"], width=2)
     r.text_box((118, 803, 1660, 845), "성능결과 해석", 32, PALETTE["ink"], max_lines=1)
-    findings = [
-        ("반환은 20개지만 정렬 전 후보군은 거의 전체 공개 영상에 가깝다.", "현재 병목은 네트워크보다 DB 내부 후보 생성과 ranking 정렬 쪽에 있다."),
-        ("external merge sort가 disk spill을 만들고 temp blocks written이 크게 증가한다.", "동시 요청이 늘면 p95/p99보다 상위 지연과 DB I/O 변동성이 먼저 커질 수 있다."),
-        ("user_blocks는 아직 작지만 OR 조건과 blocked_id 방향 조회가 커질 때 위험하다.", f"현재 Rows Removed by Filter {plan['user_blocks_removed']:,}건; 차단 데이터 증가 시 별도 인덱스/쿼리 분리가 필요하다."),
-    ]
+    if plan["videos_rows_scanned"] > 20_000 or plan["temp_written"] > 0:
+        findings = [
+            ("반환은 20개지만 정렬 전 후보군이 크다.", "현재 병목은 네트워크보다 DB 내부 후보 생성과 ranking 정렬 쪽에 있다."),
+            ("정렬 과정의 temp blocks written이 크면 DB I/O 변동성이 커진다.", "동시 요청이 늘면 p95/p99보다 상위 지연이 먼저 흔들릴 수 있다."),
+            ("user_blocks 조회는 데이터 증가 전에 방향별 인덱스와 쿼리 분리가 필요하다.", f"현재 Rows Removed by Filter {plan['user_blocks_removed']:,}건을 기준으로 after와 비교한다."),
+        ]
+    else:
+        findings = [
+            ("후보군 window와 인덱스가 scan rows를 제한하는지 확인한다.", "after에서는 전체 공개 영상 스캔보다 작은 후보군에서 ranking이 끝나야 한다."),
+            ("temp blocks written이 줄면 정렬 I/O 병목이 완화된 신호다.", "p95/p99 개선이 SQL time, temp blocks 감소와 함께 나타나야 설득력이 있다."),
+            ("user_blocks는 방향별 조회 비용을 분리해서 계속 관찰한다.", f"현재 Rows Removed by Filter {plan['user_blocks_removed']:,}건; 차단 데이터가 커지면 별도 지표로 추적한다."),
+        ]
     y = 870
     for title, desc in findings:
         draw_list_item(r, 118, y, title, desc)
@@ -431,6 +467,7 @@ def render_sql_bottleneck(root, run_label):
 
 
 def render_k6_results(root, run_label):
+    label = run_display_name(run_label)
     values = metric_values(root, run_label)
     first_delta = values["first_page_p95"] - values["cursor_page_p95"]
     spread = values["p99"] - values["p50"]
@@ -438,7 +475,7 @@ def render_k6_results(root, run_label):
     image, r, d = new_canvas(
         root,
         "추천 피드 k6 결과 해석",
-        "local-baseline 부하 결과 - 지연 분포와 실패율",
+        f"{label} 부하 결과 - 지연 분포와 실패율",
         f"requests {values['requests']}",
     )
 
@@ -489,7 +526,7 @@ def render_k6_results(root, run_label):
     d.rounded_rectangle((82, 770, 1718, 1088), radius=22, fill=PALETTE["white"], outline=PALETTE["line"], width=2)
     r.text_box((118, 808, 1660, 850), "성능결과 해석", 32, PALETTE["ink"], max_lines=1)
     findings = [
-        ("현재 local-baseline은 p95 목표와 오류율 기준을 모두 통과했다.", "API 레이어는 낮은 부하 조건에서 안정적으로 응답했고 k6 check 실패가 없다."),
+        (f"현재 {label}은 p95 목표와 오류율 기준을 모두 통과했다.", "API 레이어는 낮은 부하 조건에서 안정적으로 응답했고 k6 check 실패가 없다."),
         (f"SQL 실행시간 {values['sql_time']:.0f}ms가 p95의 약 {sql_share:.0f}%를 차지한다.", "요청 수가 늘거나 DB I/O가 느려지면 병목이 API 응답시간으로 곧바로 드러날 가능성이 높다."),
         ("개선 전/후 비교는 같은 seed, 같은 VU, 같은 script로 반복해야 한다.", "after에서는 p95/p99뿐 아니라 SQL time, temp blocks, scan rows가 함께 줄어야 설득력이 있다."),
     ]
@@ -519,38 +556,55 @@ def draw_comparison_row(renderer, y, label, before, after, delta):
 
 
 def render_before_after_template(root, run_label):
-    values = metric_values(root, run_label)
-    plan = plan_values(root, run_label)
+    before_values = metric_values(root, "local-baseline")
+    before_plan = plan_values(root, "local-baseline")
+    after_available = run_has_results(root, "after")
+    after_values = metric_values(root, "after") if after_available else None
+    after_plan = plan_values(root, "after") if after_available else None
     image, r, d = new_canvas(
         root,
         "추천 피드 Before/After 비교판",
         "동일 seed와 동일 k6 script로 개선 전후를 비교하기 위한 템플릿",
-        "after 대기",
+        "after 완료" if after_available else "after 대기",
     )
 
     d.rounded_rectangle((82, 205, 850, 430), radius=22, fill=PALETTE["white"], outline=PALETTE["line"], width=2)
     r.text_box((118, 240, 800, 280), "Before: local-baseline", 30, PALETTE["ink"], max_lines=1)
-    r.text_box((118, 300, 800, 350), f"p95 {values['p95']:.0f}ms / SQL {values['sql_time']:.0f}ms / temp write {plan['temp_written']:,}", 26, PALETTE["blue"], min_size=21, max_lines=1)
+    r.text_box((118, 300, 800, 350), f"p95 {before_values['p95']:.0f}ms / SQL {before_values['sql_time']:.0f}ms / temp write {before_plan['temp_written']:,}", 26, PALETTE["blue"], min_size=21, max_lines=1)
     r.text_box((118, 362, 800, 402), "현재 병목: 넓은 videos scan + external merge sort", 22, PALETTE["muted"], max_lines=1)
 
     d.rounded_rectangle((900, 205, 1718, 430), radius=22, fill=PALETTE["amber_bg"], outline=PALETTE["amber_line"], width=2)
-    r.text_box((936, 240, 1660, 280), "After: 개선 실험 후 입력", 30, PALETTE["ink"], max_lines=1)
-    r.text_box((936, 300, 1660, 350), "동일 데이터셋, 동일 VU, 동일 endpoint로 재측정", 26, PALETTE["amber"], min_size=21, max_lines=1)
-    r.text_box((936, 362, 1660, 402), "수치가 줄어든 이유를 SQL plan과 코드 diff로 연결", 22, PALETTE["muted"], max_lines=1)
+    r.text_box((936, 240, 1660, 280), "After: after" if after_available else "After: 측정 대기", 30, PALETTE["ink"], max_lines=1)
+    if after_available:
+        r.text_box((936, 300, 1660, 350), f"p95 {after_values['p95']:.0f}ms / SQL {after_values['sql_time']:.0f}ms / temp write {after_plan['temp_written']:,}", 26, PALETTE["amber"], min_size=21, max_lines=1)
+        r.text_box((936, 362, 1660, 402), "동일 데이터셋, 동일 VU, 동일 endpoint로 재측정 완료", 22, PALETTE["muted"], max_lines=1)
+    else:
+        r.text_box((936, 300, 1660, 350), "동일 데이터셋, 동일 VU, 동일 endpoint로 재측정", 26, PALETTE["amber"], min_size=21, max_lines=1)
+        r.text_box((936, 362, 1660, 402), "수치가 줄어든 이유를 SQL plan과 코드 diff로 연결", 22, PALETTE["muted"], max_lines=1)
 
     d.rounded_rectangle((82, 480, 1718, 880), radius=22, fill=PALETTE["white"], outline=PALETTE["line"], width=2)
     r.text_box((118, 520, 430, 560), "항목", 24, PALETTE["ink"], max_lines=1)
     r.text_box((470, 520, 780, 560), "Before", 24, PALETTE["ink"], max_lines=1)
     r.text_box((860, 520, 1170, 560), "After", 24, PALETTE["ink"], max_lines=1)
     r.text_box((1250, 520, 1645, 560), "개선 폭", 24, PALETTE["ink"], max_lines=1)
-    rows = [
-        ("p95 응답시간", f"{values['p95']:.0f}ms", "측정 대기", "계산 대기"),
-        ("p99 응답시간", f"{values['p99']:.0f}ms", "측정 대기", "계산 대기"),
-        ("SQL 실행시간", f"{values['sql_time']:.0f}ms", "측정 대기", "계산 대기"),
-        ("temp blocks written", f"{plan['temp_written']:,}", "측정 대기", "계산 대기"),
-        ("scan rows", f"{plan['videos_rows_scanned']:,}", "측정 대기", "계산 대기"),
-        ("오류율", f"{values['error_rate']:.0%}", "측정 대기", "동일 기준 유지"),
-    ]
+    if after_available:
+        rows = [
+            ("p95 응답시간", f"{before_values['p95']:.0f}ms", f"{after_values['p95']:.0f}ms", delta_text(before_values["p95"], after_values["p95"], "ms")),
+            ("p99 응답시간", f"{before_values['p99']:.0f}ms", f"{after_values['p99']:.0f}ms", delta_text(before_values["p99"], after_values["p99"], "ms")),
+            ("SQL 실행시간", f"{before_values['sql_time']:.0f}ms", f"{after_values['sql_time']:.0f}ms", delta_text(before_values["sql_time"], after_values["sql_time"], "ms")),
+            ("temp blocks written", f"{before_plan['temp_written']:,}", f"{after_plan['temp_written']:,}", delta_text(before_plan["temp_written"], after_plan["temp_written"])),
+            ("scan rows", f"{before_plan['videos_rows_scanned']:,}", f"{after_plan['videos_rows_scanned']:,}", delta_text(before_plan["videos_rows_scanned"], after_plan["videos_rows_scanned"])),
+            ("오류율", f"{before_values['error_rate']:.0%}", f"{after_values['error_rate']:.0%}", "동일 기준 유지"),
+        ]
+    else:
+        rows = [
+            ("p95 응답시간", f"{before_values['p95']:.0f}ms", "측정 대기", "계산 대기"),
+            ("p99 응답시간", f"{before_values['p99']:.0f}ms", "측정 대기", "계산 대기"),
+            ("SQL 실행시간", f"{before_values['sql_time']:.0f}ms", "측정 대기", "계산 대기"),
+            ("temp blocks written", f"{before_plan['temp_written']:,}", "측정 대기", "계산 대기"),
+            ("scan rows", f"{before_plan['videos_rows_scanned']:,}", "측정 대기", "계산 대기"),
+            ("오류율", f"{before_values['error_rate']:.0%}", "측정 대기", "동일 기준 유지"),
+        ]
     y = 590
     for row in rows:
         draw_comparison_row(r, y, *row)
@@ -564,7 +618,7 @@ def render_before_after_template(root, run_label):
         r,
         1130,
         "before-after-template - k6-summary.json - recommendation-feed-explain.json",
-        f"before_run={run_label} - after_run=pending - endpoint=/api/recommendations/videos?size=20",
+        f"before_run=local-baseline - after_run={'after' if after_available else 'pending'} - endpoint=/api/recommendations/videos?size=20",
     )
 
     r.assert_no_overflow()
@@ -572,21 +626,22 @@ def render_before_after_template(root, run_label):
 
 
 def render_code_change_template(root, run_label):
+    label = run_display_name(run_label)
     state = code_state_values(root, run_label)
     values = metric_values(root, run_label)
     image, r, d = new_canvas(
         root,
         "추천 피드 코드 변경 증거",
         "성능 개선 전후의 코드와 수치가 같은 흐름으로 연결되는지 확인",
-        f"before {state['commit']}",
+        f"{label} {state['commit']}",
     )
 
     d.rounded_rectangle((82, 205, 850, 515), radius=22, fill=PALETTE["white"], outline=PALETTE["line"], width=2)
-    r.text_box((118, 240, 800, 280), "개선 전 코드 증거", 30, PALETTE["ink"], max_lines=1)
+    r.text_box((118, 240, 800, 280), f"{label} 코드 증거", 30, PALETTE["ink"], max_lines=1)
     before_items = [
         (f"commit {state['commit']}", f"captured_at {state['captured_at']}"),
-        (f"viewer_id {state['viewer_id']} / page_size {state['page_size']}", "local-baseline 실행 조건"),
-        ("raw screenshot", "01-local-recommendation-feed-code-state.png"),
+        (f"viewer_id {state['viewer_id']} / page_size {state['page_size']}", f"{label} 실행 조건"),
+        ("raw screenshot", f"{label}/screenshots"),
     ]
     y = 312
     for title, desc in before_items:
@@ -610,7 +665,7 @@ def render_code_change_template(root, run_label):
     flow = [
         ("코드 변경", "Repository/query logic"),
         ("SQL plan 변화", "scan rows/temp blocks"),
-        ("k6 변화", f"before p95 {values['p95']:.0f}ms"),
+        ("k6 변화", f"{label} p95 {values['p95']:.0f}ms"),
         ("결론", "병목 제거 여부"),
     ]
     x = 118
@@ -631,7 +686,7 @@ def render_code_change_template(root, run_label):
         r,
         1132,
         "code-state.txt - screenshots/01-code-state - git diff after optimization",
-        f"before_commit={state['commit']} - after_commit=pending - baseline_p95={values['p95']:.0f}ms",
+        f"{label}_commit={state['commit']} - p95={values['p95']:.0f}ms - after_commit=pending",
     )
 
     r.assert_no_overflow()
@@ -639,11 +694,11 @@ def render_code_change_template(root, run_label):
 
 
 PRESENTATION_CARDS = {
-    "summary": ("01-local-baseline-summary-card.png", render),
-    "sql-bottleneck": ("02-local-baseline-sql-bottleneck.png", render_sql_bottleneck),
-    "k6-results": ("03-local-baseline-k6-result-interpretation.png", render_k6_results),
-    "before-after": ("04-local-baseline-before-after-template.png", render_before_after_template),
-    "code-change": ("05-local-baseline-code-change-template.png", render_code_change_template),
+    "summary": ("01-{run_label}-summary-card.png", render),
+    "sql-bottleneck": ("02-{run_label}-sql-bottleneck.png", render_sql_bottleneck),
+    "k6-results": ("03-{run_label}-k6-result-interpretation.png", render_k6_results),
+    "before-after": ("04-{run_label}-before-after-template.png", render_before_after_template),
+    "code-change": ("05-{run_label}-code-change-template.png", render_code_change_template),
 }
 
 
@@ -661,7 +716,8 @@ def main():
 
     selected = PRESENTATION_CARDS.items() if args.kind == "all" else [(args.kind, PRESENTATION_CARDS[args.kind])]
     outputs = []
-    for kind, (filename, renderer) in selected:
+    for kind, (filename_template, renderer) in selected:
+        filename = filename_template.format(run_label=args.run_label)
         output = Path(args.output) if args.output else presentation_output(root, args.run_label, filename)
         output.parent.mkdir(parents=True, exist_ok=True)
         image = renderer(root, args.run_label)
