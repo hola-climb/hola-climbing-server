@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.holaclimbing.server.TestcontainersConfiguration;
 import static com.holaclimbing.server.TestSignupRequests.signupRequest;
-import com.holaclimbing.server.common.config.CacheConfig;
 import com.holaclimbing.server.common.security.JwtTokenProvider;
 import com.holaclimbing.server.domain.terms.dto.request.AgreeTermsRequest;
 import com.holaclimbing.server.domain.terms.dto.request.TermAgreementRequest;
@@ -12,16 +11,14 @@ import com.holaclimbing.server.domain.user.dto.request.LoginRequest;
 import com.holaclimbing.server.domain.user.dto.request.SignupRequest;
 import com.holaclimbing.server.domain.user.dto.request.VerifyEmailRequest;
 import com.holaclimbing.server.domain.user.mapper.UserMapper;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlMergeMode;
@@ -64,18 +61,10 @@ class TermsIntegrationTest {
     private UserMapper userMapper;
 
     @Autowired
-    private CacheManager cacheManager;
+    private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
-
-    @BeforeEach
-    void clearActiveTermsCache() {
-        Cache cache = cacheManager.getCache(CacheConfig.CACHE_ACTIVE_TERMS);
-        if (cache != null) {
-            cache.clear();
-        }
-    }
 
     @Test
     @DisplayName("활성 약관 조회 — 발효 중인 약관 3종을 반환한다")
@@ -88,6 +77,21 @@ class TermsIntegrationTest {
                 .andExpect(jsonPath("$.data[0].required").value(false))
                 .andExpect(jsonPath("$.data[2].type").value("service"))
                 .andExpect(jsonPath("$.data[2].required").value(true));
+    }
+
+    @Test
+    @DisplayName("활성 약관 조회 — 캐시 없이 최신 DB 값을 반환한다")
+    void getActiveTerms_returnsLatestTermsWithoutCache() throws Exception {
+        mockMvc.perform(get("/api/terms"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[2].title").value("서비스 이용약관"));
+
+        jdbcTemplate.update("UPDATE terms_versions SET title = ? WHERE id = ?",
+                "서비스 이용약관 수정", TERM_SERVICE);
+
+        mockMvc.perform(get("/api/terms"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[2].title").value("서비스 이용약관 수정"));
     }
 
     @Test
