@@ -1,9 +1,10 @@
-git_commit=d0f2a263841467ce7a6fb7a9fe511a6fb882253b
+git_commit=812eaca7a80163bf80bf03a46ba867c1fda6b221
 git_status_short_start
 
 git_status_short_end
-captured_at=2026-06-18T02:39:39Z
-database_url=postgresql://hola:***@127.0.0.1:5432/hola_perf
+captured_at=2026-06-19T13:25:51Z
+database_url=postgresql://hola:***@127.0.0.1:55432/hola_perf
 viewer_id=1
 page_size=20
 candidate_window=5000
+snapshot_size=1000

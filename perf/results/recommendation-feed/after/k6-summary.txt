@@ -1,10 +1,15 @@
 # k6 recommendation feed summary
 run_label=after
 base_url=http://host.docker.internal:8080
-http_reqs=262
+page_size=20
+cursor_follow_rate=1
+max_cursor_depth=3
+http_reqs=716
 http_req_failed_rate=0
-http_req_duration_p50=84.0070835
-http_req_duration_p95=372.27246699999984
-http_req_duration_p99=465.00977962999997
-first_page_p95=137.3351664
-cursor_page_p95=391.1137957999999
+http_req_duration_p50=7.391
+http_req_duration_p95=122.64233324999998
+http_req_duration_p99=130.98693310000002
+first_page_p95=128.716192
+cursor_page_p95=9.7939544
+second_page_p95=9.423033199999995
+third_page_p95=9.875366799999995

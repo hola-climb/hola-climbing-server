@@ -1,65 +1,70 @@
-                                                                                                                                                                                                                                                                                                                                QUERY PLAN                                                                                                                                                                                                                                                                                                                                 
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Limit  (cost=1633.15..1633.17 rows=5 width=260) (actual time=64.838..64.843 rows=20 loops=1)
-   Buffers: shared hit=175684
-   ->  Sort  (cost=1633.15..1633.17 rows=5 width=260) (actual time=64.837..64.841 rows=20 loops=1)
-         Sort Key: (CASE WHEN (CASE WHEN ((users.style_embedding IS NOT NULL) AND (g.style_embedding IS NOT NULL)) THEN ((users.style_embedding <=> g.style_embedding) - (CASE WHEN (f.id IS NOT NULL) THEN 0.25 ELSE '0'::numeric END)::double precision) ELSE NULL::double precision END IS NULL) THEN 1 ELSE 0 END), (CASE WHEN ((users.style_embedding IS NOT NULL) AND (g.style_embedding IS NOT NULL)) THEN ((users.style_embedding <=> g.style_embedding) - (CASE WHEN (f.id IS NOT NULL) THEN 0.25 ELSE '0'::numeric END)::double precision) ELSE NULL::double precision END), (CASE WHEN (f.id IS NOT NULL) THEN 1 ELSE 0 END) DESC, v.created_at DESC, v.id DESC
-         Sort Method: top-N heapsort  Memory: 41kB
-         Buffers: shared hit=175684
-         ->  Nested Loop  (cost=127.88..1633.10 rows=5 width=260) (actual time=0.722..62.306 rows=5000 loops=1)
-               Buffers: shared hit=175672
-               ->  Index Scan using users_pkey on users  (cost=0.29..8.30 rows=1 width=264) (actual time=0.019..0.020 rows=1 loops=1)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=1695.81..1695.83 rows=5 width=264) (actual time=90.303..90.404 rows=1000 loops=1)
+   Buffers: shared hit=187318
+   ->  Sort  (cost=1695.81..1695.83 rows=5 width=264) (actual time=90.302..90.353 rows=1000 loops=1)
+         Sort Key: (CASE WHEN (CASE WHEN ((users.style_embedding IS NOT NULL) AND (g.style_embedding IS NOT NULL)) THEN (((users.style_embedding <=> g.style_embedding) - (CASE WHEN (f.id IS NOT NULL) THEN 0.25 ELSE '0'::numeric END)::double precision) + (CASE WHEN (uvi.last_viewed_at IS NOT NULL) THEN 1.0 WHEN (uvi.last_impressed_at IS NOT NULL) THEN 0.5 ELSE '0'::numeric END)::double precision) ELSE NULL::double precision END IS NULL) THEN 1 ELSE 0 END), (CASE WHEN ((users.style_embedding IS NOT NULL) AND (g.style_embedding IS NOT NULL)) THEN (((users.style_embedding <=> g.style_embedding) - (CASE WHEN (f.id IS NOT NULL) THEN 0.25 ELSE '0'::numeric END)::double precision) + (CASE WHEN (uvi.last_viewed_at IS NOT NULL) THEN 1.0 WHEN (uvi.last_impressed_at IS NOT NULL) THEN 0.5 ELSE '0'::numeric END)::double precision) ELSE NULL::double precision END), (CASE WHEN (uvi.last_viewed_at IS NOT NULL) THEN 2 WHEN (uvi.last_impressed_at IS NOT NULL) THEN 1 ELSE 0 END), (CASE WHEN (f.id IS NOT NULL) THEN 1 ELSE 0 END) DESC, v.created_at DESC, v.id DESC
+         Sort Method: top-N heapsort  Memory: 886kB
+         Buffers: shared hit=187318
+         ->  Nested Loop  (cost=128.16..1695.76 rows=5 width=264) (actual time=0.662..76.118 rows=5000 loops=1)
+               Buffers: shared hit=187306
+               ->  Index Scan using users_pkey on users  (cost=0.29..8.30 rows=1 width=264) (actual time=0.014..0.015 rows=1 loops=1)
                      Index Cond: (id = 1)
                      Buffers: shared hit=6
-               ->  Nested Loop Left Join  (cost=127.59..1624.67 rows=5 width=516) (actual time=0.700..60.688 rows=5000 loops=1)
-                     Buffers: shared hit=175666
-                     ->  Nested Loop  (cost=127.29..1609.55 rows=5 width=508) (actual time=0.551..10.335 rows=5000 loops=1)
-                           Buffers: shared hit=15885
-                           ->  Hash Join  (cost=127.02..1607.88 rows=5 width=238) (actual time=0.546..5.466 rows=5000 loops=1)
-                                 Hash Cond: ((v.gym_id = gg.gym_id) AND (v.gym_grade_id = gg.id))
-                                 Buffers: shared hit=885
-                                 ->  Limit  (cost=23.02..1477.63 rows=5000 width=223) (actual time=0.024..2.854 rows=5000 loops=1)
-                                       Buffers: shared hit=856
-                                       ->  Nested Loop Anti Join  (cost=23.02..29094.81 rows=99930 width=223) (actual time=0.024..2.574 rows=5000 loops=1)
-                                             Join Filter: (ub.blocked_id = v.user_id)
-                                             Buffers: shared hit=856
-                                             ->  Index Scan using idx_videos_public_feed_recent on videos v  (cost=0.42..20073.03 rows=99990 width=223) (actual time=0.010..1.265 rows=5000 loops=1)
-                                                   Filter: (user_id <> 1)
-                                                   Rows Removed by Filter: 1
-                                                   Buffers: shared hit=852
-                                             ->  Materialize  (cost=22.60..22.69 rows=6 width=8) (actual time=0.000..0.000 rows=0 loops=5000)
-                                                   Buffers: shared hit=4
-                                                   ->  HashAggregate  (cost=22.60..22.66 rows=6 width=8) (actual time=0.012..0.013 rows=0 loops=1)
-                                                         Group Key: ub.blocked_id
-                                                         Batches: 1  Memory Usage: 24kB
+               ->  Nested Loop Left Join  (cost=127.88..1687.28 rows=5 width=532) (actual time=0.644..73.742 rows=5000 loops=1)
+                     Buffers: shared hit=187300
+                     ->  Nested Loop Left Join  (cost=127.59..1685.11 rows=5 width=516) (actual time=0.634..68.999 rows=5000 loops=1)
+                           Buffers: shared hit=175680
+                           ->  Nested Loop  (cost=127.29..1669.99 rows=5 width=508) (actual time=0.517..12.286 rows=5000 loops=1)
+                                 Buffers: shared hit=15899
+                                 ->  Hash Join  (cost=127.02..1668.32 rows=5 width=238) (actual time=0.512..7.364 rows=5000 loops=1)
+                                       Hash Cond: ((v.gym_id = gg.gym_id) AND (v.gym_grade_id = gg.id))
+                                       Buffers: shared hit=899
+                                       ->  Limit  (cost=23.02..1538.07 rows=5000 width=223) (actual time=0.032..5.083 rows=5000 loops=1)
+                                             Buffers: shared hit=870
+                                             ->  Nested Loop Anti Join  (cost=23.02..30302.87 rows=99930 width=223) (actual time=0.032..4.795 rows=5000 loops=1)
+                                                   Join Filter: (ub.blocked_id = v.user_id)
+                                                   Buffers: shared hit=870
+                                                   ->  Index Scan using idx_videos_public_feed_recent on videos v  (cost=0.42..21281.09 rows=99990 width=223) (actual time=0.015..3.469 rows=5000 loops=1)
+                                                         Filter: (user_id <> 1)
+                                                         Rows Removed by Filter: 1
+                                                         Buffers: shared hit=866
+                                                   ->  Materialize  (cost=22.60..22.69 rows=6 width=8) (actual time=0.000..0.000 rows=0 loops=5000)
                                                          Buffers: shared hit=4
-                                                         ->  Append  (cost=4.31..22.59 rows=6 width=8) (actual time=0.011..0.012 rows=0 loops=1)
+                                                         ->  HashAggregate  (cost=22.60..22.66 rows=6 width=8) (actual time=0.015..0.016 rows=0 loops=1)
+                                                               Group Key: ub.blocked_id
+                                                               Batches: 1  Memory Usage: 24kB
                                                                Buffers: shared hit=4
-                                                               ->  Bitmap Heap Scan on user_blocks ub  (cost=4.31..14.26 rows=5 width=8) (actual time=0.007..0.008 rows=0 loops=1)
-                                                                     Recheck Cond: (blocker_id = 1)
-                                                                     Buffers: shared hit=2
-                                                                     ->  Bitmap Index Scan on idx_user_blocks_blocker  (cost=0.00..4.31 rows=5 width=0) (actual time=0.006..0.006 rows=0 loops=1)
-                                                                           Index Cond: (blocker_id = 1)
+                                                               ->  Append  (cost=4.31..22.59 rows=6 width=8) (actual time=0.014..0.015 rows=0 loops=1)
+                                                                     Buffers: shared hit=4
+                                                                     ->  Bitmap Heap Scan on user_blocks ub  (cost=4.31..14.26 rows=5 width=8) (actual time=0.006..0.006 rows=0 loops=1)
+                                                                           Recheck Cond: (blocker_id = 1)
                                                                            Buffers: shared hit=2
-                                                               ->  Index Scan using idx_user_blocks_blocked on user_blocks ub_1  (cost=0.28..8.29 rows=1 width=8) (actual time=0.003..0.003 rows=0 loops=1)
-                                                                     Index Cond: (blocked_id = 1)
-                                                                     Buffers: shared hit=2
-                                 ->  Hash  (cost=59.00..59.00 rows=3000 width=23) (actual time=0.510..0.511 rows=3000 loops=1)
-                                       Buckets: 4096  Batches: 1  Memory Usage: 197kB
-                                       Buffers: shared hit=29
-                                       ->  Seq Scan on gym_grades gg  (cost=0.00..59.00 rows=3000 width=23) (actual time=0.003..0.242 rows=3000 loops=1)
+                                                                           ->  Bitmap Index Scan on idx_user_blocks_blocker  (cost=0.00..4.31 rows=5 width=0) (actual time=0.005..0.005 rows=0 loops=1)
+                                                                                 Index Cond: (blocker_id = 1)
+                                                                                 Buffers: shared hit=2
+                                                                     ->  Index Scan using idx_user_blocks_blocked on user_blocks ub_1  (cost=0.28..8.29 rows=1 width=8) (actual time=0.008..0.008 rows=0 loops=1)
+                                                                           Index Cond: (blocked_id = 1)
+                                                                           Buffers: shared hit=2
+                                       ->  Hash  (cost=59.00..59.00 rows=3000 width=23) (actual time=0.470..0.471 rows=3000 loops=1)
+                                             Buckets: 4096  Batches: 1  Memory Usage: 197kB
                                              Buffers: shared hit=29
-                           ->  Index Scan using gyms_pkey on gyms g  (cost=0.28..0.33 rows=1 width=286) (actual time=0.001..0.001 rows=1 loops=5000)
-                                 Index Cond: (id = v.gym_id)
-                                 Buffers: shared hit=15000
-                     ->  Index Scan using idx_follows_following on follows f  (cost=0.30..2.99 rows=1 width=16) (actual time=0.010..0.010 rows=0 loops=5000)
-                           Index Cond: (following_id = v.user_id)
-                           Filter: (follower_id = 1)
-                           Rows Removed by Filter: 30
-                           Buffers: shared hit=159781
+                                             ->  Seq Scan on gym_grades gg  (cost=0.00..59.00 rows=3000 width=23) (actual time=0.003..0.212 rows=3000 loops=1)
+                                                   Buffers: shared hit=29
+                                 ->  Index Scan using gyms_pkey on gyms g  (cost=0.28..0.33 rows=1 width=286) (actual time=0.001..0.001 rows=1 loops=5000)
+                                       Index Cond: (id = v.gym_id)
+                                       Buffers: shared hit=15000
+                           ->  Index Scan using idx_follows_following on follows f  (cost=0.30..2.99 rows=1 width=16) (actual time=0.011..0.011 rows=0 loops=5000)
+                                 Index Cond: (following_id = v.user_id)
+                                 Filter: (follower_id = 1)
+                                 Rows Removed by Filter: 30
+                                 Buffers: shared hit=159781
+                     ->  Index Scan using user_video_interactions_pkey on user_video_interactions uvi  (cost=0.29..0.43 rows=1 width=24) (actual time=0.001..0.001 rows=0 loops=5000)
+                           Index Cond: ((user_id = 1) AND (video_id = v.id))
+                           Buffers: shared hit=11620
  Planning:
-   Buffers: shared hit=827
- Planning Time: 2.056 ms
- Execution Time: 64.950 ms
-(61 rows)
+   Buffers: shared hit=897
+ Planning Time: 2.514 ms
+ Execution Time: 90.709 ms
+(66 rows)
 

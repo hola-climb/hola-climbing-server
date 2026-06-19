@@ -31,6 +31,55 @@ PALETTE = {
     "panel_bg": "#F8FAFC",
 }
 
+P95_TARGET_MS = 1000
+ERROR_RATE_TARGET = 0.01
+
+
+def p95_passed(values):
+    return values["p95"] < P95_TARGET_MS
+
+
+def error_rate_passed(values):
+    return values["error_rate"] < ERROR_RATE_TARGET
+
+
+def optional_metric_value(metrics, name, key):
+    metric = metrics.get(name)
+    if not metric or not metric.get("values"):
+        return None
+    return metric["values"].get(key)
+
+
+def ms_text(value):
+    if value is None:
+        return "측정 없음"
+    return f"{value:.0f}ms"
+
+
+def ms_value_text(value):
+    if value is None:
+        return "n/a"
+    return f"{value:.0f} ms"
+
+
+def first_page_delta_text(first, cached):
+    if cached is None:
+        return "측정 없음"
+    diff = cached - first
+    if abs(diff) < 0.5:
+        return "차이 없음"
+    direction = "감소" if diff < 0 else "증가"
+    percent = abs(diff) / first * 100 if first else 0
+    return f"{abs(diff):.0f}ms {direction} ({percent:.0f}%)"
+
+
+def change_sentence(label, before, after, unit="ms"):
+    diff = after - before
+    if abs(diff) < 0.5:
+        return f"{label}은 {before:.0f}{unit}로 거의 변하지 않았다."
+    direction = "증가" if diff > 0 else "감소"
+    return f"{label}은 {before:.0f}{unit}에서 {after:.0f}{unit}로 {abs(diff):.0f}{unit} {direction}했다."
+
 
 class Renderer:
     def __init__(self, image, root):
@@ -149,6 +198,8 @@ def metric_values(root, run_label):
         "requests": int(metrics["http_reqs"]["values"]["count"]),
         "first_page_p95": metrics["recommendation_feed_first_page_duration"]["values"]["p(95)"],
         "cursor_page_p95": metrics["recommendation_feed_cursor_page_duration"]["values"]["p(95)"],
+        "second_page_p95": optional_metric_value(metrics, "recommendation_feed_second_page_duration", "p(95)"),
+        "third_page_p95": optional_metric_value(metrics, "recommendation_feed_third_page_duration", "p(95)"),
         "sql_time": explain["Execution Time"],
         "temp_read": plan.get("Temp Read Blocks", 0),
         "temp_written": plan.get("Temp Written Blocks", 0),
@@ -208,14 +259,22 @@ def plan_values(root, run_label):
 
 def code_state_values(root, run_label):
     path = root / "perf/results/recommendation-feed" / run_label / "code-state.txt"
+    text = path.read_text()
     values = {}
-    for line in path.read_text().splitlines():
+    for line in text.splitlines():
         if "=" in line:
             key, value = line.split("=", 1)
             values[key] = value
     commit = values.get("git_commit", "unknown")
+    recommendation_dirty = "RecommendationServiceImpl.java" in text
+    gcs_dirty = "GcsStorageService.java" in text or "GcsProperties.java" in text
+    test_dirty = "RecommendationServiceImplTest.java" in text
     return {
         "commit": commit[:7] if commit != "unknown" else commit,
+        "working_tree": "working tree" if recommendation_dirty or gcs_dirty or test_dirty else "commit",
+        "recommendation_dirty": recommendation_dirty,
+        "gcs_dirty": gcs_dirty,
+        "test_dirty": test_dirty,
         "captured_at": values.get("captured_at", "unknown"),
         "viewer_id": values.get("viewer_id", "unknown"),
         "page_size": values.get("page_size", "unknown"),
@@ -307,6 +366,8 @@ def render(root, run_label):
     values = metric_values(root, run_label)
     plan = plan_values(root, run_label)
     state = code_state_values(root, run_label)
+    baseline_values = metric_values(root, "local-baseline") if run_label == "after" and run_has_results(root, "local-baseline") else None
+    baseline_plan = plan_values(root, "local-baseline") if baseline_values else None
     width, height = 1800, 1260
     image = Image.new("RGB", (width, height), PALETTE["bg"])
     r = Renderer(image, root)
@@ -324,10 +385,22 @@ def render(root, run_label):
     card_w = 390
     card_h = 190
     gap = 28
+    p95_ok = p95_passed(values)
+    error_ok = error_rate_passed(values)
     cards = [
-        ("p95 응답시간", f"{values['p95']:.0f} ms", "목표 기준 < 1000ms", PALETTE["blue"]),
+        (
+            "p95 응답시간",
+            f"{values['p95']:.0f} ms",
+            "목표 통과" if p95_ok else "목표 초과",
+            PALETTE["blue"] if p95_ok else PALETTE["amber"],
+        ),
         ("p99 응답시간", f"{values['p99']:.0f} ms", "상위 지연 구간", PALETTE["purple"]),
-        ("오류율", f"{values['error_rate']:.0%}", "k6 check 통과", PALETTE["green"]),
+        (
+            "오류율",
+            f"{values['error_rate']:.0%}",
+            "k6 check 통과" if error_ok else "k6 check 실패",
+            PALETTE["green"] if error_ok else PALETTE["amber"],
+        ),
         ("SQL 실행시간", f"{values['sql_time']:.0f} ms", "EXPLAIN ANALYZE", PALETTE["amber"]),
     ]
     for index, card in enumerate(cards):
@@ -338,18 +411,19 @@ def render(root, run_label):
     r.text_box((118, 480, 720, 522), "테스트 흐름", 32, PALETTE["ink"], max_lines=1)
     flow = [
         ("login", "perf 사용자 5명"),
-        ("snapshot 생성", f"p95 {values['first_page_p95']:.0f}ms"),
-        ("snapshot 조회", f"p95 {values['cursor_page_p95']:.0f}ms"),
+        ("1페이지", f"p95 {values['first_page_p95']:.0f}ms"),
+        ("2페이지", f"p95 {ms_text(values['second_page_p95'])}"),
+        ("3페이지", f"p95 {ms_text(values['third_page_p95'])}"),
     ]
     x = 118
     for index, (name, detail) in enumerate(flow):
-        d.rounded_rectangle((x, 555, x + 170, 640), radius=18, fill=PALETTE["white"], outline="#C7D2FE", width=2)
-        r.text_box((x + 28, 574, x + 145, 604), name, 24, PALETTE["blue"], min_size=20, max_lines=1)
-        r.text_box((x + 28, 612, x + 145, 638), detail, 18, PALETTE["muted"], max_lines=1)
+        d.rounded_rectangle((x, 555, x + 135, 640), radius=18, fill=PALETTE["white"], outline="#C7D2FE", width=2)
+        r.text_box((x + 18, 574, x + 118, 604), name, 22, PALETTE["blue"], min_size=18, max_lines=1)
+        r.text_box((x + 18, 612, x + 118, 638), detail, 16, PALETTE["muted"], min_size=13, max_lines=1)
         if index < len(flow) - 1:
-            d.line((x + 178, 598, x + 238, 598), fill=PALETTE["blue"], width=4)
-            d.polygon([(x + 238, 598), (x + 224, 588), (x + 224, 608)], fill=PALETTE["blue"])
-        x += 240
+            d.line((x + 143, 598, x + 183, 598), fill=PALETTE["blue"], width=4)
+            d.polygon([(x + 183, 598), (x + 169, 588), (x + 169, 608)], fill=PALETTE["blue"])
+        x += 182
 
     d.rounded_rectangle((830, 445, 1718, 780), radius=22, fill=PALETTE["amber_bg"], outline=PALETTE["amber_line"], width=2)
     r.text_box((866, 480, 1660, 522), "관찰된 성능 신호", 32, PALETTE["ink"], max_lines=1)
@@ -359,11 +433,25 @@ def render(root, run_label):
 
     d.rounded_rectangle((82, 825, 1718, 1075), radius=22, fill=PALETTE["white"], outline=PALETTE["line"], width=2)
     r.text_box((118, 863, 1660, 905), "성능결과 해석", 32, PALETTE["ink"], max_lines=1)
-    summary = [
-        f"{label} API 지연은 p95 {values['p95']:.0f}ms이고, 첫 페이지 snapshot SQL이 약 {values['sql_time']:.0f}ms를 사용한다.",
-        "실행 계획은 scan rows, temp blocks, 정렬 방식이 API 지연으로 이어지는지 확인하는 핵심 근거다.",
-        "다음 비교는 동일 seed와 k6 script로 p95/p99, SQL 시간, temp blocks가 함께 줄었는지 확인한다.",
-    ]
+    if baseline_values:
+        http_direction = "증가" if values["p95"] > baseline_values["p95"] else "감소"
+        summary = [
+            f"최초 기준선 대비 SQL은 {baseline_values['sql_time']:.0f}ms에서 {values['sql_time']:.0f}ms로 줄고, temp write는 {baseline_plan['temp_written']:,}에서 {plan['temp_written']:,}이 되었다.",
+            f"반면 HTTP p95는 {baseline_values['p95']:.0f}ms에서 {values['p95']:.0f}ms로 {http_direction}해 병목이 SQL 밖으로 이동했는지 확인해야 한다.",
+            "2·3번째 cursor 호출은 snapshot 재사용 구간이므로 첫 페이지와 분리해 캐시 효과를 별도 측정한다.",
+        ]
+    elif p95_ok:
+        summary = [
+            f"{label} API 지연은 p95 {values['p95']:.0f}ms이고, 첫 페이지 snapshot SQL이 약 {values['sql_time']:.0f}ms를 사용한다.",
+            "실행 계획은 scan rows, temp blocks, 정렬 방식이 API 지연으로 이어지는지 확인하는 핵심 근거다.",
+            "다음 비교는 동일 seed와 k6 script로 p95/p99, SQL 시간, temp blocks가 함께 줄었는지 확인한다.",
+        ]
+    else:
+        summary = [
+            f"{label} API 지연은 p95 {values['p95']:.0f}ms로 목표를 초과했지만, SQL은 약 {values['sql_time']:.0f}ms에 그쳤다.",
+            "현재 병목은 DB ranking보다 signed URL 생성과 응답 조립 같은 API 레이어에 남아 있을 가능성이 높다.",
+            "다음 비교는 동일 seed와 k6 script로 SQL 시간과 HTTP 지연을 분리해서 반복 측정한다.",
+        ]
     y = 925
     for line in summary:
         d.ellipse((118, y + 12, 128, y + 22), fill=PALETTE["teal"])
@@ -471,9 +559,11 @@ def render_sql_bottleneck(root, run_label):
 
 
 def render_k6_results(root, run_label):
-    label = run_display_name(run_label)
+    run_name = run_display_name(run_label)
     values = metric_values(root, run_label)
     first_delta = values["first_page_p95"] - values["cursor_page_p95"]
+    second_delta = first_page_delta_text(values["first_page_p95"], values["second_page_p95"])
+    third_delta = first_page_delta_text(values["first_page_p95"], values["third_page_p95"])
     spread = values["p99"] - values["p50"]
     sql_share = values["sql_time"] / values["p95"] * 100 if values["p95"] else 0
     spread_desc = (
@@ -489,7 +579,7 @@ def render_k6_results(root, run_label):
     image, r, d = new_canvas(
         root,
         "추천 피드 k6 결과 해석",
-        f"{label} 부하 결과 - 지연 분포와 실패율",
+        f"{run_name} 부하 결과 - 지연 분포와 실패율",
         f"requests {values['requests']}",
     )
 
@@ -497,11 +587,23 @@ def render_k6_results(root, run_label):
     card_w = 390
     card_h = 174
     gap = 28
+    p95_ok = p95_passed(values)
+    error_ok = error_rate_passed(values)
     cards = [
         ("p50", f"{values['p50']:.0f} ms", "중앙값 응답시간", PALETTE["blue"]),
-        ("p95", f"{values['p95']:.0f} ms", "threshold p95 < 1000ms 통과", PALETTE["green"]),
+        (
+            "p95",
+            f"{values['p95']:.0f} ms",
+            "threshold p95 < 1000ms 통과" if p95_ok else "threshold p95 < 1000ms 실패",
+            PALETTE["green"] if p95_ok else PALETTE["amber"],
+        ),
         ("p99", f"{values['p99']:.0f} ms", f"p99-p50 {spread:.0f}ms", PALETTE["purple"]),
-        ("오류율", f"{values['error_rate']:.0%}", "http_req_failed < 1% 통과", PALETTE["green"]),
+        (
+            "오류율",
+            f"{values['error_rate']:.0%}",
+            "http_req_failed < 1% 통과" if error_ok else "http_req_failed < 1% 실패",
+            PALETTE["green"] if error_ok else PALETTE["amber"],
+        ),
     ]
     for index, card in enumerate(cards):
         x = 82 + index * (card_w + gap)
@@ -513,37 +615,45 @@ def render_k6_results(root, run_label):
     d.line((150, axis_y, 780, axis_y), fill=PALETTE["line"], width=6)
     points = [
         ("p50", values["p50"], 180, PALETTE["blue"]),
-        ("p95", values["p95"], 500, PALETTE["green"]),
+        ("p95", values["p95"], 500, PALETTE["green"] if p95_ok else PALETTE["amber"]),
         ("p99", values["p99"], 720, PALETTE["purple"]),
     ]
-    for label, value, x, color in points:
+    for point_label, value, x, color in points:
         d.ellipse((x - 14, axis_y - 14, x + 14, axis_y + 14), fill=color)
-        r.text_box((x - 70, axis_y - 78, x + 70, axis_y - 44), label, 22, PALETTE["muted"], max_lines=1)
+        r.text_box((x - 70, axis_y - 78, x + 70, axis_y - 44), point_label, 22, PALETTE["muted"], max_lines=1)
         r.text_box((x - 82, axis_y + 30, x + 82, axis_y + 64), f"{value:.0f}ms", 24, color, max_lines=1)
     r.text_box((118, 655, 800, 698), spread_desc, 23, PALETTE["ink"], min_size=19, max_lines=1)
 
     d.rounded_rectangle((900, 425, 1718, 725), radius=22, fill=PALETTE["white"], outline=PALETTE["line"], width=2)
     r.text_box((936, 462, 1660, 504), "흐름별 응답", 32, PALETTE["ink"], max_lines=1)
     flow_cards = [
-        ("첫 페이지", f"p95 {values['first_page_p95']:.0f}ms", "초기 후보 계산 포함"),
-        ("다음 페이지", f"p95 {values['cursor_page_p95']:.0f}ms", "cursor 기반 조회"),
-        ("차이", f"{abs(first_delta):.0f}ms", flow_delta_desc),
+        ("1페이지", f"p95 {values['first_page_p95']:.0f}ms", "snapshot 생성"),
+        ("2페이지", f"p95 {ms_text(values['second_page_p95'])}", second_delta),
+        ("3페이지", f"p95 {ms_text(values['third_page_p95'])}", third_delta),
+        ("cursor 전체", f"p95 {values['cursor_page_p95']:.0f}ms", flow_delta_desc),
     ]
     x = 936
-    for label, value, sub in flow_cards:
-        d.rounded_rectangle((x, 555, x + 230, 675), radius=18, fill=PALETTE["panel_bg"], outline=PALETTE["line"], width=2)
-        r.text_box((x + 22, 574, x + 208, 602), label, 22, PALETTE["muted"], max_lines=1)
-        r.text_box((x + 22, 607, x + 208, 638), value, 24, PALETTE["blue"], max_lines=1)
-        r.text_box((x + 22, 642, x + 208, 668), sub, 16, PALETTE["muted"], min_size=14, max_lines=1)
-        x += 250
+    for card_label, value, sub in flow_cards:
+        d.rounded_rectangle((x, 555, x + 175, 675), radius=18, fill=PALETTE["panel_bg"], outline=PALETTE["line"], width=2)
+        r.text_box((x + 18, 574, x + 157, 602), card_label, 20, PALETTE["muted"], min_size=17, max_lines=1)
+        r.text_box((x + 18, 607, x + 157, 638), value, 20, PALETTE["blue"], min_size=16, max_lines=1)
+        r.text_box((x + 18, 642, x + 157, 668), sub, 14, PALETTE["muted"], min_size=12, max_lines=1)
+        x += 193
 
     d.rounded_rectangle((82, 770, 1718, 1088), radius=22, fill=PALETTE["white"], outline=PALETTE["line"], width=2)
     r.text_box((118, 808, 1660, 850), "성능결과 해석", 32, PALETTE["ink"], max_lines=1)
-    findings = [
-        (f"현재 {label}은 p95 목표와 오류율 기준을 모두 통과했다.", "API 레이어는 낮은 부하 조건에서 안정적으로 응답했고 k6 check 실패가 없다."),
-        (f"SQL 실행시간 {values['sql_time']:.0f}ms가 p95의 약 {sql_share:.0f}%를 차지한다.", "요청 수가 늘거나 DB I/O가 느려지면 병목이 API 응답시간으로 곧바로 드러날 가능성이 높다."),
-        ("개선 전/후 비교는 같은 seed, 같은 VU, 같은 script로 반복해야 한다.", "after에서는 p95/p99뿐 아니라 SQL time, temp blocks, scan rows가 함께 줄어야 설득력이 있다."),
-    ]
+    if p95_ok and error_ok:
+        findings = [
+            (f"현재 {run_name}은 p95 목표와 오류율 기준을 모두 통과했다.", "API 레이어는 낮은 부하 조건에서 안정적으로 응답했고 k6 check 실패가 없다."),
+            (f"2페이지는 {second_delta}, 3페이지는 {third_delta}이다.", "snapshot이 만들어진 뒤 cursor page가 첫 페이지보다 얼마나 가벼워지는지 보여주는 지표다."),
+            (f"SQL 실행시간 {values['sql_time']:.0f}ms가 p95의 약 {sql_share:.0f}%를 차지한다.", "SQL 비중이 낮아지면 남은 지연은 URL 생성, DTO 조립, 네트워크까지 분리해서 본다."),
+        ]
+    else:
+        findings = [
+            (f"현재 {run_name}은 오류율 {values['error_rate']:.0%}이지만 p95 목표는 초과했다.", "API 응답은 실패하지 않았지만 사용자 체감 지연은 아직 높다."),
+            (f"SQL 실행시간 {values['sql_time']:.0f}ms는 p95의 약 {sql_share:.0f}%만 차지한다.", "남은 병목은 signed URL 생성, 캐시 적중률, 응답 DTO 조립 비용을 분리해서 봐야 한다."),
+            (f"2페이지는 {second_delta}, 3페이지는 {third_delta}이다.", "cursor page의 캐시 효과와 전체 HTTP p95를 분리해서 해석한다."),
+        ]
     y = 875
     for title, desc in findings:
         draw_list_item(r, 118, y, title, desc)
@@ -577,21 +687,21 @@ def render_before_after_template(root, run_label):
     after_plan = plan_values(root, "after") if after_available else None
     image, r, d = new_canvas(
         root,
-        "추천 피드 Before/After 비교판",
-        "동일 seed와 동일 k6 script로 개선 전후를 비교하기 위한 템플릿",
+        "추천 피드 최초 기준선 대비 현재 변화",
+        "성능테스트 시작 전 local-baseline과 현재 after를 같은 근거 파일로 비교",
         "after 완료" if after_available else "after 대기",
     )
 
     d.rounded_rectangle((82, 205, 850, 430), radius=22, fill=PALETTE["white"], outline=PALETTE["line"], width=2)
     r.text_box((118, 240, 800, 280), "Before: local-baseline", 30, PALETTE["ink"], max_lines=1)
     r.text_box((118, 300, 800, 350), f"p95 {before_values['p95']:.0f}ms / SQL {before_values['sql_time']:.0f}ms / temp write {before_plan['temp_written']:,}", 26, PALETTE["blue"], min_size=21, max_lines=1)
-    r.text_box((118, 362, 800, 402), "현재 병목: 넓은 videos scan + external merge sort", 22, PALETTE["muted"], max_lines=1)
+    r.text_box((118, 362, 800, 402), "초기 병목: 넓은 videos scan + external merge sort", 22, PALETTE["muted"], max_lines=1)
 
     d.rounded_rectangle((900, 205, 1718, 430), radius=22, fill=PALETTE["amber_bg"], outline=PALETTE["amber_line"], width=2)
     r.text_box((936, 240, 1660, 280), "After: after" if after_available else "After: 측정 대기", 30, PALETTE["ink"], max_lines=1)
     if after_available:
         r.text_box((936, 300, 1660, 350), f"p95 {after_values['p95']:.0f}ms / SQL {after_values['sql_time']:.0f}ms / temp write {after_plan['temp_written']:,}", 26, PALETTE["amber"], min_size=21, max_lines=1)
-        r.text_box((936, 362, 1660, 402), "동일 데이터셋, 동일 VU, 동일 endpoint로 재측정 완료", 22, PALETTE["muted"], max_lines=1)
+        r.text_box((936, 362, 1660, 402), "현재 해석: DB 병목 완화 후 HTTP 레이어 지연을 분리 관찰", 22, PALETTE["muted"], max_lines=1)
     else:
         r.text_box((936, 300, 1660, 350), "동일 데이터셋, 동일 VU, 동일 endpoint로 재측정", 26, PALETTE["amber"], min_size=21, max_lines=1)
         r.text_box((936, 362, 1660, 402), "수치가 줄어든 이유를 SQL plan과 코드 diff로 연결", 22, PALETTE["muted"], max_lines=1)
@@ -625,8 +735,12 @@ def render_before_after_template(root, run_label):
         y += 48
 
     d.rounded_rectangle((82, 925, 1718, 1085), radius=22, fill=PALETTE["panel_bg"], outline=PALETTE["line"], width=2)
-    r.text_box((118, 960, 1660, 1000), "사진 사용 규칙", 30, PALETTE["ink"], max_lines=1)
-    r.text_box((118, 1018, 1660, 1058), "after 수치를 채울 때는 이 이미지와 같은 항목, 같은 순서, 같은 근거 파일을 사용한다.", 24, PALETTE["ink"], min_size=20, max_lines=1)
+    r.text_box((118, 960, 1660, 1000), "성능결과 해석", 30, PALETTE["ink"], max_lines=1)
+    if after_available:
+        r.text_box((118, 1012, 1660, 1044), change_sentence("HTTP p95", before_values["p95"], after_values["p95"]), 23, PALETTE["ink"], min_size=19, max_lines=1)
+        r.text_box((118, 1048, 1660, 1078), change_sentence("SQL 실행시간", before_values["sql_time"], after_values["sql_time"]), 23, PALETTE["ink"], min_size=19, max_lines=1)
+    else:
+        r.text_box((118, 1018, 1660, 1058), "after 측정 후 HTTP p95와 SQL 실행시간을 분리해서 병목 이동 여부를 기록한다.", 24, PALETTE["ink"], min_size=20, max_lines=1)
 
     draw_footer(
         r,
@@ -647,15 +761,15 @@ def render_code_change_template(root, run_label):
         root,
         "추천 피드 코드 변경 증거",
         "성능 개선 전후의 코드와 수치가 같은 흐름으로 연결되는지 확인",
-        f"{label} {state['commit']}",
+        f"{label} {state['commit']} + {state['working_tree']}",
     )
 
     d.rounded_rectangle((82, 205, 850, 515), radius=22, fill=PALETTE["white"], outline=PALETTE["line"], width=2)
     r.text_box((118, 240, 800, 280), f"{label} 코드 증거", 30, PALETTE["ink"], max_lines=1)
     before_items = [
-        (f"commit {state['commit']}", f"captured_at {state['captured_at']}"),
+        (f"base commit {state['commit']}", f"captured_at {state['captured_at']}"),
         (f"viewer_id {state['viewer_id']} / page_size {state['page_size']}", f"{label} 실행 조건"),
-        ("raw screenshot", f"{label}/screenshots"),
+        ("working tree", "RecommendationServiceImpl + GCS 설정 변경"),
     ]
     y = 312
     for title, desc in before_items:
@@ -666,9 +780,9 @@ def render_code_change_template(root, run_label):
     if run_label == "after":
         r.text_box((936, 240, 1660, 280), "적용된 변경 내용", 30, PALETTE["ink"], max_lines=1)
         after_items = [
-            ("인덱스", "user_blocks blocked_id, videos public recent"),
-            ("쿼리 구조", "blocked_users CTE + candidate_videos"),
-            ("후보군 제한", f"candidate_window {state['candidate_window']}"),
+            ("피드 streamUrl 제거", "추천 목록은 null, 상세 API에서 생성"),
+            ("thumbnail signed URL 제거", "public bucket base URL과 path 조합"),
+            ("회귀 테스트 추가", "영상/썸네일 signed URL 호출 금지 검증"),
         ]
     else:
         r.text_box((936, 240, 1660, 280), "개선 후 코드 캡처 대기", 30, PALETTE["ink"], max_lines=1)
@@ -685,10 +799,10 @@ def render_code_change_template(root, run_label):
     d.rounded_rectangle((82, 570, 1718, 905), radius=22, fill=PALETTE["panel_bg"], outline=PALETTE["line"], width=2)
     r.text_box((118, 608, 1660, 650), "증거 연결 흐름", 32, PALETTE["ink"], max_lines=1)
     flow = [
-        ("코드 변경", "Repository/query logic"),
-        ("SQL plan 변화", "scan rows/temp blocks"),
+        ("코드 변경", "feed URL 정책 변경"),
+        ("URL 생성 감소", "썸네일 signed URL 제거"),
         ("k6 변화", f"{label} p95 {values['p95']:.0f}ms"),
-        ("결론", "병목 제거 여부"),
+        ("결론", "p95 목표 통과"),
     ]
     x = 118
     for index, (name, detail) in enumerate(flow):
@@ -702,13 +816,84 @@ def render_code_change_template(root, run_label):
 
     d.rounded_rectangle((82, 950, 1718, 1088), radius=22, fill=PALETTE["white"], outline=PALETTE["line"], width=2)
     r.text_box((118, 982, 1660, 1022), "성능결과 해석 기준", 30, PALETTE["ink"], max_lines=1)
-    r.text_box((118, 1038, 1660, 1068), "숫자만 개선됐다고 쓰지 않고, 어떤 코드 변경이 어떤 SQL plan 변화를 만들었는지 함께 기록한다.", 23, PALETTE["ink"], min_size=20, max_lines=1)
+    r.text_box((118, 1038, 1660, 1068), "숫자만 개선됐다고 쓰지 않고, 어떤 URL 생성을 제거했는지와 목표 통과 여부를 함께 기록한다.", 23, PALETTE["ink"], min_size=20, max_lines=1)
 
     draw_footer(
         r,
         1132,
-        "code-state.txt - screenshots/01-code-state - git diff after optimization",
-        f"{label}_commit={state['commit']} - p95={values['p95']:.0f}ms - after_commit={state['commit'] if run_label == 'after' else 'pending'}",
+        "code-state.txt - RecommendationServiceImpl diff - GcsStorageServiceTest",
+        f"{label}_base_commit={state['commit']} - p95={values['p95']:.0f}ms - evidence=working_tree_diff",
+    )
+
+    r.assert_no_overflow()
+    return image
+
+
+def render_cursor_cache_comparison(root, run_label):
+    run_name = run_display_name(run_label)
+    values = metric_values(root, run_label)
+    image, r, d = new_canvas(
+        root,
+        "추천 피드 Snapshot 캐시 호출 비교",
+        "첫 페이지 생성 이후 2·3번째 cursor 호출의 p95를 분리 측정",
+        "cached cursor pages",
+    )
+
+    card_y = 205
+    card_w = 390
+    card_h = 174
+    gap = 28
+    cards = [
+        ("1페이지", ms_value_text(values["first_page_p95"]), "snapshot 생성 + ranking", PALETTE["blue"]),
+        ("2페이지", ms_value_text(values["second_page_p95"]), first_page_delta_text(values["first_page_p95"], values["second_page_p95"]), PALETTE["green"]),
+        ("3페이지", ms_value_text(values["third_page_p95"]), first_page_delta_text(values["first_page_p95"], values["third_page_p95"]), PALETTE["green"]),
+        ("cursor 전체", ms_value_text(values["cursor_page_p95"]), "2페이지 이후 통합", PALETTE["purple"]),
+    ]
+    for index, card in enumerate(cards):
+        x = 82 + index * (card_w + gap)
+        draw_small_card(r, (x, card_y, x + card_w, card_y + card_h), *card)
+
+    d.rounded_rectangle((82, 425, 1718, 720), radius=22, fill=PALETTE["panel_bg"], outline=PALETTE["line"], width=2)
+    r.text_box((118, 462, 1660, 504), "호출 흐름", 32, PALETTE["ink"], max_lines=1)
+    flow = [
+        ("첫 페이지 요청", "후보 ranking 후 Redis snapshot 저장"),
+        ("2페이지 cursor", "snapshotId + offset 20으로 id slice 조회"),
+        ("3페이지 cursor", "같은 snapshotId + offset 40으로 재사용"),
+    ]
+    x = 118
+    for index, (name, detail) in enumerate(flow):
+        d.rounded_rectangle((x, 555, x + 405, 645), radius=18, fill=PALETTE["white"], outline="#C7D2FE", width=2)
+        r.text_box((x + 24, 574, x + 380, 604), name, 23, PALETTE["blue"], max_lines=1)
+        r.text_box((x + 24, 611, x + 380, 638), detail, 18, PALETTE["muted"], min_size=15, max_lines=1)
+        if index < len(flow) - 1:
+            d.line((x + 417, 600, x + 472, 600), fill=PALETTE["blue"], width=4)
+            d.polygon([(x + 472, 600), (x + 458, 590), (x + 458, 610)], fill=PALETTE["blue"])
+        x += 530
+
+    d.rounded_rectangle((82, 765, 1718, 1090), radius=22, fill=PALETTE["white"], outline=PALETTE["line"], width=2)
+    r.text_box((118, 803, 1660, 845), "성능결과 해석", 32, PALETTE["ink"], max_lines=1)
+    if values["second_page_p95"] is not None and values["third_page_p95"] is not None:
+        findings = [
+            ("2·3번째 호출은 snapshot 재사용 구간이다.", f"2페이지 {first_page_delta_text(values['first_page_p95'], values['second_page_p95'])}, 3페이지 {first_page_delta_text(values['first_page_p95'], values['third_page_p95'])}."),
+            ("첫 페이지는 후보 계산과 snapshot 저장을 포함한다.", "cursor page는 ranking SQL을 다시 만들지 않으므로 첫 페이지보다 낮은 p95가 기대된다."),
+            ("전체 HTTP p95와 캐시 효과는 분리해서 본다.", "전체 p95가 높아도 cursor page p95가 낮다면 병목이 첫 페이지나 API 조립 쪽에 남은 것이다."),
+        ]
+    else:
+        findings = [
+            ("이 결과는 depth별 cursor Trend가 없는 이전 형식이다.", "k6를 CURSOR_FOLLOW_RATE=1, MAX_CURSOR_DEPTH=3으로 재실행하면 2·3페이지 p95가 채워진다."),
+            ("cursor 전체 p95는 2페이지 이후 호출이 섞인 값이다.", "정확한 캐시 효과는 second_page_p95, third_page_p95를 분리해야 한다."),
+            ("전체 HTTP p95와 캐시 효과는 분리해서 본다.", "전체 p95가 높아도 cursor page p95가 낮다면 병목이 첫 페이지나 API 조립 쪽에 남은 것이다."),
+        ]
+    y = 870
+    for title, desc in findings:
+        draw_list_item(r, 118, y, title, desc)
+        y += 70
+
+    draw_footer(
+        r,
+        1132,
+        "k6-summary.json - recommendation-feed.js depth trends",
+        f"run={run_name} - first={ms_value_text(values['first_page_p95'])} - second={ms_value_text(values['second_page_p95'])} - third={ms_value_text(values['third_page_p95'])}",
     )
 
     r.assert_no_overflow()
@@ -721,6 +906,7 @@ PRESENTATION_CARDS = {
     "k6-results": ("03-{run_label}-k6-result-interpretation.png", render_k6_results),
     "before-after": ("04-{run_label}-before-after-template.png", render_before_after_template),
     "code-change": ("05-{run_label}-code-change-template.png", render_code_change_template),
+    "cursor-cache": ("06-{run_label}-cursor-cache-comparison.png", render_cursor_cache_comparison),
 }
 
 

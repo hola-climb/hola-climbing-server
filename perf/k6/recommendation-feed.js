@@ -12,6 +12,8 @@ const MAX_CURSOR_DEPTH = Number(__ENV.MAX_CURSOR_DEPTH || '3')
 
 const firstPageDuration = new Trend('recommendation_feed_first_page_duration', true)
 const cursorPageDuration = new Trend('recommendation_feed_cursor_page_duration', true)
+const secondPageDuration = new Trend('recommendation_feed_second_page_duration', true)
+const thirdPageDuration = new Trend('recommendation_feed_third_page_duration', true)
 const feedFailureRate = new Rate('recommendation_feed_failed')
 
 export const options = {
@@ -90,6 +92,12 @@ function getFeed(token, cursor, depth) {
     firstPageDuration.add(res.timings.duration)
   } else {
     cursorPageDuration.add(res.timings.duration)
+    if (depth === 2) {
+      secondPageDuration.add(res.timings.duration)
+    }
+    if (depth === 3) {
+      thirdPageDuration.add(res.timings.duration)
+    }
   }
 
   return ok ? res.json('data.nextCursor') : null
@@ -141,6 +149,8 @@ function textSummary(data) {
   const requests = metrics.http_reqs
   const firstPage = metrics.recommendation_feed_first_page_duration
   const cursorPage = metrics.recommendation_feed_cursor_page_duration
+  const secondPage = metrics.recommendation_feed_second_page_duration
+  const thirdPage = metrics.recommendation_feed_third_page_duration
 
   return [
     '# k6 recommendation feed summary',
@@ -156,6 +166,8 @@ function textSummary(data) {
     `http_req_duration_p99=${metricValue(duration, 'p(99)')}`,
     `first_page_p95=${metricValue(firstPage, 'p(95)')}`,
     `cursor_page_p95=${metricValue(cursorPage, 'p(95)')}`,
+    `second_page_p95=${metricValue(secondPage, 'p(95)')}`,
+    `third_page_p95=${metricValue(thirdPage, 'p(95)')}`,
     '',
   ].join('\n')
 }

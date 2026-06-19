@@ -154,6 +154,34 @@ RAMP_DOWN=5s \
 k6 run perf/k6/recommendation-feed.js
 ```
 
+To compare the cached snapshot pages separately from the first page, force each
+iteration to follow the cursor through the second and third pages:
+
+```bash
+BASE_URL=http://localhost:8080 \
+RUN_LABEL=after \
+TOKEN_USER_COUNT=5 \
+VUS=2 \
+RAMP_UP=10s \
+STEADY=20s \
+RAMP_DOWN=5s \
+CURSOR_FOLLOW_RATE=1 \
+MAX_CURSOR_DEPTH=3 \
+k6 run perf/k6/recommendation-feed.js
+```
+
+The summary records these p95 values independently:
+
+```text
+first_page_p95
+second_page_p95
+third_page_p95
+cursor_page_p95
+```
+
+Use `first_page_p95` as the snapshot creation cost and `second_page_p95` /
+`third_page_p95` as cached cursor-page reads.
+
 If host `k6` is unavailable, use Docker k6 from a temporary work directory. Do
 not mount the full repository into the third-party k6 container.
 
@@ -215,10 +243,12 @@ screenshots/presentation/02-local-baseline-sql-bottleneck.png
 screenshots/presentation/03-local-baseline-k6-result-interpretation.png
 screenshots/presentation/04-local-baseline-before-after-template.png
 screenshots/presentation/05-local-baseline-code-change-template.png
+screenshots/presentation/06-local-baseline-cursor-cache-comparison.png
 ```
 
-Use `--kind sql-bottleneck`, `--kind k6-results`, `--kind before-after`, or
-`--kind code-change` when regenerating one card during layout edits.
+Use `--kind sql-bottleneck`, `--kind k6-results`, `--kind before-after`,
+`--kind code-change`, or `--kind cursor-cache` when regenerating one card during
+layout edits.
 
 The renderer uses the run label in visible titles and filenames. Do not use an
 after image that still says local-baseline.

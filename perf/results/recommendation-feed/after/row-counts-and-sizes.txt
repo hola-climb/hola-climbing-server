@@ -1,70 +1,75 @@
  database_name |          captured_at          
 ---------------+-------------------------------
- hola_perf     | 2026-06-18 02:39:39.873759+00
+ hola_perf     | 2026-06-19 13:25:51.074044+00
 (1 row)
 
-        relation        |  rows  
-------------------------+--------
- analysis_video_results |   5000
- comments               |  10000
- follows                | 300000
- gym_grades             |   3000
- gyms                   |   1000
- likes                  |  20000
- user_blocks            |   1000
- users                  |  10000
- videos                 | 100000
-(9 rows)
+        relation         |  rows  
+-------------------------+--------
+ analysis_video_results  |   5000
+ comments                |  10000
+ follows                 | 300000
+ gym_grades              |   3000
+ gyms                    |   1000
+ likes                   |  20000
+ user_blocks             |   1000
+ users                   |  10000
+ user_video_interactions |   8217
+ videos                  | 100000
+(10 rows)
 
- schemaname |        relname         | total_size | table_size | indexes_size 
-------------+------------------------+------------+------------+--------------
- public     | videos                 | 49 MB      | 33 MB      | 16 MB
- public     | follows                | 40 MB      | 17 MB      | 23 MB
- public     | users                  | 9536 kB    | 4008 kB    | 5488 kB
- public     | likes                  | 3584 kB    | 1184 kB    | 2368 kB
- public     | comments               | 1912 kB    | 912 kB     | 960 kB
- public     | gyms                   | 1848 kB    | 376 kB     | 1440 kB
- public     | analysis_video_results | 920 kB     | 696 kB     | 184 kB
- public     | gym_grades             | 832 kB     | 232 kB     | 568 kB
- public     | user_blocks            | 288 kB     | 88 kB      | 176 kB
-(9 rows)
+ schemaname |         relname         | total_size | table_size | indexes_size 
+------------+-------------------------+------------+------------+--------------
+ public     | videos                  | 51 MB      | 33 MB      | 18 MB
+ public     | follows                 | 40 MB      | 17 MB      | 23 MB
+ public     | users                   | 9552 kB    | 4008 kB    | 5504 kB
+ public     | likes                   | 3584 kB    | 1184 kB    | 2368 kB
+ public     | comments                | 1912 kB    | 912 kB     | 960 kB
+ public     | gyms                    | 1816 kB    | 376 kB     | 1408 kB
+ public     | user_video_interactions | 1528 kB    | 944 kB     | 552 kB
+ public     | analysis_video_results  | 920 kB     | 696 kB     | 184 kB
+ public     | gym_grades              | 832 kB     | 232 kB     | 568 kB
+ public     | user_blocks             | 296 kB     | 88 kB      | 184 kB
+(10 rows)
 
-  tablename  |               indexname               |                                                                        indexdef                                                                        
--------------+---------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------
- follows     | follows_follower_id_following_id_key  | CREATE UNIQUE INDEX follows_follower_id_following_id_key ON public.follows USING btree (follower_id, following_id)
- follows     | follows_pkey                          | CREATE UNIQUE INDEX follows_pkey ON public.follows USING btree (id)
- follows     | idx_follows_follower                  | CREATE INDEX idx_follows_follower ON public.follows USING btree (follower_id)
- follows     | idx_follows_following                 | CREATE INDEX idx_follows_following ON public.follows USING btree (following_id)
- gym_grades  | gym_grades_gym_id_id_key              | CREATE UNIQUE INDEX gym_grades_gym_id_id_key ON public.gym_grades USING btree (gym_id, id)
- gym_grades  | gym_grades_gym_id_label_key           | CREATE UNIQUE INDEX gym_grades_gym_id_label_key ON public.gym_grades USING btree (gym_id, label)
- gym_grades  | gym_grades_pkey                       | CREATE UNIQUE INDEX gym_grades_pkey ON public.gym_grades USING btree (id)
- gym_grades  | idx_gym_grades_gym_order              | CREATE INDEX idx_gym_grades_gym_order ON public.gym_grades USING btree (gym_id, difficulty_order, id) WHERE (is_active = true)
- gyms        | gyms_pkey                             | CREATE UNIQUE INDEX gyms_pkey ON public.gyms USING btree (id)
- gyms        | idx_gyms_location                     | CREATE INDEX idx_gyms_location ON public.gyms USING btree (lat, lng) WHERE (lat IS NOT NULL)
- gyms        | idx_gyms_name                         | CREATE INDEX idx_gyms_name ON public.gyms USING btree (name)
- gyms        | idx_gyms_name_trgm                    | CREATE INDEX idx_gyms_name_trgm ON public.gyms USING gin (name gin_trgm_ops)
- gyms        | idx_gyms_region                       | CREATE INDEX idx_gyms_region ON public.gyms USING btree (region_code) WHERE (region_code IS NOT NULL)
- gyms        | idx_gyms_status                       | CREATE INDEX idx_gyms_status ON public.gyms USING btree (status)
- gyms        | idx_gyms_style_embedding              | CREATE INDEX idx_gyms_style_embedding ON public.gyms USING ivfflat (style_embedding vector_cosine_ops)
- user_blocks | idx_user_blocks_blocked               | CREATE INDEX idx_user_blocks_blocked ON public.user_blocks USING btree (blocked_id)
- user_blocks | idx_user_blocks_blocker               | CREATE INDEX idx_user_blocks_blocker ON public.user_blocks USING btree (blocker_id)
- user_blocks | user_blocks_blocker_id_blocked_id_key | CREATE UNIQUE INDEX user_blocks_blocker_id_blocked_id_key ON public.user_blocks USING btree (blocker_id, blocked_id)
- user_blocks | user_blocks_pkey                      | CREATE UNIQUE INDEX user_blocks_pkey ON public.user_blocks USING btree (id)
- users       | idx_users_deleted_at                  | CREATE INDEX idx_users_deleted_at ON public.users USING btree (id) WHERE (deleted_at IS NULL)
- users       | idx_users_email                       | CREATE INDEX idx_users_email ON public.users USING btree (email) WHERE (email IS NOT NULL)
- users       | idx_users_provider                    | CREATE INDEX idx_users_provider ON public.users USING btree (provider, provider_id) WHERE (provider IS NOT NULL)
- users       | idx_users_role_status                 | CREATE INDEX idx_users_role_status ON public.users USING btree (role, status)
- users       | idx_users_status_created_at           | CREATE INDEX idx_users_status_created_at ON public.users USING btree (status, created_at DESC)
- users       | idx_users_style_embedding             | CREATE INDEX idx_users_style_embedding ON public.users USING ivfflat (style_embedding vector_cosine_ops)
- users       | users_email_key                       | CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)
- users       | users_nickname_key                    | CREATE UNIQUE INDEX users_nickname_key ON public.users USING btree (nickname)
- users       | users_pkey                            | CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)
- users       | users_provider_provider_id_key        | CREATE UNIQUE INDEX users_provider_provider_id_key ON public.users USING btree (provider, provider_id)
- videos      | idx_videos_gym                        | CREATE INDEX idx_videos_gym ON public.videos USING btree (gym_id)
- videos      | idx_videos_public_feed                | CREATE INDEX idx_videos_public_feed ON public.videos USING btree (id DESC) WHERE ((is_public = true) AND (deleted_at IS NULL))
- videos      | idx_videos_public_feed_recent         | CREATE INDEX idx_videos_public_feed_recent ON public.videos USING btree (created_at DESC, id DESC) WHERE ((is_public = true) AND (deleted_at IS NULL))
- videos      | idx_videos_status                     | CREATE INDEX idx_videos_status ON public.videos USING btree (status)
- videos      | idx_videos_user                       | CREATE INDEX idx_videos_user ON public.videos USING btree (user_id, created_at DESC)
- videos      | videos_pkey                           | CREATE UNIQUE INDEX videos_pkey ON public.videos USING btree (id)
-(35 rows)
+        tablename        |                 indexname                  |                                                                                   indexdef                                                                                    
+-------------------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ follows                 | follows_follower_id_following_id_key       | CREATE UNIQUE INDEX follows_follower_id_following_id_key ON public.follows USING btree (follower_id, following_id)
+ follows                 | follows_pkey                               | CREATE UNIQUE INDEX follows_pkey ON public.follows USING btree (id)
+ follows                 | idx_follows_follower                       | CREATE INDEX idx_follows_follower ON public.follows USING btree (follower_id)
+ follows                 | idx_follows_following                      | CREATE INDEX idx_follows_following ON public.follows USING btree (following_id)
+ gym_grades              | gym_grades_gym_id_id_key                   | CREATE UNIQUE INDEX gym_grades_gym_id_id_key ON public.gym_grades USING btree (gym_id, id)
+ gym_grades              | gym_grades_gym_id_label_key                | CREATE UNIQUE INDEX gym_grades_gym_id_label_key ON public.gym_grades USING btree (gym_id, label)
+ gym_grades              | gym_grades_pkey                            | CREATE UNIQUE INDEX gym_grades_pkey ON public.gym_grades USING btree (id)
+ gym_grades              | idx_gym_grades_gym_order                   | CREATE INDEX idx_gym_grades_gym_order ON public.gym_grades USING btree (gym_id, difficulty_order, id) WHERE (is_active = true)
+ gyms                    | gyms_pkey                                  | CREATE UNIQUE INDEX gyms_pkey ON public.gyms USING btree (id)
+ gyms                    | idx_gyms_location                          | CREATE INDEX idx_gyms_location ON public.gyms USING btree (lat, lng) WHERE (lat IS NOT NULL)
+ gyms                    | idx_gyms_name                              | CREATE INDEX idx_gyms_name ON public.gyms USING btree (name)
+ gyms                    | idx_gyms_name_trgm                         | CREATE INDEX idx_gyms_name_trgm ON public.gyms USING gin (name gin_trgm_ops)
+ gyms                    | idx_gyms_region                            | CREATE INDEX idx_gyms_region ON public.gyms USING btree (region_code) WHERE (region_code IS NOT NULL)
+ gyms                    | idx_gyms_status                            | CREATE INDEX idx_gyms_status ON public.gyms USING btree (status)
+ gyms                    | idx_gyms_style_embedding                   | CREATE INDEX idx_gyms_style_embedding ON public.gyms USING ivfflat (style_embedding vector_cosine_ops)
+ user_blocks             | idx_user_blocks_blocked                    | CREATE INDEX idx_user_blocks_blocked ON public.user_blocks USING btree (blocked_id)
+ user_blocks             | idx_user_blocks_blocker                    | CREATE INDEX idx_user_blocks_blocker ON public.user_blocks USING btree (blocker_id)
+ user_blocks             | user_blocks_blocker_id_blocked_id_key      | CREATE UNIQUE INDEX user_blocks_blocker_id_blocked_id_key ON public.user_blocks USING btree (blocker_id, blocked_id)
+ user_blocks             | user_blocks_pkey                           | CREATE UNIQUE INDEX user_blocks_pkey ON public.user_blocks USING btree (id)
+ user_video_interactions | idx_user_video_interactions_user_impressed | CREATE INDEX idx_user_video_interactions_user_impressed ON public.user_video_interactions USING btree (user_id, last_impressed_at DESC) WHERE (last_impressed_at IS NOT NULL)
+ user_video_interactions | idx_user_video_interactions_user_viewed    | CREATE INDEX idx_user_video_interactions_user_viewed ON public.user_video_interactions USING btree (user_id, last_viewed_at DESC) WHERE (last_viewed_at IS NOT NULL)
+ user_video_interactions | user_video_interactions_pkey               | CREATE UNIQUE INDEX user_video_interactions_pkey ON public.user_video_interactions USING btree (user_id, video_id)
+ users                   | idx_users_deleted_at                       | CREATE INDEX idx_users_deleted_at ON public.users USING btree (id) WHERE (deleted_at IS NULL)
+ users                   | idx_users_email                            | CREATE INDEX idx_users_email ON public.users USING btree (email) WHERE (email IS NOT NULL)
+ users                   | idx_users_provider                         | CREATE INDEX idx_users_provider ON public.users USING btree (provider, provider_id) WHERE (provider IS NOT NULL)
+ users                   | idx_users_role_status                      | CREATE INDEX idx_users_role_status ON public.users USING btree (role, status)
+ users                   | idx_users_status_created_at                | CREATE INDEX idx_users_status_created_at ON public.users USING btree (status, created_at DESC)
+ users                   | idx_users_style_embedding                  | CREATE INDEX idx_users_style_embedding ON public.users USING ivfflat (style_embedding vector_cosine_ops)
+ users                   | users_email_key                            | CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)
+ users                   | users_nickname_key                         | CREATE UNIQUE INDEX users_nickname_key ON public.users USING btree (nickname)
+ users                   | users_pkey                                 | CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)
+ users                   | users_provider_provider_id_key             | CREATE UNIQUE INDEX users_provider_provider_id_key ON public.users USING btree (provider, provider_id)
+ videos                  | idx_videos_gym                             | CREATE INDEX idx_videos_gym ON public.videos USING btree (gym_id)
+ videos                  | idx_videos_public_feed                     | CREATE INDEX idx_videos_public_feed ON public.videos USING btree (id DESC) WHERE ((is_public = true) AND (deleted_at IS NULL))
+ videos                  | idx_videos_public_feed_recent              | CREATE INDEX idx_videos_public_feed_recent ON public.videos USING btree (created_at DESC, id DESC) WHERE ((is_public = true) AND (deleted_at IS NULL))
+ videos                  | idx_videos_status                          | CREATE INDEX idx_videos_status ON public.videos USING btree (status)
+ videos                  | idx_videos_user                            | CREATE INDEX idx_videos_user ON public.videos USING btree (user_id, created_at DESC)
+ videos                  | videos_pkey                                | CREATE UNIQUE INDEX videos_pkey ON public.videos USING btree (id)
+(38 rows)
 
