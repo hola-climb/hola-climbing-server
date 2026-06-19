@@ -1,5 +1,6 @@
 package com.holaclimbing.server.domain.recommendation.service;
 
+import com.holaclimbing.server.domain.gym.service.GymOperatingStatusResolver;
 import com.holaclimbing.server.domain.gym.service.GymProfileImageUrlResolver;
 import com.holaclimbing.server.domain.recommendation.domain.RecommendationFeedSnapshot;
 import com.holaclimbing.server.domain.recommendation.dto.RecommendationCursor;
@@ -28,12 +29,14 @@ class RecommendationServiceImplTest {
     private final RecommendationFeedSnapshotStore snapshotStore = mock(RecommendationFeedSnapshotStore.class);
     private final GcsStorageService gcsStorageService = mock(GcsStorageService.class);
     private final GymProfileImageUrlResolver profileImageUrlResolver = mock(GymProfileImageUrlResolver.class);
+    private final GymOperatingStatusResolver operatingStatusResolver = mock(GymOperatingStatusResolver.class);
     private final RecommendationServiceImpl service = new RecommendationServiceImpl(
             recommendationMapper,
             recommendationInteractionMapper,
             snapshotStore,
             gcsStorageService,
-            profileImageUrlResolver);
+            profileImageUrlResolver,
+            operatingStatusResolver);
 
     @Test
     void getVideoFeedCreatesSnapshotForFirstPage() {

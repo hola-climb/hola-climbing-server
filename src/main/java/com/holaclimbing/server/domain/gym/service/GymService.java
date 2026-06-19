@@ -13,10 +13,10 @@ import java.util.List;
 public interface GymService {
 
     /** 이름·지역으로 암장 검색. */
-    PageResponse<GymSummaryResponse> searchGyms(String keyword, String region, int page, int size);
+    PageResponse<GymSummaryResponse> searchGyms(String keyword, String region, int page, int size, Long viewerId);
 
     /** 좌표 기준 반경 내 암장을 가까운 순으로 조회. */
-    List<GymSummaryResponse> findNearbyGyms(double lat, double lng, double radiusKm, int size);
+    List<GymSummaryResponse> findNearbyGyms(double lat, double lng, double radiusKm, int size, Long viewerId);
 
     /** 암장 상세 조회. */
     GymDetailResponse getGymDetail(Long gymId, Long viewerId);

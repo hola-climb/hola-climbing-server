@@ -3,7 +3,7 @@
 <mapper namespace="com.holaclimbing.server.domain.gym.mapper.GymMapper">
 
     <sql id="summaryColumns">
-        id, name, address, thumbnail_url, region_code, rating_avg, rating_count
+        id, name, address, thumbnail_url, business_hours, region_code, rating_avg, rating_count
     </sql>
 
     <select id="findById" resultType="com.holaclimbing.server.domain.gym.domain.Gym">
@@ -23,7 +23,16 @@
     </select>
 
     <select id="search" resultType="com.holaclimbing.server.domain.gym.domain.Gym">
-        SELECT <include refid="summaryColumns"/>
+        SELECT <include refid="summaryColumns"/>,
+               CASE
+                   WHEN #{viewerId,jdbcType=BIGINT} IS NULL THEN FALSE
+                   ELSE EXISTS (
+                       SELECT 1
+                       FROM favorites f
+                       WHERE f.user_id = #{viewerId,jdbcType=BIGINT}
+                         AND f.gym_id = gyms.id
+                   )
+               END AS favorite
         FROM gyms
         WHERE status = 'active' AND deleted_at IS NULL
         <if test="keyword != null and keyword != ''">
@@ -49,9 +58,18 @@
     </select>
 
     <select id="findNearby" resultType="com.holaclimbing.server.domain.gym.domain.Gym">
-        SELECT id, name, address, thumbnail_url, region_code, rating_avg, rating_count, lat, lng
+        SELECT id, name, address, thumbnail_url, business_hours, region_code, rating_avg, rating_count, lat, lng, favorite
         FROM (
             SELECT <include refid="summaryColumns"/>, lat, lng,
+                   CASE
+                       WHEN #{viewerId,jdbcType=BIGINT} IS NULL THEN FALSE
+                       ELSE EXISTS (
+                           SELECT 1
+                           FROM favorites f
+                           WHERE f.user_id = #{viewerId,jdbcType=BIGINT}
+                             AND f.gym_id = gyms.id
+                       )
+                   END AS favorite,
                    6371 * acos(GREATEST(-1.0, LEAST(1.0,
                        cos(radians(#{lat})) * cos(radians(lat))
                        * cos(radians(lng) - radians(#{lng}))

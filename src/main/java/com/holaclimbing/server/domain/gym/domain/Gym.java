@@ -32,6 +32,7 @@ public class Gym {
     private String regionCode;
     private BigDecimal ratingAvg;
     private int ratingCount;
+    private Boolean favorite;
     private String status;
     private Long createdBy;
     private OffsetDateTime createdAt;

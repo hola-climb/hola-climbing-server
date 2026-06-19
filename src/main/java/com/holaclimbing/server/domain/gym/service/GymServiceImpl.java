@@ -1,6 +1,5 @@
 package com.holaclimbing.server.domain.gym.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.holaclimbing.server.common.exception.BusinessException;
 import com.holaclimbing.server.common.exception.error.ErrorCode;
@@ -17,51 +16,46 @@ import com.holaclimbing.server.domain.gym.dto.response.GymSummaryResponse;
 import com.holaclimbing.server.domain.gym.mapper.GymGradeMapper;
 import com.holaclimbing.server.domain.gym.mapper.GymMapper;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GymServiceImpl implements GymService {
-
-    private static final TypeReference<Map<String, DayHours>> BUSINESS_HOURS_TYPE =
-            new TypeReference<>() {
-            };
 
     private final GymMapper gymMapper;
     private final GymGradeMapper gymGradeMapper;
     private final FavoriteMapper favoriteMapper;
     private final ObjectMapper objectMapper;
     private final GymProfileImageUrlResolver profileImageUrlResolver;
+    private final GymOperatingStatusResolver operatingStatusResolver;
 
     @Override
-    public PageResponse<GymSummaryResponse> searchGyms(String keyword, String region, int page, int size) {
+    public PageResponse<GymSummaryResponse> searchGyms(String keyword, String region, int page, int size, Long viewerId) {
         String normalizedKeyword = normalizeLikeKeyword(keyword);
         String normalizedRegion = normalizeText(region);
         long total = gymMapper.countSearch(normalizedKeyword, normalizedRegion);
-        List<GymSummaryResponse> content = gymMapper.search(normalizedKeyword, normalizedRegion, size, page * size)
+        List<GymSummaryResponse> content = gymMapper.search(normalizedKeyword, normalizedRegion, size, page * size, viewerId)
                 .stream()
-                .map(gym -> GymSummaryResponse.from(gym, profileImageUrlResolver.resolve(gym.getThumbnailUrl())))
+                .map(this::toSummaryResponse)
                 .toList();
         return PageResponse.of(content, page, size, total);
     }
 
     @Override
-    public List<GymSummaryResponse> findNearbyGyms(double lat, double lng, double radiusKm, int size) {
+    public List<GymSummaryResponse> findNearbyGyms(double lat, double lng, double radiusKm, int size, Long viewerId) {
         if (lat < -90 || lat > 90) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "위도는 -90~90 범위여야 합니다.");
         }
         if (lng < -180 || lng > 180) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "경도는 -180~180 범위여야 합니다.");
         }
-        return gymMapper.findNearby(lat, lng, radiusKm, size)
+        return gymMapper.findNearby(lat, lng, radiusKm, size, viewerId)
                 .stream()
-                .map(gym -> GymSummaryResponse.from(gym, profileImageUrlResolver.resolve(gym.getThumbnailUrl())))
+                .map(this::toSummaryResponse)
                 .toList();
     }
 
@@ -72,7 +66,7 @@ public class GymServiceImpl implements GymService {
             throw new BusinessException(ErrorCode.GYM_NOT_FOUND);
         }
         boolean isFavorite = viewerId != null && favoriteMapper.exists(viewerId, gymId);
-        return GymDetailResponse.of(gym, parseBusinessHours(gym.getBusinessHours()),
+        return GymDetailResponse.of(gym, operatingStatusResolver.parseBusinessHours(gym.getBusinessHours()),
                 profileImageUrlResolver.resolve(gym.getThumbnailUrl()), isFavorite);
     }
 
@@ -126,8 +120,18 @@ public class GymServiceImpl implements GymService {
 
     /** pending 상태 암장의 detail. getGymDetail의 active 필터를 우회. */
     private GymDetailResponse pendingDetail(Gym gym) {
-        return GymDetailResponse.of(gym, parseBusinessHours(gym.getBusinessHours()),
+        return GymDetailResponse.of(gym, operatingStatusResolver.parseBusinessHours(gym.getBusinessHours()),
                 profileImageUrlResolver.resolve(gym.getThumbnailUrl()));
+    }
+
+    private GymSummaryResponse toSummaryResponse(Gym gym) {
+        Map<String, DayHours> businessHours = operatingStatusResolver.parseBusinessHours(gym.getBusinessHours());
+        return GymSummaryResponse.from(
+                gym,
+                profileImageUrlResolver.resolve(gym.getThumbnailUrl()),
+                businessHours,
+                operatingStatusResolver.isOpenNow(businessHours),
+                Boolean.TRUE.equals(gym.getFavorite()));
     }
 
     private void requireGym(Long gymId) {
@@ -145,19 +149,6 @@ public class GymServiceImpl implements GymService {
             return objectMapper.writeValueAsString(businessHours);
         } catch (Exception e) {
             throw new IllegalStateException("business_hours 직렬화 실패", e);
-        }
-    }
-
-    /** business_hours JSONB 문자열을 요일별 운영시간 맵으로 파싱. 비어 있으면 빈 맵. */
-    private Map<String, DayHours> parseBusinessHours(String json) {
-        if (json == null || json.isBlank()) {
-            return Map.of();
-        }
-        try {
-            return objectMapper.readValue(json, BUSINESS_HOURS_TYPE);
-        } catch (Exception e) {
-            log.warn("business_hours 파싱 실패: {}", e.getMessage());
-            return Map.of();
         }
     }
 

@@ -1,9 +1,11 @@
 package com.holaclimbing.server.domain.recommendation.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.holaclimbing.server.domain.gym.dto.DayHours;
 import com.holaclimbing.server.domain.recommendation.domain.RecommendedGym;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record RecommendedGymResponse(
@@ -14,6 +16,9 @@ public record RecommendedGymResponse(
         String regionCode,
         BigDecimal ratingAvg,
         int ratingCount,
+        Map<String, DayHours> businessHours,
+        boolean isOpen,
+        boolean isFavorite,
         Double distanceKm,
         Double rankingDistance,
         String source
@@ -26,6 +31,12 @@ public record RecommendedGymResponse(
     }
 
     public static RecommendedGymResponse from(RecommendedGym gym, String thumbnailUrl) {
+        return from(gym, thumbnailUrl, Map.of(), false, false);
+    }
+
+    public static RecommendedGymResponse from(RecommendedGym gym, String thumbnailUrl,
+                                              Map<String, DayHours> businessHours,
+                                              boolean isOpen, boolean isFavorite) {
         return new RecommendedGymResponse(
                 gym.getId(),
                 gym.getName(),
@@ -34,6 +45,9 @@ public record RecommendedGymResponse(
                 gym.getRegionCode(),
                 gym.getRatingAvg(),
                 gym.getRatingCount(),
+                businessHours,
+                isOpen,
+                isFavorite,
                 gym.getDistanceKm(),
                 gym.getRankingDistance(),
                 gym.getRankingDistance() == null ? SOURCE_NEARBY : SOURCE_STYLE_MATCH);

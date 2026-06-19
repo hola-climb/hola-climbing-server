@@ -19,7 +19,8 @@ public interface GymMapper {
     List<Gym> search(@Param("keyword") String keyword,
                       @Param("region") String region,
                       @Param("size") int size,
-                      @Param("offset") int offset);
+                      @Param("offset") int offset,
+                      @Param("viewerId") Long viewerId);
 
     /** search 결과 총 개수. */
     long countSearch(@Param("keyword") String keyword, @Param("region") String region);
@@ -28,7 +29,8 @@ public interface GymMapper {
     List<Gym> findNearby(@Param("lat") double lat,
                          @Param("lng") double lng,
                          @Param("radiusKm") double radiusKm,
-                         @Param("size") int size);
+                         @Param("size") int size,
+                         @Param("viewerId") Long viewerId);
 
     /** 암장 등록. 생성된 PK는 gym.id로 채워진다. */
     void insertGym(Gym gym);

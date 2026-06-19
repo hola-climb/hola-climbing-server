@@ -246,8 +246,14 @@
             WHERE id = #{userId}
         ),
         candidate AS (
-            SELECT g.id, g.name, g.address, g.thumbnail_url, g.region_code,
+            SELECT g.id, g.name, g.address, g.thumbnail_url, g.business_hours, g.region_code,
                    g.rating_avg, g.rating_count,
+                   EXISTS (
+                       SELECT 1
+                       FROM favorites f
+                       WHERE f.user_id = #{userId}
+                         AND f.gym_id = g.id
+                   ) AS favorite,
                    6371 * acos(GREATEST(-1.0, LEAST(1.0,
                        cos(radians(#{lat})) * cos(radians(g.lat))
                        * cos(radians(g.lng) - radians(#{lng}))
@@ -265,8 +271,8 @@
               AND g.status = 'active'
               AND g.deleted_at IS NULL
         )
-        SELECT id, name, address, thumbnail_url, region_code,
-               rating_avg, rating_count, distance_km, ranking_distance
+        SELECT id, name, address, thumbnail_url, business_hours, region_code,
+               rating_avg, rating_count, favorite, distance_km, ranking_distance
         FROM candidate
         WHERE distance_km &lt;= #{radiusKm}
         ORDER BY

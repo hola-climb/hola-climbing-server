@@ -53,8 +53,9 @@ public class GymController {
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String region,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Positive @Max(100) int size) {
-        return ApiResponse.success(gymService.searchGyms(firstNonBlank(keyword, query, name), region, page, size));
+            @RequestParam(defaultValue = "20") @Positive @Max(100) int size,
+            @AuthenticationPrincipal Long viewerId) {
+        return ApiResponse.success(gymService.searchGyms(firstNonBlank(keyword, query, name), region, page, size, viewerId));
     }
 
     @ApiErrorCodes({INVALID_INPUT})
@@ -63,8 +64,9 @@ public class GymController {
             @RequestParam double lat,
             @RequestParam double lng,
             @RequestParam(defaultValue = "5") @Positive double radius,
-            @RequestParam(defaultValue = "20") @Positive @Max(100) int size) {
-        return ApiResponse.success(gymService.findNearbyGyms(lat, lng, radius, size));
+            @RequestParam(defaultValue = "20") @Positive @Max(100) int size,
+            @AuthenticationPrincipal Long viewerId) {
+        return ApiResponse.success(gymService.findNearbyGyms(lat, lng, radius, size, viewerId));
     }
 
     @ApiErrorCodes({GYM_NOT_FOUND})

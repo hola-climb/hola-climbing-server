@@ -50,6 +50,31 @@ class GymIntegrationTest {
     }
 
     @Test
+    @DisplayName("암장 검색 — 운영시간·영업 여부와 인증 사용자의 즐겨찾기 여부를 반환한다")
+    void searchGyms_includesBusinessHoursOpenStatusAndFavorite() throws Exception {
+        long userId = 102L;
+        String email = "favorite-list@hola.com";
+        jdbcTemplate.update("""
+                        INSERT INTO users (id, email, password_hash, email_verified, nickname)
+                        VALUES (?, ?, ?, TRUE, ?)
+                        """,
+                userId, email, "{noop}unused", "favoriteList");
+        jdbcTemplate.update("INSERT INTO favorites (user_id, gym_id) VALUES (?, ?)", userId, 1L);
+        setAlwaysOpenBusinessHours(1L);
+        String token = jwtTokenProvider.createAccessToken(userId, email, "USER");
+
+        mockMvc.perform(get("/api/gyms")
+                        .param("keyword", "Gangnam")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].id").value(1))
+                .andExpect(jsonPath("$.data.content[0].businessHours.mon.open").value("00:00"))
+                .andExpect(jsonPath("$.data.content[0].businessHours.mon.close").value("23:59"))
+                .andExpect(jsonPath("$.data.content[0].isOpen").value(true))
+                .andExpect(jsonPath("$.data.content[0].isFavorite").value(true));
+    }
+
+    @Test
     @DisplayName("암장 검색 — 키워드(이름 부분일치)로 필터링한다")
     void searchGyms_byKeyword() throws Exception {
         mockMvc.perform(get("/api/gyms").param("keyword", "TheClimb"))
@@ -115,6 +140,30 @@ class GymIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(1))
                 .andExpect(jsonPath("$.data[0].id").value(1));
+    }
+
+    @Test
+    @DisplayName("근처 암장 — 운영시간·영업 여부와 인증 사용자의 즐겨찾기 여부를 반환한다")
+    void findNearby_includesBusinessHoursOpenStatusAndFavorite() throws Exception {
+        long userId = 103L;
+        String email = "favorite-nearby@hola.com";
+        jdbcTemplate.update("""
+                        INSERT INTO users (id, email, password_hash, email_verified, nickname)
+                        VALUES (?, ?, ?, TRUE, ?)
+                        """,
+                userId, email, "{noop}unused", "favoriteNearby");
+        jdbcTemplate.update("INSERT INTO favorites (user_id, gym_id) VALUES (?, ?)", userId, 1L);
+        setAlwaysOpenBusinessHours(1L);
+        String token = jwtTokenProvider.createAccessToken(userId, email, "USER");
+
+        mockMvc.perform(get("/api/gyms/nearby")
+                        .param("lat", "37.4979").param("lng", "127.0276").param("radius", "5")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(1))
+                .andExpect(jsonPath("$.data[0].businessHours.mon.open").value("00:00"))
+                .andExpect(jsonPath("$.data[0].isOpen").value(true))
+                .andExpect(jsonPath("$.data[0].isFavorite").value(true));
     }
 
     @Test
@@ -220,5 +269,19 @@ class GymIntegrationTest {
         mockMvc.perform(get("/api/gyms/5/grades"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("G001"));
+    }
+
+    private void setAlwaysOpenBusinessHours(Long gymId) {
+        jdbcTemplate.update("""
+                UPDATE gyms SET business_hours = '{
+                  "mon": {"open": "00:00", "close": "23:59"},
+                  "tue": {"open": "00:00", "close": "23:59"},
+                  "wed": {"open": "00:00", "close": "23:59"},
+                  "thu": {"open": "00:00", "close": "23:59"},
+                  "fri": {"open": "00:00", "close": "23:59"},
+                  "sat": {"open": "00:00", "close": "23:59"},
+                  "sun": {"open": "00:00", "close": "23:59"}
+                }'::jsonb WHERE id = ?
+                """, gymId);
     }
 }

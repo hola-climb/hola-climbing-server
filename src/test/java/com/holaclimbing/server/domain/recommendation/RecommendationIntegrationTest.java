@@ -45,6 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "classpath:sql/terms-data.sql",
         "classpath:sql/gyms-schema.sql",
         "classpath:sql/gyms-data.sql",
+        "classpath:sql/favorites-schema.sql",
         "classpath:sql/videos-schema.sql",
         "classpath:sql/notifications-schema.sql"
 }, executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
@@ -346,6 +347,9 @@ class RecommendationIntegrationTest {
     @DisplayName("암장 추천 — 사용자 임베딩이 없으면 거리순 fallback")
     void getNearbyGyms_withoutUserEmbedding_ordersByDistance() throws Exception {
         String viewer = register("viewer-gym-nearby@hola.com", "viewer");
+        long viewerId = userMapper.findByEmail("viewer-gym-nearby@hola.com").getId();
+        jdbcTemplate.update("INSERT INTO favorites (user_id, gym_id) VALUES (?, ?)", viewerId, 1L);
+        setAlwaysOpenBusinessHours(1L);
 
         mockMvc.perform(get("/api/recommendations/gyms")
                         .param("lat", "37.5000")
@@ -360,9 +364,15 @@ class RecommendationIntegrationTest {
                         "gyms/profile-images/1/seed.jpg")))
                 .andExpect(jsonPath("$.data[0].thumbnailUrl").value(org.hamcrest.Matchers.containsString(
                         "X-Goog-Signature=")))
+                .andExpect(jsonPath("$.data[0].businessHours.mon.open").value("00:00"))
+                .andExpect(jsonPath("$.data[0].isOpen").value(true))
+                .andExpect(jsonPath("$.data[0].isFavorite").value(true))
                 .andExpect(jsonPath("$.data[0].rankingDistance").doesNotExist())
                 .andExpect(jsonPath("$.data[0].source").value("nearby"))
                 .andExpect(jsonPath("$.data[1].id").value(2))
+                .andExpect(jsonPath("$.data[1].businessHours").isEmpty())
+                .andExpect(jsonPath("$.data[1].isOpen").value(false))
+                .andExpect(jsonPath("$.data[1].isFavorite").value(false))
                 .andExpect(jsonPath("$.data[1].source").value("nearby"));
     }
 
@@ -493,6 +503,20 @@ class RecommendationIntegrationTest {
             }
         }
         return vector.append(']').toString();
+    }
+
+    private void setAlwaysOpenBusinessHours(Long gymId) {
+        jdbcTemplate.update("""
+                UPDATE gyms SET business_hours = '{
+                  "mon": {"open": "00:00", "close": "23:59"},
+                  "tue": {"open": "00:00", "close": "23:59"},
+                  "wed": {"open": "00:00", "close": "23:59"},
+                  "thu": {"open": "00:00", "close": "23:59"},
+                  "fri": {"open": "00:00", "close": "23:59"},
+                  "sat": {"open": "00:00", "close": "23:59"},
+                  "sun": {"open": "00:00", "close": "23:59"}
+                }'::jsonb WHERE id = ?
+                """, gymId);
     }
 
     /** 회원가입 → 이메일 인증 → 로그인까지 완료하고 accessToken을 반환. */

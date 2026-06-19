@@ -10,6 +10,8 @@ import com.holaclimbing.server.domain.recommendation.dto.response.RecommendedVid
 import com.holaclimbing.server.domain.recommendation.domain.RecommendationFeedSnapshot;
 import com.holaclimbing.server.domain.recommendation.mapper.RecommendationInteractionMapper;
 import com.holaclimbing.server.domain.recommendation.mapper.RecommendationMapper;
+import com.holaclimbing.server.domain.gym.dto.DayHours;
+import com.holaclimbing.server.domain.gym.service.GymOperatingStatusResolver;
 import com.holaclimbing.server.domain.gym.service.GymProfileImageUrlResolver;
 import com.holaclimbing.server.domain.video.domain.Video;
 import com.holaclimbing.server.infrastructure.gcs.GcsStorageService;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +42,7 @@ public class RecommendationServiceImpl implements RecommendationService {
     private final RecommendationFeedSnapshotStore snapshotStore;
     private final GcsStorageService gcsStorageService;
     private final GymProfileImageUrlResolver profileImageUrlResolver;
+    private final GymOperatingStatusResolver operatingStatusResolver;
 
     @Override
     public CursorPageResponse<RecommendedVideoResponse> getVideoFeed(Long userId, String cursor, int size) {
@@ -183,7 +187,16 @@ public class RecommendationServiceImpl implements RecommendationService {
         validateNearbyGymRequest(lat, lng, radiusKm);
         return recommendationMapper.findNearbyGyms(userId, lat, lng, radiusKm, size)
                 .stream()
-                .map(gym -> RecommendedGymResponse.from(gym, profileImageUrlResolver.resolve(gym.getThumbnailUrl())))
+                .map(gym -> {
+                    Map<String, DayHours> businessHours =
+                            operatingStatusResolver.parseBusinessHours(gym.getBusinessHours());
+                    return RecommendedGymResponse.from(
+                            gym,
+                            profileImageUrlResolver.resolve(gym.getThumbnailUrl()),
+                            businessHours,
+                            operatingStatusResolver.isOpenNow(businessHours),
+                            Boolean.TRUE.equals(gym.getFavorite()));
+                })
                 .toList();
     }
 
