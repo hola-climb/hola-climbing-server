@@ -2,7 +2,7 @@ package com.holaclimbing.server.domain.admin.dto.response;
 
 import com.holaclimbing.server.domain.admin.domain.AdminAuditLog;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record AdminAuditLogResponse(
         Long id,
@@ -13,7 +13,7 @@ public record AdminAuditLogResponse(
         String reason,
         String beforeJson,
         String afterJson,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
 
     public static AdminAuditLogResponse from(AdminAuditLog log) {

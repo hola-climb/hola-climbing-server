@@ -3,7 +3,7 @@ package com.holaclimbing.server.domain.admin.dto.response;
 import com.holaclimbing.server.domain.gym.domain.Gym;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record AdminGymSearchResponse(
         Long id,
@@ -14,8 +14,8 @@ public record AdminGymSearchResponse(
         Long createdBy,
         BigDecimal ratingAvg,
         int ratingCount,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
 ) {
 
     public static AdminGymSearchResponse from(Gym gym) {

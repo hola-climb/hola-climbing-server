@@ -3,7 +3,7 @@ package com.holaclimbing.server.domain.stats.dto.response;
 import com.holaclimbing.server.domain.stats.domain.ClimbingLog;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 /**
@@ -17,8 +17,8 @@ public record ClimbingLogResponse(
         Map<String, Integer> gradeCounts,
         int totalProblems,
         String memo,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
 ) {
 
     public static ClimbingLogResponse of(ClimbingLog log, Map<String, Integer> gradeCounts) {

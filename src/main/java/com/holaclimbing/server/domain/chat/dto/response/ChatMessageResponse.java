@@ -2,7 +2,7 @@ package com.holaclimbing.server.domain.chat.dto.response;
 
 import com.holaclimbing.server.domain.chat.domain.ChatMessage;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record ChatMessageResponse(
         Long id,
@@ -10,7 +10,7 @@ public record ChatMessageResponse(
         Long userId,
         String content,
         boolean verifiedAtGym,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
     public static ChatMessageResponse of(ChatMessage message) {
         return new ChatMessageResponse(

@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 사용자 클라이밍 통계 조회용 projection.
@@ -21,6 +21,6 @@ public class Stats {
     private int totalVideos;
     private long totalClimbingSeconds;
     private String techniqueCounts;
-    private LocalDateTime lastClimbedAt;
-    private LocalDateTime updatedAt;
+    private OffsetDateTime lastClimbedAt;
+    private OffsetDateTime updatedAt;
 }

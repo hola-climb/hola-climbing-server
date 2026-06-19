@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 약관 버전. terms_versions 테이블 매핑.
@@ -23,5 +23,5 @@ public class TermVersion {
     private String title;
     private String content;
     private Boolean isRequired;
-    private LocalDateTime effectiveAt;
+    private OffsetDateTime effectiveAt;
 }

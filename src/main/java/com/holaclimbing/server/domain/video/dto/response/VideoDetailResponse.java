@@ -4,7 +4,7 @@ import com.holaclimbing.server.domain.gym.dto.response.GymGradeResponse;
 import com.holaclimbing.server.domain.video.domain.Video;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record VideoDetailResponse(
         Long id,
@@ -27,8 +27,8 @@ public record VideoDetailResponse(
         int likeCount,
         int commentCount,
         boolean isLiked,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
 ) {
     /** streamUrl은 GCS 읽기 Signed URL — 서비스 계층에서 발급해 주입한다. */
     public static VideoDetailResponse of(Video video, boolean isLiked, String streamUrl) {

@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 암장별 난이도 마스터. gym_grades 테이블 매핑.
@@ -21,6 +21,6 @@ public class GymGrade {
     private String label;
     private int difficultyOrder;
     private boolean active;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 }

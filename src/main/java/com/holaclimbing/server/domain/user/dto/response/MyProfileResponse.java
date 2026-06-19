@@ -2,7 +2,7 @@ package com.holaclimbing.server.domain.user.dto.response;
 
 import com.holaclimbing.server.domain.user.domain.User;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record MyProfileResponse(
         Long userId,
@@ -13,7 +13,7 @@ public record MyProfileResponse(
         boolean emailVerified,
         long followerCount,
         long followingCount,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
     public static MyProfileResponse of(User user, long followerCount, long followingCount) {
         return of(user, followerCount, followingCount, user.getProfileImage());

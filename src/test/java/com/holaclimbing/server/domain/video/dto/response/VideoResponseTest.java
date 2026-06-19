@@ -6,7 +6,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,6 +38,14 @@ class VideoResponseTest {
         assertThat(response.gymName()).isEqualTo("TheClimb Gangnam");
     }
 
+    @Test
+    @DisplayName("영상 응답의 생성 시각은 timezone offset을 포함한다")
+    void videoResponsesExposeOffsetDateTime() {
+        VideoDetailResponse response = VideoDetailResponse.of(video(), false, "https://cdn.example/video.mp4");
+
+        assertThat(response.createdAt()).isInstanceOf(OffsetDateTime.class);
+    }
+
     private Video video() {
         return Video.builder()
                 .id(1L)
@@ -53,8 +62,8 @@ class VideoResponseTest {
                 .recordedDate(LocalDate.of(2026, 6, 3))
                 .status("done")
                 .isPublic(true)
-                .createdAt(LocalDateTime.of(2026, 6, 3, 12, 0))
-                .updatedAt(LocalDateTime.of(2026, 6, 3, 12, 1))
+                .createdAt(OffsetDateTime.of(2026, 6, 3, 12, 0, 0, 0, ZoneOffset.ofHours(9)))
+                .updatedAt(OffsetDateTime.of(2026, 6, 3, 12, 1, 0, 0, ZoneOffset.ofHours(9)))
                 .build();
     }
 }

@@ -13,7 +13,7 @@ CREATE TABLE notifications (
     title           VARCHAR(200),
     content         TEXT,
     is_read         BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE user_notification_settings (
@@ -24,5 +24,5 @@ CREATE TABLE user_notification_settings (
     notify_follow   BOOLEAN NOT NULL DEFAULT TRUE,
     notify_chat     BOOLEAN NOT NULL DEFAULT TRUE,
     notify_system   BOOLEAN NOT NULL DEFAULT TRUE,
-    updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

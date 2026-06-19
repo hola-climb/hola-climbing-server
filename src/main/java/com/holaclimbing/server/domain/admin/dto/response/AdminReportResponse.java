@@ -2,7 +2,7 @@ package com.holaclimbing.server.domain.admin.dto.response;
 
 import com.holaclimbing.server.domain.report.domain.Report;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record AdminReportResponse(
         Long id,
@@ -13,8 +13,8 @@ public record AdminReportResponse(
         String reason,
         String status,
         Long reviewedBy,
-        LocalDateTime reviewedAt,
-        LocalDateTime createdAt
+        OffsetDateTime reviewedAt,
+        OffsetDateTime createdAt
 ) {
 
     public static AdminReportResponse from(Report report) {

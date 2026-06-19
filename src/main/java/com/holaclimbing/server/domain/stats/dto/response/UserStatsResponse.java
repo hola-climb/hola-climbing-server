@@ -3,7 +3,7 @@ package com.holaclimbing.server.domain.stats.dto.response;
 import com.holaclimbing.server.domain.stats.domain.DynamicSegmentCounts;
 import com.holaclimbing.server.domain.stats.domain.Stats;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 /**
@@ -25,7 +25,7 @@ public record UserStatsResponse(
         long dynamicCount,
         long staticCount,
         boolean isDynamic,
-        LocalDateTime lastClimbedAt
+        OffsetDateTime lastClimbedAt
 ) {
     public static UserStatsResponse of(Stats stats,
                                        Map<String, Integer> techniqueCounts,

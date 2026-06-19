@@ -1,21 +1,21 @@
 package com.holaclimbing.server.domain.recommendation.dto;
 
 import com.holaclimbing.server.domain.video.domain.Video;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public class RecommendationCursor {
 
     private final int distanceNullRank;
     private final Double rankingDistance;
     private final int followingRank;
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
     private final Long id;
 
     public RecommendationCursor(
             int distanceNullRank,
             Double rankingDistance,
             int followingRank,
-            LocalDateTime createdAt,
+            OffsetDateTime createdAt,
             Long id) {
         this.distanceNullRank = distanceNullRank;
         this.rankingDistance = rankingDistance;
@@ -45,7 +45,7 @@ public class RecommendationCursor {
         return followingRank;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
 

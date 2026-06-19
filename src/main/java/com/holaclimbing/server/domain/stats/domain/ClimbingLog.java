@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 사용자가 직접 작성하는 클라이밍 기록. climbing_logs 테이블 매핑.
@@ -24,7 +24,7 @@ public class ClimbingLog {
     private LocalDate climbedOn;
     private String gradeCounts;
     private String memo;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    private LocalDateTime deletedAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
+    private OffsetDateTime deletedAt;
 }

@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 알림 엔티티. notifications 테이블 매핑.
@@ -25,5 +25,5 @@ public class Notification {
     private String title;
     private String content;
     private boolean isRead;
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

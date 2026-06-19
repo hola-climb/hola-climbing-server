@@ -2,7 +2,7 @@ package com.holaclimbing.server.domain.notification.dto.response;
 
 import com.holaclimbing.server.domain.notification.domain.Notification;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record NotificationResponse(
         Long id,
@@ -13,7 +13,7 @@ public record NotificationResponse(
         String title,
         String content,
         boolean isRead,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
     public static NotificationResponse from(Notification n) {
         return new NotificationResponse(

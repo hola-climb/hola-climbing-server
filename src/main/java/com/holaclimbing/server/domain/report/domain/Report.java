@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 신고 엔티티. reports 테이블 매핑.
@@ -25,6 +25,6 @@ public class Report {
     private String reason;
     private String status;
     private Long reviewedBy;
-    private LocalDateTime reviewedAt;
-    private LocalDateTime createdAt;
+    private OffsetDateTime reviewedAt;
+    private OffsetDateTime createdAt;
 }

@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 분석 피드백 라벨. labels 테이블 매핑.
@@ -22,5 +22,5 @@ public class Label {
     private Long userId;
     private String technique;
     private Boolean isCorrect;
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

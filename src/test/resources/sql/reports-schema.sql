@@ -12,7 +12,7 @@ CREATE TABLE reports (
     reason          TEXT,
     status          VARCHAR(20) NOT NULL DEFAULT 'pending',
     reviewed_by     BIGINT REFERENCES users(id),
-    reviewed_at     TIMESTAMP,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    reviewed_at     TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (reporter_id, target_type, target_id)
 );

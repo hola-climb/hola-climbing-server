@@ -2,7 +2,7 @@ package com.holaclimbing.server.domain.video.dto.response;
 
 import com.holaclimbing.server.domain.video.domain.Comment;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record CommentResponse(
         Long id,
@@ -10,7 +10,7 @@ public record CommentResponse(
         Long userId,
         Long parentId,
         String content,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
     public static CommentResponse from(Comment comment) {
         return new CommentResponse(

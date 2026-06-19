@@ -2,7 +2,7 @@ package com.holaclimbing.server.domain.gym.dto.response;
 
 import com.holaclimbing.server.domain.gym.domain.GymReview;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record GymReviewResponse(
         Long id,
@@ -10,8 +10,8 @@ public record GymReviewResponse(
         Long userId,
         int rating,
         String content,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
 ) {
     public static GymReviewResponse of(GymReview review) {
         return new GymReviewResponse(

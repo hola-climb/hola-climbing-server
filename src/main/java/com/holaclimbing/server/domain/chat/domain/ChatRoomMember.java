@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 채팅방 멤버 엔티티. chat_room_members 테이블 매핑.
@@ -20,7 +20,7 @@ public class ChatRoomMember {
     private Long id;
     private Long roomId;
     private Long userId;
-    private LocalDateTime joinedAt;
+    private OffsetDateTime joinedAt;
     private Long lastReadMessageId;
-    private LocalDateTime leftAt;
+    private OffsetDateTime leftAt;
 }

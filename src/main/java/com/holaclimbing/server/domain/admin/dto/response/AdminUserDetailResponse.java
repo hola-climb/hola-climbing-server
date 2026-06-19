@@ -2,7 +2,7 @@ package com.holaclimbing.server.domain.admin.dto.response;
 
 import com.holaclimbing.server.domain.user.domain.User;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record AdminUserDetailResponse(
         Long id,
@@ -13,9 +13,9 @@ public record AdminUserDetailResponse(
         String role,
         String status,
         boolean emailVerified,
-        LocalDateTime lastLoginAt,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        OffsetDateTime lastLoginAt,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
 ) {
 
     public static AdminUserDetailResponse from(User user) {

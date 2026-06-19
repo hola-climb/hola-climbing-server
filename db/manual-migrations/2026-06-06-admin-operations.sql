@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS admin_audit_logs (
     reason      TEXT,
     before_json JSONB,
     after_json  JSONB,
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_admin_created

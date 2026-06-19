@@ -9,9 +9,9 @@ CREATE TABLE climbing_logs (
     climbed_on    DATE NOT NULL,
     grade_counts  JSONB NOT NULL DEFAULT '{}'::jsonb,
     memo          TEXT,
-    created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at    TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at    TIMESTAMP
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at    TIMESTAMPTZ
 );
 CREATE INDEX idx_climbing_logs_user_date ON climbing_logs(user_id, climbed_on)
     WHERE deleted_at IS NULL;

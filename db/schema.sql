@@ -29,10 +29,10 @@ CREATE TABLE users (
     -- AI 추천
     style_embedding             vector(64),
     -- 메타
-    last_login_at               TIMESTAMP,
-    created_at                  TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at                  TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at                  TIMESTAMP,
+    last_login_at               TIMESTAMPTZ,
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at                  TIMESTAMPTZ,
     CONSTRAINT chk_user_auth CHECK (
         (email IS NOT NULL AND password_hash IS NOT NULL) OR
         (provider IS NOT NULL AND provider_id IS NOT NULL)
@@ -59,7 +59,7 @@ CREATE TABLE admin_audit_logs (
     reason      TEXT,
     before_json JSONB,
     after_json  JSONB,
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_admin_audit_logs_admin_created
     ON admin_audit_logs(admin_id, created_at DESC);
@@ -72,7 +72,7 @@ CREATE TABLE follows (
     id              BIGSERIAL PRIMARY KEY,
     follower_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     following_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (follower_id, following_id),
     CHECK (follower_id <> following_id)
 );
@@ -85,7 +85,7 @@ CREATE TABLE user_blocks (
     blocker_id      BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     blocked_id      BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     reason          VARCHAR(200),
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (blocker_id, blocked_id),
     CHECK (blocker_id <> blocked_id)
 );
@@ -97,8 +97,8 @@ CREATE TABLE device_tokens (
     user_id         BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token           VARCHAR(500) NOT NULL UNIQUE,
     platform        VARCHAR(20) NOT NULL,  -- 'ios' | 'android'
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_device_tokens_user ON device_tokens(user_id);
 
@@ -111,7 +111,7 @@ CREATE TABLE user_notification_settings (
     notify_follow   BOOLEAN NOT NULL DEFAULT TRUE,
     notify_chat     BOOLEAN NOT NULL DEFAULT TRUE,
     notify_system   BOOLEAN NOT NULL DEFAULT TRUE,
-    updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 
@@ -122,8 +122,8 @@ CREATE TABLE terms_versions (
     title           VARCHAR(200) NOT NULL,
     content         TEXT NOT NULL,
     is_required     BOOLEAN NOT NULL DEFAULT TRUE,
-    effective_at    TIMESTAMP NOT NULL,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    effective_at    TIMESTAMPTZ NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (type, version)
 );
 
@@ -133,7 +133,7 @@ CREATE TABLE user_term_agreements (
     user_id         BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     term_version_id BIGINT NOT NULL REFERENCES terms_versions(id),
     agreed          BOOLEAN NOT NULL,
-    agreed_at       TIMESTAMP NOT NULL DEFAULT NOW(),
+    agreed_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (user_id, term_version_id)
 );
 CREATE INDEX idx_user_term_agreements_user ON user_term_agreements(user_id);
@@ -163,9 +163,9 @@ CREATE TABLE gyms (
     -- 메타
     status          VARCHAR(20) NOT NULL DEFAULT 'active',  -- 'active' | 'pending' | 'closed'
     created_by      BIGINT REFERENCES users(id),
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at      TIMESTAMP
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ
 );
 CREATE INDEX idx_gyms_name            ON gyms(name);
 CREATE INDEX idx_gyms_name_trgm       ON gyms USING gin (name gin_trgm_ops);
@@ -181,8 +181,8 @@ CREATE TABLE gym_grades (
     label            VARCHAR(50) NOT NULL,
     difficulty_order INTEGER NOT NULL,
     is_active        BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at       TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at       TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (gym_id, label),
     UNIQUE (gym_id, id)
 );
@@ -197,8 +197,8 @@ CREATE TABLE gym_reviews (
     user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     rating      SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
     content     TEXT,
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (gym_id, user_id)
 );
 CREATE INDEX idx_gym_reviews_gym ON gym_reviews(gym_id, created_at DESC);
@@ -231,9 +231,9 @@ CREATE TABLE videos (
     -- 상태
     status              VARCHAR(20) NOT NULL DEFAULT 'pending',  -- 'pending' | 'done' | 'failed'
     is_public           BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at          TIMESTAMP,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at          TIMESTAMPTZ,
     CONSTRAINT fk_videos_gym
         FOREIGN KEY (gym_id) REFERENCES gyms(id),
     CONSTRAINT fk_videos_gym_grade_same_gym
@@ -252,9 +252,9 @@ CREATE TABLE comments (
     video_id    BIGINT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
     parent_id   BIGINT REFERENCES comments(id) ON DELETE CASCADE,
     content     TEXT NOT NULL,
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at  TIMESTAMP
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at  TIMESTAMPTZ
 );
 CREATE INDEX idx_comments_video  ON comments(video_id, created_at);
 CREATE INDEX idx_comments_parent ON comments(parent_id) WHERE parent_id IS NOT NULL;
@@ -265,7 +265,7 @@ CREATE TABLE likes (
     id          BIGSERIAL PRIMARY KEY,
     user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     video_id    BIGINT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (user_id, video_id)
 );
 CREATE INDEX idx_likes_video ON likes(video_id);
@@ -289,7 +289,7 @@ CREATE TABLE analysis_results (
     confidence      REAL,
     -- 메타
     model_version   VARCHAR(50),  -- 'rule_v1' | 'lstm_v1' | 'videomae_v1'
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_analysis_video     ON analysis_results(video_id, sequence_index);
 CREATE INDEX idx_analysis_technique ON analysis_results(technique) WHERE technique IS NOT NULL;
@@ -306,9 +306,9 @@ CREATE TABLE analysis_video_results (
     feedback_applied        BOOLEAN NOT NULL DEFAULT FALSE,
     feedback_note           TEXT,
     corrected_by            BIGINT REFERENCES users(id) ON DELETE SET NULL,
-    corrected_at            TIMESTAMP,
-    created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
+    corrected_at            TIMESTAMPTZ,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT chk_analysis_video_dynamic_probability
         CHECK (ai_dynamic_probability IS NULL OR (ai_dynamic_probability >= 0 AND ai_dynamic_probability <= 1))
 );
@@ -325,7 +325,7 @@ CREATE TABLE labels (
     user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     technique   VARCHAR(50),
     is_correct  BOOLEAN,
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_labels_video ON labels(video_id);
 CREATE INDEX idx_labels_user  ON labels(user_id);
@@ -345,7 +345,7 @@ CREATE TABLE notifications (
     title           VARCHAR(200),
     content         TEXT,
     is_read         BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_notif_recipient_created ON notifications(recipient_id, created_at DESC);
 CREATE INDEX idx_notif_recipient_unread  ON notifications(recipient_id) WHERE is_read = FALSE;
@@ -364,8 +364,8 @@ CREATE TABLE reports (
     reason          TEXT,
     status          VARCHAR(20) NOT NULL DEFAULT 'pending',  -- 'pending' | 'reviewed' | 'resolved' | 'rejected'
     reviewed_by     BIGINT REFERENCES users(id),
-    reviewed_at     TIMESTAMP,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    reviewed_at     TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     -- 동일 신고자가 같은 대상을 중복 신고 불가 (서비스의 existsByReporterAndTarget 검사와 race가 나도 DB에서 차단).
     UNIQUE (reporter_id, target_type, target_id)
 );
@@ -381,7 +381,7 @@ CREATE TABLE favorites (
     id          BIGSERIAL PRIMARY KEY,
     user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     gym_id      BIGINT NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (user_id, gym_id)
 );
 CREATE INDEX idx_favorites_user ON favorites(user_id);
@@ -397,8 +397,8 @@ CREATE TABLE gym_board_posts (
     gym_id      BIGINT NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
     user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     content     VARCHAR(200) NOT NULL,
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at  TIMESTAMP
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at  TIMESTAMPTZ
 );
 CREATE INDEX idx_board_posts_gym ON gym_board_posts(gym_id, created_at DESC) WHERE deleted_at IS NULL;
 
@@ -407,7 +407,7 @@ CREATE TABLE chat_rooms (
     id          BIGSERIAL PRIMARY KEY,
     gym_id      BIGINT NOT NULL UNIQUE REFERENCES gyms(id) ON DELETE CASCADE,
     name        VARCHAR(100),
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 
@@ -415,9 +415,9 @@ CREATE TABLE chat_room_members (
     id                      BIGSERIAL PRIMARY KEY,
     room_id                 BIGINT NOT NULL REFERENCES chat_rooms(id) ON DELETE CASCADE,
     user_id                 BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    joined_at               TIMESTAMP NOT NULL DEFAULT NOW(),
+    joined_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_read_message_id    BIGINT,  -- FK 생략 (메시지 삭제돼도 안전)
-    left_at                 TIMESTAMP,
+    left_at                 TIMESTAMPTZ,
     UNIQUE (room_id, user_id)
 );
 CREATE INDEX idx_chat_members_user ON chat_room_members(user_id) WHERE left_at IS NULL;
@@ -430,8 +430,8 @@ CREATE TABLE chat_messages (
     user_id         BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     content         TEXT NOT NULL,
     verified_at_gym BOOLEAN NOT NULL DEFAULT FALSE,  -- 작성 시 암장 300m 반경 내 여부
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at      TIMESTAMP
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ
 );
 CREATE INDEX idx_chat_messages_room ON chat_messages(room_id, created_at DESC);
 
@@ -446,8 +446,8 @@ CREATE TABLE user_stats (
     total_climbing_seconds  BIGINT NOT NULL DEFAULT 0,
     -- 동작별 빈도: {"highstep": 12, "flagging": 8, ...}
     technique_counts        JSONB NOT NULL DEFAULT '{}'::jsonb,
-    last_climbed_at         TIMESTAMP,
-    updated_at              TIMESTAMP NOT NULL DEFAULT NOW()
+    last_climbed_at         TIMESTAMPTZ,
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- 사용자가 직접 기록하는 클라이밍 로그 (달력 기능의 원천 데이터, F-03-03).
@@ -460,9 +460,9 @@ CREATE TABLE climbing_logs (
     -- 난이도별 푼 문제 수: {"빨강": 3, "파랑": 5, ...}
     grade_counts  JSONB NOT NULL DEFAULT '{}'::jsonb,
     memo          TEXT,
-    created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at    TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at    TIMESTAMP
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at    TIMESTAMPTZ
 );
 CREATE INDEX idx_climbing_logs_user_date ON climbing_logs(user_id, climbed_on)
     WHERE deleted_at IS NULL;
@@ -491,7 +491,7 @@ AI 분석 결과와 통계는 운동 자세 개선을 돕는 참고 정보이며
 
 제6조 탈퇴와 분쟁
 회원은 언제든지 탈퇴할 수 있으며 탈퇴 후 법령상 보관이 필요한 정보와 부정 이용 방지에 필요한 최소 정보를 제외하고 관련 정보는 처리방침에 따라 삭제됩니다. 서비스 이용과 관련한 분쟁에는 대한민국 법령을 적용합니다.
-$terms$, TRUE, TIMESTAMP '2026-01-01 00:00:00'),
+$terms$, TRUE, TIMESTAMPTZ '2026-01-01 00:00:00'),
 ('privacy', '1.0', '개인정보 처리방침', $terms$
 1. 수집하는 개인정보
 Hola Climbing은 회원가입과 서비스 제공을 위해 이메일, 닉네임, 비밀번호 해시, 프로필 이미지, 회원 상태, 약관 동의 내역을 처리합니다. 서비스 이용 과정에서 영상, 썸네일, 댓글, 리뷰, 채팅 메시지, 클라이밍 기록, 신고 내용, 알림 설정, 기기 토큰, 접속 로그, 요청 식별자, IP, User-Agent가 생성될 수 있습니다. 위치 기반 기능을 사용할 때는 위도, 경도, 요청 시각, 암장과의 거리 또는 위치 인증 결과가 처리될 수 있습니다.
@@ -510,14 +510,14 @@ Hola Climbing은 회원가입과 서비스 제공을 위해 이메일, 닉네임
 
 6. 안전성 확보 조치
 운영자는 비밀번호 단방향 암호화, 접근 권한 관리, 전송 구간 보호, 로그와 모니터링, 불필요한 개인정보 최소화 등 합리적인 보호 조치를 적용합니다.
-$terms$, TRUE, TIMESTAMP '2026-01-01 00:00:00'),
+$terms$, TRUE, TIMESTAMPTZ '2026-01-01 00:00:00'),
 ('marketing', '1.0', '마케팅 정보 수신 동의', $terms$
 Hola Climbing은 이벤트, 신규 기능, 서비스 업데이트, 프로모션, 설문, 혜택 안내를 위해 이메일 또는 앱 푸시 알림을 발송할 수 있습니다.
 
 수집 및 이용 항목은 이메일, 닉네임, 기기 토큰, 알림 수신 설정, 서비스 이용 이력 중 안내 대상 선별에 필요한 최소 정보입니다. 보유 및 이용 기간은 동의 철회 또는 회원 탈퇴 시까지입니다.
 
 마케팅 정보 수신 동의는 선택 사항이며, 동의하지 않아도 회원가입과 기본 서비스 이용에는 제한이 없습니다. 회원은 앱의 알림 설정, 기기 설정 또는 운영자가 제공하는 방법을 통해 언제든지 수신 동의를 철회할 수 있습니다.
-$terms$, FALSE, TIMESTAMP '2026-01-01 00:00:00'),
+$terms$, FALSE, TIMESTAMPTZ '2026-01-01 00:00:00'),
 ('location', '1.0', '위치기반서비스 이용약관', $terms$
 제1조 목적
 이 약관은 Hola Climbing이 위치정보를 활용해 제공하는 주변 암장 조회, 암장 기반 채팅, GPS 기반 암장 인증, 위치 인증 메시지 표시 등 위치기반서비스의 이용 조건을 정합니다.
@@ -530,4 +530,4 @@ $terms$, FALSE, TIMESTAMP '2026-01-01 00:00:00'),
 
 제4조 금지행위와 책임
 회원은 GPS 조작, 허위 위치 전송, 타인의 위치정보 도용 등 위치기반서비스의 신뢰를 해치는 행위를 해서는 안 됩니다. 운영자는 허위 위치 인증이 의심되는 경우 해당 기능 이용을 제한하거나 관련 콘텐츠를 조치할 수 있습니다.
-$terms$, FALSE, TIMESTAMP '2026-01-01 00:00:00');
+$terms$, FALSE, TIMESTAMPTZ '2026-01-01 00:00:00');

@@ -7,6 +7,6 @@ CREATE TABLE user_stats (
     total_videos            INTEGER NOT NULL DEFAULT 0,
     total_climbing_seconds  BIGINT NOT NULL DEFAULT 0,
     technique_counts        JSONB NOT NULL DEFAULT '{}'::jsonb,
-    last_climbed_at         TIMESTAMP,
-    updated_at              TIMESTAMP NOT NULL DEFAULT NOW()
+    last_climbed_at         TIMESTAMPTZ,
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

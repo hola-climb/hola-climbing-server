@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Getter
 @Builder
@@ -21,5 +21,5 @@ public class AdminAuditLog {
     private String reason;
     private String beforeJson;
     private String afterJson;
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

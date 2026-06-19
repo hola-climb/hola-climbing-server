@@ -10,8 +10,8 @@ CREATE TABLE IF NOT EXISTS gym_grades (
     label            VARCHAR(50) NOT NULL,
     difficulty_order INTEGER NOT NULL,
     is_active        BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at       TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at       TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (gym_id, label),
     UNIQUE (gym_id, id)
 );

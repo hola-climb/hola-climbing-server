@@ -24,9 +24,9 @@ CREATE TABLE videos (
     comment_count       INTEGER NOT NULL DEFAULT 0,
     status              VARCHAR(20) NOT NULL DEFAULT 'pending',
     is_public           BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at          TIMESTAMP,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at          TIMESTAMPTZ,
     CONSTRAINT fk_videos_gym
         FOREIGN KEY (gym_id) REFERENCES gyms(id),
     CONSTRAINT fk_videos_gym_grade_same_gym
@@ -39,15 +39,15 @@ CREATE TABLE comments (
     video_id    BIGINT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
     parent_id   BIGINT REFERENCES comments(id) ON DELETE CASCADE,
     content     TEXT NOT NULL,
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at  TIMESTAMP
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at  TIMESTAMPTZ
 );
 
 CREATE TABLE likes (
     id          BIGSERIAL PRIMARY KEY,
     user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     video_id    BIGINT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (user_id, video_id)
 );

@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 영상 분석 결과 한 세그먼트. analysis_results 테이블 매핑.
@@ -26,5 +26,5 @@ public class AnalysisResult {
     private Boolean isDynamic;
     private Float confidence;
     private String modelVersion;
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

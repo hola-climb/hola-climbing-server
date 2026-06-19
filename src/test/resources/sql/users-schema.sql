@@ -26,10 +26,10 @@ CREATE TABLE users (
     style_embedding             vector(64),
     role                        VARCHAR(20) NOT NULL DEFAULT 'USER',
     status                      VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
-    last_login_at               TIMESTAMP,
-    created_at                  TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at                  TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at                  TIMESTAMP,
+    last_login_at               TIMESTAMPTZ,
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at                  TIMESTAMPTZ,
     CONSTRAINT chk_user_auth CHECK (
         (email IS NOT NULL AND password_hash IS NOT NULL) OR
         (provider IS NOT NULL AND provider_id IS NOT NULL)
@@ -51,7 +51,7 @@ CREATE TABLE admin_audit_logs (
     reason      TEXT,
     before_json JSONB,
     after_json  JSONB,
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_admin_audit_logs_admin_created
     ON admin_audit_logs(admin_id, created_at DESC);
@@ -62,7 +62,7 @@ CREATE TABLE follows (
     id              BIGSERIAL PRIMARY KEY,
     follower_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     following_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (follower_id, following_id),
     CHECK (follower_id <> following_id)
 );
@@ -72,7 +72,7 @@ CREATE TABLE user_blocks (
     blocker_id      BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     blocked_id      BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     reason          VARCHAR(200),
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (blocker_id, blocked_id),
     CHECK (blocker_id <> blocked_id)
 );
@@ -84,8 +84,8 @@ CREATE TABLE terms_versions (
     title           VARCHAR(200) NOT NULL,
     content         TEXT NOT NULL,
     is_required     BOOLEAN NOT NULL DEFAULT TRUE,
-    effective_at    TIMESTAMP NOT NULL,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    effective_at    TIMESTAMPTZ NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (type, version)
 );
 
@@ -94,7 +94,7 @@ CREATE TABLE user_term_agreements (
     user_id         BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     term_version_id BIGINT NOT NULL REFERENCES terms_versions(id),
     agreed          BOOLEAN NOT NULL,
-    agreed_at       TIMESTAMP NOT NULL DEFAULT NOW(),
+    agreed_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (user_id, term_version_id)
 );
 
@@ -104,6 +104,6 @@ CREATE TABLE device_tokens (
     user_id         BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token           VARCHAR(500) NOT NULL UNIQUE,
     platform        VARCHAR(20) NOT NULL,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

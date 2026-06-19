@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 채팅 메시지 엔티티. chat_messages 테이블 매핑.
@@ -21,6 +21,6 @@ public class ChatMessage {
     private Long userId;
     private String content;
     private boolean verifiedAtGym;
-    private LocalDateTime createdAt;
-    private LocalDateTime deletedAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime deletedAt;
 }

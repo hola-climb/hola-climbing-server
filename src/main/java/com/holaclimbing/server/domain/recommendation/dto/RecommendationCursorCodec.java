@@ -6,7 +6,7 @@ import com.holaclimbing.server.common.exception.BusinessException;
 import com.holaclimbing.server.common.exception.error.ErrorCode;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.Base64;
 
@@ -47,7 +47,7 @@ public final class RecommendationCursorCodec {
                     payload.distanceNullRank(),
                     payload.rankingDistance(),
                     payload.followingRank(),
-                    LocalDateTime.parse(payload.createdAt()),
+                    OffsetDateTime.parse(payload.createdAt()),
                     payload.id());
         } catch (IllegalArgumentException | IOException | DateTimeParseException e) {
             throw invalidCursor();

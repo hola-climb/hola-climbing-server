@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * FCM 디바이스 토큰. device_tokens 테이블 매핑.
@@ -21,6 +21,6 @@ public class DeviceToken {
     private Long userId;
     private String token;
     private String platform;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 }

@@ -9,16 +9,16 @@ CREATE TABLE chat_rooms (
     id          BIGSERIAL PRIMARY KEY,
     gym_id      BIGINT NOT NULL UNIQUE REFERENCES gyms(id) ON DELETE CASCADE,
     name        VARCHAR(100),
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE chat_room_members (
     id                      BIGSERIAL PRIMARY KEY,
     room_id                 BIGINT NOT NULL REFERENCES chat_rooms(id) ON DELETE CASCADE,
     user_id                 BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    joined_at               TIMESTAMP NOT NULL DEFAULT NOW(),
+    joined_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_read_message_id    BIGINT,
-    left_at                 TIMESTAMP,
+    left_at                 TIMESTAMPTZ,
     UNIQUE (room_id, user_id)
 );
 
@@ -28,6 +28,6 @@ CREATE TABLE chat_messages (
     user_id         BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     content         TEXT NOT NULL,
     verified_at_gym BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
-    deleted_at      TIMESTAMP
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ
 );

@@ -75,4 +75,22 @@ class FlywayMigrationIntegrationTest {
         assertThat(serviceContent).contains("Hola Climbing", "서비스 이용");
         assertThat(locationContent).contains("위치정보", "암장 인증");
     }
+
+    @Test
+    @DisplayName("Flyway migrations use TIMESTAMPTZ for every app timestamp column")
+    void flywayMigrations_useTimestamptzForTimestampColumns() {
+        Integer timestampWithoutTimeZoneCount = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.columns c
+                JOIN information_schema.tables t
+                  ON t.table_schema = c.table_schema
+                 AND t.table_name = c.table_name
+                WHERE c.table_schema = 'public'
+                  AND t.table_type = 'BASE TABLE'
+                  AND c.table_name <> 'flyway_schema_history'
+                  AND c.data_type = 'timestamp without time zone'
+                """, Integer.class);
+
+        assertThat(timestampWithoutTimeZoneCount).isZero();
+    }
 }

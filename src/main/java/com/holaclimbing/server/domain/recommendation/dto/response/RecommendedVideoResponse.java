@@ -4,7 +4,7 @@ import com.holaclimbing.server.domain.gym.dto.response.GymGradeResponse;
 import com.holaclimbing.server.domain.video.domain.Video;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 추천 피드 영상. source는 'following'(팔로잉) 또는 'recommended'(추천).
@@ -26,7 +26,7 @@ public record RecommendedVideoResponse(
         int likeCount,
         int commentCount,
         String source,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
     public static RecommendedVideoResponse of(Video video, String streamUrl, String source) {
         return of(video, streamUrl, null, source);

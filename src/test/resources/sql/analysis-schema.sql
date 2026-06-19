@@ -15,7 +15,7 @@ CREATE TABLE analysis_results (
     is_dynamic      BOOLEAN,
     confidence      REAL,
     model_version   VARCHAR(50),
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE analysis_video_results (
@@ -29,9 +29,9 @@ CREATE TABLE analysis_video_results (
     feedback_applied        BOOLEAN NOT NULL DEFAULT FALSE,
     feedback_note           TEXT,
     corrected_by            BIGINT REFERENCES users(id) ON DELETE SET NULL,
-    corrected_at            TIMESTAMP,
-    created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
+    corrected_at            TIMESTAMPTZ,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT chk_analysis_video_dynamic_probability
         CHECK (ai_dynamic_probability IS NULL OR (ai_dynamic_probability >= 0 AND ai_dynamic_probability <= 1))
 );
@@ -42,5 +42,5 @@ CREATE TABLE labels (
     user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     technique   VARCHAR(50),
     is_correct  BOOLEAN,
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

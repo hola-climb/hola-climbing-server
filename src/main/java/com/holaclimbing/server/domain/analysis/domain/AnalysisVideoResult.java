@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 영상 단위 대표 분석 결과. 세그먼트 raw 결과와 분리해 클라이언트 표시·피드백·모델 통계에 사용한다.
@@ -26,7 +26,7 @@ public class AnalysisVideoResult {
     private boolean feedbackApplied;
     private String feedbackNote;
     private Long correctedBy;
-    private LocalDateTime correctedAt;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private OffsetDateTime correctedAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 }

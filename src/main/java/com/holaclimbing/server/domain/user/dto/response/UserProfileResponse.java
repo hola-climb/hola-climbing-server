@@ -2,7 +2,7 @@ package com.holaclimbing.server.domain.user.dto.response;
 
 import com.holaclimbing.server.domain.user.domain.User;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record UserProfileResponse(
         Long userId,
@@ -12,7 +12,7 @@ public record UserProfileResponse(
         long followerCount,
         long followingCount,
         boolean isFollowing,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
     public static UserProfileResponse of(User user, long followerCount, long followingCount, boolean isFollowing) {
         return of(user, followerCount, followingCount, isFollowing, user.getProfileImage());
