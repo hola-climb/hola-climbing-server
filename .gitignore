@@ -64,3 +64,8 @@ build/
 .agents/
 AGENTS.md
 CLAUDE.md
+
+### Operational DB backups ###
+db/backups/
+ops/gym-import/backups/
+ops/gym-import/output*/
