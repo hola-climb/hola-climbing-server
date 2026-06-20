@@ -1,6 +1,8 @@
 package com.holaclimbing.server.domain.user.oauth;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.holaclimbing.server.common.exception.BusinessException;
 import com.holaclimbing.server.common.exception.error.ErrorCode;
 import org.slf4j.Logger;
@@ -18,10 +20,12 @@ abstract class AbstractOAuthProviderClient implements OAuthProviderClient {
 
     private final RestClient restClient;
     private final OAuthProperties properties;
+    private final ObjectMapper objectMapper;
 
-    protected AbstractOAuthProviderClient(RestClient.Builder builder, OAuthProperties properties) {
+    protected AbstractOAuthProviderClient(RestClient.Builder builder, OAuthProperties properties, ObjectMapper objectMapper) {
         this.restClient = builder.build();
         this.properties = properties;
+        this.objectMapper = objectMapper;
     }
 
     protected String exchangeCodeForAccessToken(OAuthAuthorizationCodeRequest request) {
@@ -40,12 +44,13 @@ abstract class AbstractOAuthProviderClient implements OAuthProviderClient {
         body.add("redirect_uri", request.redirectUri());
 
         try {
-            JsonNode response = restClient.post()
+            String responseBody = restClient.post()
                     .uri(providerProperties.tokenUri())
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                     .body(body)
                     .retrieve()
-                    .body(JsonNode.class);
+                    .body(String.class);
+            JsonNode response = parseJson(request.provider(), "token exchange", responseBody);
             String accessToken = response == null ? null : response.path("access_token").asText(null);
             if (isBlank(accessToken)) {
                 throw new BusinessException(ErrorCode.OAUTH_AUTHORIZATION_FAILED);
@@ -70,11 +75,12 @@ abstract class AbstractOAuthProviderClient implements OAuthProviderClient {
             throw new BusinessException(ErrorCode.OAUTH_AUTHORIZATION_FAILED);
         }
         try {
-            return restClient.get()
+            String responseBody = restClient.get()
                     .uri(providerProperties.userInfoUri())
                     .headers(headers -> headers.setBearerAuth(accessToken))
                     .retrieve()
-                    .body(JsonNode.class);
+                    .body(String.class);
+            return parseJson(provider, "userinfo", responseBody);
         } catch (RestClientResponseException e) {
             log.warn("OAuth userinfo request failed: provider={}, status={}, body={}",
                     provider.value(), e.getStatusCode(), abbreviate(e.getResponseBodyAsString()));
@@ -95,5 +101,19 @@ abstract class AbstractOAuthProviderClient implements OAuthProviderClient {
             return value;
         }
         return value.substring(0, MAX_ERROR_BODY_LENGTH) + "...";
+    }
+
+    private JsonNode parseJson(OAuthProvider provider, String step, String responseBody) {
+        if (isBlank(responseBody)) {
+            log.warn("OAuth {} returned empty response body: provider={}", step, provider.value());
+            throw new BusinessException(ErrorCode.OAUTH_AUTHORIZATION_FAILED);
+        }
+        try {
+            return objectMapper.readTree(responseBody);
+        } catch (JsonProcessingException e) {
+            log.warn("OAuth {} returned invalid JSON: provider={}, bodyLength={}, error={}",
+                    step, provider.value(), responseBody.length(), e.toString());
+            throw new BusinessException(ErrorCode.OAUTH_AUTHORIZATION_FAILED);
+        }
     }
 }

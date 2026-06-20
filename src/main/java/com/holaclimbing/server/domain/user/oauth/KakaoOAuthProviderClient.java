@@ -1,14 +1,15 @@
 package com.holaclimbing.server.domain.user.oauth;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 @Component
 public class KakaoOAuthProviderClient extends AbstractOAuthProviderClient {
 
-    public KakaoOAuthProviderClient(RestClient.Builder builder, OAuthProperties properties) {
-        super(builder, properties);
+    public KakaoOAuthProviderClient(RestClient.Builder builder, OAuthProperties properties, ObjectMapper objectMapper) {
+        super(builder, properties, objectMapper);
     }
 
     @Override
