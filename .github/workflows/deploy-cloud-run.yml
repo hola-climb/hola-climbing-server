@@ -83,6 +83,7 @@ jobs:
             APP_BASE_URL=${{ vars.BACKEND_PUBLIC_ORIGIN }}
             FRONTEND_BASE_URL=${{ vars.FRONTEND_BASE_URL }}
             CORS_ALLOWED_ORIGINS=${{ vars.FRONTEND_ORIGINS }}
+            OAUTH_ALLOWED_REDIRECT_URIS=${{ vars.OAUTH_ALLOWED_REDIRECT_URIS }}
             SPRING_FLYWAY_ENABLED=true
             SPRING_FLYWAY_BASELINE_ON_MIGRATE=false
             SPRING_DATASOURCE_URL=jdbc:postgresql://${{ vars.AI_VM_PRIVATE_IP }}:5432/hola_climbing
@@ -104,6 +105,8 @@ jobs:
             FCM_CREDENTIALS_PATH=/secrets/firebase/firebase-sa.json
             ADMIN_BOOTSTRAP_ENABLED=false
             ADMIN_BOOTSTRAP_EMAIL=hola.climbing@gmail.com
+            KAKAO_OAUTH_CLIENT_ID=${{ vars.KAKAO_OAUTH_CLIENT_ID }}
+            NAVER_OAUTH_CLIENT_ID=${{ vars.NAVER_OAUTH_CLIENT_ID }}
           secrets: |-
             SPRING_DATASOURCE_PASSWORD=hola-postgres-password:latest
             SPRING_DATA_REDIS_PASSWORD=hola-redis-password:latest
@@ -111,6 +114,8 @@ jobs:
             AI_CALLBACK_SECRET=hola-ai-callback-secret:latest
             METRICS_TOKEN=hola-metrics-token:latest
             SPRING_MAIL_PASSWORD=hola-smtp-password:latest
+            KAKAO_OAUTH_CLIENT_SECRET=hola-kakao-oauth-client-secret:latest
+            NAVER_OAUTH_CLIENT_SECRET=hola-naver-oauth-client-secret:latest
             /secrets/gcp/gcp-sa.json=hola-gcp-service-account-json:latest
             /secrets/firebase/firebase-sa.json=hola-firebase-service-account-json:latest
 
