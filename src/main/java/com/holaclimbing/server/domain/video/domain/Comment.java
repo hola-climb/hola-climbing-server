@@ -19,6 +19,7 @@ public class Comment {
 
     private Long id;
     private Long userId;
+    private String profileImage;
     private Long videoId;
     private Long parentId;
     private String content;

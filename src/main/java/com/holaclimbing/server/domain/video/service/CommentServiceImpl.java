@@ -11,6 +11,7 @@ import com.holaclimbing.server.domain.video.dto.request.UpdateCommentRequest;
 import com.holaclimbing.server.domain.video.dto.response.CommentResponse;
 import com.holaclimbing.server.domain.video.mapper.CommentMapper;
 import com.holaclimbing.server.domain.video.mapper.VideoMapper;
+import com.holaclimbing.server.infrastructure.gcs.GcsStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ public class CommentServiceImpl implements CommentService {
     private final VideoMapper videoMapper;
     private final NotificationService notificationService;
     private final VideoAccessPolicy videoAccessPolicy;
+    private final GcsStorageService gcsStorageService;
 
     @Override
     @Transactional
@@ -55,7 +57,7 @@ public class CommentServiceImpl implements CommentService {
         } else {
             notificationService.notifyComment(video.getUserId(), userId, videoId);
         }
-        return CommentResponse.from(commentMapper.findById(comment.getId()));
+        return toResponse(commentMapper.findById(comment.getId()));
     }
 
     @Override
@@ -67,7 +69,7 @@ public class CommentServiceImpl implements CommentService {
         videoAccessPolicy.requireViewable(video, viewerId);
         long total = commentMapper.countByVideoId(videoId, viewerId);
         List<CommentResponse> content = commentMapper.findByVideoId(videoId, size, page * size, viewerId)
-                .stream().map(CommentResponse::from).toList();
+                .stream().map(this::toResponse).toList();
         return PageResponse.of(content, page, size, total);
     }
 
@@ -83,7 +85,7 @@ public class CommentServiceImpl implements CommentService {
         }
         requireVideoViewable(comment, userId);
         commentMapper.update(commentId, request.content());
-        return CommentResponse.from(commentMapper.findById(commentId));
+        return toResponse(commentMapper.findById(commentId));
     }
 
     @Override
@@ -107,5 +109,19 @@ public class CommentServiceImpl implements CommentService {
             throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND);
         }
         videoAccessPolicy.requireViewable(video, userId);
+    }
+
+    private CommentResponse toResponse(Comment comment) {
+        return CommentResponse.from(comment, resolveProfileImage(comment.getProfileImage()));
+    }
+
+    private String resolveProfileImage(String storedProfileImage) {
+        if (storedProfileImage == null || storedProfileImage.isBlank()) {
+            return null;
+        }
+        if (storedProfileImage.startsWith("http://") || storedProfileImage.startsWith("https://")) {
+            return storedProfileImage;
+        }
+        return gcsStorageService.createReadUrl(storedProfileImage);
     }
 }

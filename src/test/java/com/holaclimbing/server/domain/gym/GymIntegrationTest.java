@@ -75,6 +75,27 @@ class GymIntegrationTest {
     }
 
     @Test
+    @DisplayName("암장 검색 — 인증 사용자가 즐겨찾기한 암장을 먼저 반환한다")
+    void searchGyms_ordersFavoritesFirstForAuthenticatedUser() throws Exception {
+        long userId = 104L;
+        String email = "favorite-list-order@hola.com";
+        jdbcTemplate.update("""
+                        INSERT INTO users (id, email, password_hash, email_verified, nickname)
+                        VALUES (?, ?, ?, TRUE, ?)
+                        """,
+                userId, email, "{noop}unused", "favoriteListOrder");
+        jdbcTemplate.update("INSERT INTO favorites (user_id, gym_id) VALUES (?, ?)", userId, 1L);
+        String token = jwtTokenProvider.createAccessToken(userId, email, "USER");
+
+        mockMvc.perform(get("/api/gyms").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].id").value(1))
+                .andExpect(jsonPath("$.data.content[0].isFavorite").value(true))
+                .andExpect(jsonPath("$.data.content[1].id").value(3))
+                .andExpect(jsonPath("$.data.content[1].isFavorite").value(false));
+    }
+
+    @Test
     @DisplayName("암장 검색 — 키워드(이름 부분일치)로 필터링한다")
     void searchGyms_byKeyword() throws Exception {
         mockMvc.perform(get("/api/gyms").param("keyword", "TheClimb"))
@@ -164,6 +185,30 @@ class GymIntegrationTest {
                 .andExpect(jsonPath("$.data[0].businessHours.mon.open").value("00:00"))
                 .andExpect(jsonPath("$.data[0].isOpen").value(true))
                 .andExpect(jsonPath("$.data[0].isFavorite").value(true));
+    }
+
+    @Test
+    @DisplayName("근처 암장 — 반경 안에서 즐겨찾기한 암장을 거리순보다 먼저 반환한다")
+    void findNearby_ordersFavoritesFirstWithinRadius() throws Exception {
+        long userId = 105L;
+        String email = "favorite-nearby-order@hola.com";
+        jdbcTemplate.update("""
+                        INSERT INTO users (id, email, password_hash, email_verified, nickname)
+                        VALUES (?, ?, ?, TRUE, ?)
+                        """,
+                userId, email, "{noop}unused", "favoriteNearbyOrder");
+        jdbcTemplate.update("INSERT INTO favorites (user_id, gym_id) VALUES (?, ?)", userId, 3L);
+        String token = jwtTokenProvider.createAccessToken(userId, email, "USER");
+
+        mockMvc.perform(get("/api/gyms/nearby")
+                        .param("lat", "37.4979").param("lng", "127.0276").param("radius", "20")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(4))
+                .andExpect(jsonPath("$.data[0].id").value(3))
+                .andExpect(jsonPath("$.data[0].isFavorite").value(true))
+                .andExpect(jsonPath("$.data[1].id").value(1))
+                .andExpect(jsonPath("$.data[1].isFavorite").value(false));
     }
 
     @Test

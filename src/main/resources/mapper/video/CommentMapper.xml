@@ -9,9 +9,12 @@
     </insert>
 
     <select id="findById" resultType="com.holaclimbing.server.domain.video.domain.Comment">
-        SELECT id, user_id, video_id, parent_id, content, created_at, updated_at, deleted_at
+        SELECT comments.id, comments.user_id, comments.video_id, comments.parent_id, comments.content,
+               u.profile_image,
+               comments.created_at, comments.updated_at, comments.deleted_at
         FROM comments
-        WHERE id = #{id} AND deleted_at IS NULL
+        JOIN users u ON u.id = comments.user_id
+        WHERE comments.id = #{id} AND comments.deleted_at IS NULL
     </select>
 
     <!-- viewer가 차단한 작성자의 댓글을 제외하는 공통 조건. -->
@@ -25,11 +28,14 @@
     </sql>
 
     <select id="findByVideoId" resultType="com.holaclimbing.server.domain.video.domain.Comment">
-        SELECT id, user_id, video_id, parent_id, content, created_at, updated_at, deleted_at
+        SELECT comments.id, comments.user_id, comments.video_id, comments.parent_id, comments.content,
+               u.profile_image,
+               comments.created_at, comments.updated_at, comments.deleted_at
         FROM comments
-        WHERE video_id = #{videoId} AND deleted_at IS NULL
+        JOIN users u ON u.id = comments.user_id
+        WHERE comments.video_id = #{videoId} AND comments.deleted_at IS NULL
         <include refid="notBlockedByViewer"/>
-        ORDER BY created_at, id
+        ORDER BY comments.created_at, comments.id
         LIMIT #{size} OFFSET #{offset}
     </select>
 

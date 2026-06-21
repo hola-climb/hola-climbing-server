@@ -41,7 +41,7 @@
         <if test="region != null and region != ''">
             AND region_code = #{region}
         </if>
-        ORDER BY name, id
+        ORDER BY favorite DESC, name, id
         LIMIT #{size} OFFSET #{offset}
     </select>
 
@@ -80,7 +80,7 @@
               AND status = 'active' AND deleted_at IS NULL
         ) t
         WHERE t.distance_km &lt;= #{radiusKm}
-        ORDER BY t.distance_km, t.id
+        ORDER BY t.favorite DESC, t.distance_km, t.id
         LIMIT #{size}
     </select>
 

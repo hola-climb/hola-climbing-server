@@ -743,6 +743,26 @@ class VideoIntegrationTest {
     }
 
     @Test
+    @DisplayName("댓글 목록 — 작성자 프로필 이미지를 함께 반환한다")
+    void getComments_includesAuthorProfileImage() throws Exception {
+        String token = register("profile-comment@hola.com", "profilecommenter");
+        long userId = userMapper.findByEmail("profile-comment@hola.com").getId();
+        jdbcTemplate.update("UPDATE users SET profile_image = ? WHERE id = ?",
+                "profile-images/" + userId + "/seed.jpg", userId);
+        long videoId = createVideo(token, true);
+        addComment(token, videoId, "profile image comment");
+
+        mockMvc.perform(get("/api/videos/" + videoId + "/comments"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].content").value("profile image comment"))
+                .andExpect(jsonPath("$.data.content[0].profileImage").isString())
+                .andExpect(jsonPath("$.data.content[0].profileImage").value(org.hamcrest.Matchers.containsString(
+                        "profile-images/" + userId + "/seed.jpg")))
+                .andExpect(jsonPath("$.data.content[0].profileImage").value(org.hamcrest.Matchers.containsString(
+                        "X-Goog-Signature=")));
+    }
+
+    @Test
     @DisplayName("댓글 목록 실패 — 비공개 영상 댓글은 타인이 조회할 수 없다")
     void getComments_privateVideoByOther_returns403() throws Exception {
         String owner = register("a@hola.com", "climberone");
