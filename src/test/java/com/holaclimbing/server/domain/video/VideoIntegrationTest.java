@@ -755,6 +755,7 @@ class VideoIntegrationTest {
         mockMvc.perform(get("/api/videos/" + videoId + "/comments"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].content").value("profile image comment"))
+                .andExpect(jsonPath("$.data.content[0].nickname").value("profilecommenter"))
                 .andExpect(jsonPath("$.data.content[0].profileImage").isString())
                 .andExpect(jsonPath("$.data.content[0].profileImage").value(org.hamcrest.Matchers.containsString(
                         "profile-images/" + userId + "/seed.jpg")))

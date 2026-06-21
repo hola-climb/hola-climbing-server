@@ -8,6 +8,7 @@ public record CommentResponse(
         Long id,
         Long videoId,
         Long userId,
+        String nickname,
         String profileImage,
         Long parentId,
         String content,
@@ -20,6 +21,7 @@ public record CommentResponse(
     public static CommentResponse from(Comment comment, String profileImage) {
         return new CommentResponse(
                 comment.getId(), comment.getVideoId(), comment.getUserId(),
-                profileImage, comment.getParentId(), comment.getContent(), comment.getCreatedAt());
+                comment.getNickname(), profileImage,
+                comment.getParentId(), comment.getContent(), comment.getCreatedAt());
     }
 }
