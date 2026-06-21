@@ -31,7 +31,7 @@ public class ChatServiceImpl implements ChatService {
      * 실효성 있는 위치 인증이 필요해지면 모바일 attest API + 서버 IP-geolocation 교차검증을
      * 도입해야 한다. (TODO: product decision)</p>
      */
-    private static final double GYM_VERIFY_RADIUS_M = 300;
+    private static final double GYM_VERIFY_RADIUS_M = 500;
     private static final double EARTH_RADIUS_M = 6_371_000;
 
     private final ChatMapper chatMapper;
