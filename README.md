@@ -62,6 +62,14 @@ AI 분석은 별도의 Python 워커가 수행하며, 백엔드는 분석 요청
 - 도메인 단위 패키지 구조 (`domain/{도메인}` → Controller · Service · Mapper · DTO · Domain)
 - JSON 직렬화는 `camelCase`, 식별자는 `Long`(BIGSERIAL)
 
+### 시스템 아키텍처
+
+![시스템 아키텍처](../hola-climb_Architecture%20Diagram.png)
+
+### ERD
+
+![ERD](../hola-climb_ERD.png)
+
 ---
 
 ## 실행 방법
