@@ -313,6 +313,39 @@ class RecommendationIntegrationTest {
     }
 
     @Test
+    @DisplayName("홈 피드 — nextCursor 파라미터로도 다음 페이지를 조회한다")
+    void getVideoFeed_acceptsNextCursorParameter() throws Exception {
+        String viewer = register("viewer-next-cursor@hola.com", "viewer");
+        String firstUploader = register("next-cursor-first@hola.com", "nextcursorfirst");
+        String secondUploader = register("next-cursor-second@hola.com", "nextcursorsecond");
+        String thirdUploader = register("next-cursor-third@hola.com", "nextcursorthird");
+
+        createVideo(firstUploader);
+        createVideo(secondUploader);
+        createVideo(thirdUploader);
+
+        JsonNode firstPage = dataOf(mockMvc.perform(get("/api/recommendations/videos")
+                        .param("size", "2")
+                        .header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.nextCursor").isString())
+                .andExpect(jsonPath("$.data.hasNext").value(true)));
+
+        JsonNode secondPage = dataOf(mockMvc.perform(get("/api/recommendations/videos")
+                        .param("size", "2")
+                        .param("nextCursor", firstPage.path("nextCursor").asText())
+                        .header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.hasNext").value(false)));
+
+        assertThat(secondPage.path("content").get(0).path("id").asLong())
+                .isNotIn(firstPage.path("content").get(0).path("id").asLong(),
+                        firstPage.path("content").get(1).path("id").asLong());
+    }
+
+    @Test
     @DisplayName("홈 피드 실패 — 잘못된 커서는 400")
     void getVideoFeed_invalidCursor_returns400() throws Exception {
         String viewer = register("viewer-invalid-cursor@hola.com", "viewer");

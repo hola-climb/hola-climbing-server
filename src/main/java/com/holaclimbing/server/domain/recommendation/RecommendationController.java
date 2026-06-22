@@ -32,8 +32,14 @@ public class RecommendationController {
     public ApiResponse<CursorPageResponse<RecommendedVideoResponse>> getVideoFeed(
             @AuthenticationPrincipal Long userId,
             @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) String nextCursor,
             @RequestParam(defaultValue = "20") @Positive @Max(100) int size) {
-        return ApiResponse.success(recommendationService.getVideoFeed(userId, cursor, size));
+        return ApiResponse.success(recommendationService.getVideoFeed(
+                userId, resolveCursor(cursor, nextCursor), size));
+    }
+
+    private String resolveCursor(String cursor, String nextCursor) {
+        return cursor == null || cursor.isBlank() ? nextCursor : cursor;
     }
 
     @GetMapping("/gyms")
