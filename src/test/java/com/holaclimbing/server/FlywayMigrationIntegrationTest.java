@@ -93,4 +93,59 @@ class FlywayMigrationIntegrationTest {
 
         assertThat(timestampWithoutTimeZoneCount).isZero();
     }
+
+    @Test
+    @DisplayName("Flyway migrations seed requested brand gyms and The Climb pink grade")
+    void flywayMigrations_seedBrandGymsAndTheClimbPinkGrade() {
+        Integer requestedGymCount = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM gyms
+                WHERE deleted_at IS NULL
+                  AND status = 'active'
+                  AND (
+                      name LIKE '더클라임%'
+                      OR name LIKE '클라이밍파크%'
+                      OR name LIKE '서울숲클라이밍%'
+                      OR name LIKE '피커스%'
+                      OR name LIKE '알레클라%'
+                      OR name LIKE '%담장%'
+                      OR name IN ('락트리클라이밍 분당', '스톤즈클라이밍', '피크닉클라이밍', '오프더월클라이밍')
+                  )
+                """, Integer.class);
+        Integer requestedActiveGradeCount = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM gym_grades grade
+                JOIN gyms gym ON gym.id = grade.gym_id
+                WHERE gym.deleted_at IS NULL
+                  AND gym.status = 'active'
+                  AND grade.is_active = TRUE
+                  AND (
+                      gym.name LIKE '더클라임%'
+                      OR gym.name LIKE '클라이밍파크%'
+                      OR gym.name LIKE '서울숲클라이밍%'
+                      OR gym.name LIKE '피커스%'
+                      OR gym.name LIKE '알레클라%'
+                      OR gym.name LIKE '%담장%'
+                      OR gym.name IN ('락트리클라이밍 분당', '스톤즈클라이밍', '피크닉클라이밍', '오프더월클라이밍')
+                  )
+                """, Integer.class);
+        Integer theClimbPinkCount = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM gyms gym
+                WHERE gym.deleted_at IS NULL
+                  AND gym.name LIKE '더클라임%'
+                  AND EXISTS (
+                      SELECT 1
+                      FROM gym_grades grade
+                      WHERE grade.gym_id = gym.id
+                        AND grade.label = '핑크'
+                        AND grade.difficulty_order = 65
+                        AND grade.is_active = TRUE
+                  )
+                """, Integer.class);
+
+        assertThat(requestedGymCount).isEqualTo(32);
+        assertThat(requestedActiveGradeCount).isEqualTo(313);
+        assertThat(theClimbPinkCount).isEqualTo(12);
+    }
 }
