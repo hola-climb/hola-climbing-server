@@ -33,6 +33,7 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.Map;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -464,6 +465,83 @@ class VideoIntegrationTest {
     }
 
     @Test
+    @DisplayName("피드 — nextCursor 파라미터로도 다음 페이지를 조회한다")
+    void getFeed_acceptsNextCursorParameter() throws Exception {
+        String token = register("next-cursor@hola.com", "nextcursor");
+        for (int i = 0; i < 3; i++) {
+            createVideo(token, true);
+        }
+
+        var firstPage = dataOf(mockMvc.perform(get("/api/videos").param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.hasNext").value(true)));
+
+        var secondPage = dataOf(mockMvc.perform(get("/api/videos")
+                        .param("size", "2")
+                        .param("nextCursor", firstPage.path("nextCursor").asText()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.hasNext").value(false)));
+
+        org.assertj.core.api.Assertions.assertThat(secondPage.path("content").get(0).path("id").asLong())
+                .isNotIn(firstPage.path("content").get(0).path("id").asLong(),
+                        firstPage.path("content").get(1).path("id").asLong());
+    }
+
+    @Test
+    @DisplayName("내 영상 목록 — 촬영일 최신순으로 반환한다")
+    void getFeed_withUserIdOrdersByRecordedDateDesc() throws Exception {
+        String token = register("my-videos@hola.com", "myvideos");
+        long userId = userMapper.findByEmail("my-videos@hola.com").getId();
+        long newerRecorded = createVideoOn(token, true, LocalDate.of(2026, 6, 3));
+        createVideoOn(token, true, LocalDate.of(2026, 6, 1));
+
+        var page = dataOf(mockMvc.perform(get("/api/videos")
+                        .param("userId", Long.toString(userId))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[0].recordedDate").value("2026-06-03")));
+        org.assertj.core.api.Assertions.assertThat(page.path("content").get(0).path("id").asLong())
+                .isEqualTo(newerRecorded);
+    }
+
+    @Test
+    @DisplayName("내 영상 목록 — 커서 페이지도 촬영일 최신순을 유지한다")
+    void getFeed_withUserIdCursorOrdersByRecordedDateDesc() throws Exception {
+        String token = register("my-cursor@hola.com", "mycursor");
+        long userId = userMapper.findByEmail("my-cursor@hola.com").getId();
+        createVideoOn(token, true, LocalDate.of(2026, 6, 3));
+        createVideoOn(token, true, LocalDate.of(2026, 6, 1));
+        createVideoOn(token, true, LocalDate.of(2026, 6, 2));
+
+        var firstPage = dataOf(mockMvc.perform(get("/api/videos")
+                        .param("userId", Long.toString(userId))
+                        .param("size", "2")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[0].recordedDate").value("2026-06-03"))
+                .andExpect(jsonPath("$.data.content[1].recordedDate").value("2026-06-02"))
+                .andExpect(jsonPath("$.data.hasNext").value(true)));
+
+        var secondPage = dataOf(mockMvc.perform(get("/api/videos")
+                        .param("userId", Long.toString(userId))
+                        .param("size", "2")
+                        .param("cursor", firstPage.path("nextCursor").asText())
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].recordedDate").value("2026-06-01"))
+                .andExpect(jsonPath("$.data.hasNext").value(false)));
+
+        org.assertj.core.api.Assertions.assertThat(secondPage.path("content").get(0).path("id").asLong())
+                .isNotIn(firstPage.path("content").get(0).path("id").asLong(),
+                        firstPage.path("content").get(1).path("id").asLong());
+    }
+
+    @Test
     @DisplayName("피드 — 잘못된 커서는 400")
     void getFeed_invalidCursor_returns400() throws Exception {
         mockMvc.perform(get("/api/videos").param("cursor", "!!!not-base64!!!"))
@@ -601,6 +679,46 @@ class VideoIntegrationTest {
                         .header("Authorization", "Bearer " + other)
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("영상 수정 — 암장, 난이도, 촬영일을 함께 수정할 수 있다")
+    void updateVideo_updatesGymGradeAndRecordedDate() throws Exception {
+        String owner = register("a@hola.com", "climberone");
+        long videoId = createVideo(owner, true);
+
+        var body = objectMapper.writeValueAsString(Map.of(
+                "gymId", 2,
+                "gymGradeId", 1004,
+                "recordedDate", "2026-06-01"
+        ));
+
+        mockMvc.perform(patch("/api/videos/" + videoId)
+                        .header("Authorization", "Bearer " + owner)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.gymId").value(2))
+                .andExpect(jsonPath("$.data.gymGrade.id").value(1004))
+                .andExpect(jsonPath("$.data.gymGrade.gymId").value(2))
+                .andExpect(jsonPath("$.data.gymGrade.label").value("노랑"))
+                .andExpect(jsonPath("$.data.recordedDate").value("2026-06-01"));
+    }
+
+    @Test
+    @DisplayName("영상 수정 실패 — 암장을 수정할 때 난이도를 누락하면 400")
+    void updateVideo_gymWithoutGrade_returns400() throws Exception {
+        String owner = register("a@hola.com", "climberone");
+        long videoId = createVideo(owner, true);
+
+        var body = objectMapper.writeValueAsString(Map.of("gymId", 2));
+
+        mockMvc.perform(patch("/api/videos/" + videoId)
+                        .header("Authorization", "Bearer " + owner)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("C001"));
     }
 
     @Test

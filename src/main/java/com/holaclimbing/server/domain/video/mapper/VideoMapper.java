@@ -17,12 +17,13 @@ public interface VideoMapper {
     Video findById(Long id);
 
     /**
-     * 커서 기반 영상 피드. 공개 영상과 viewer 본인의 비공개 영상을 id 내림차순으로 keyset 스캔.
-     * cursorId가 null이면 첫 페이지, 아니면 id가 cursorId보다 작은 것부터.
+     * 커서 기반 영상 피드. 공개 영상과 viewer 본인의 비공개 영상을 촬영일 최신순으로 keyset 스캔.
+     * cursorRecordedDate/cursorId가 null이면 첫 페이지, 아니면 해당 촬영일+id 뒤부터.
      * recordedDate가 있으면 해당 촬영일의 영상만 필터.
      * hasNext 판정을 위해 limit는 보통 size+1로 넘긴다.
      */
     List<Video> findFeedByCursor(@Param("userId") Long userId,
+                                 @Param("cursorRecordedDate") LocalDate cursorRecordedDate,
                                  @Param("cursorId") Long cursorId,
                                  @Param("recordedDate") LocalDate recordedDate,
                                  @Param("limit") int limit,
@@ -51,7 +52,10 @@ public interface VideoMapper {
     int updateVideo(@Param("id") Long id,
                     @Param("title") String title,
                     @Param("description") String description,
-                    @Param("isPublic") Boolean isPublic);
+                    @Param("isPublic") Boolean isPublic,
+                    @Param("gymId") Long gymId,
+                    @Param("gymGradeId") Long gymGradeId,
+                    @Param("recordedDate") LocalDate recordedDate);
 
     /** 영상 soft-delete. */
     int softDelete(Long id);

@@ -2,7 +2,6 @@ package com.holaclimbing.server.domain.video.service;
 
 import com.holaclimbing.server.common.exception.BusinessException;
 import com.holaclimbing.server.common.exception.error.ErrorCode;
-import com.holaclimbing.server.common.response.CursorCodec;
 import com.holaclimbing.server.common.response.CursorPageResponse;
 import com.holaclimbing.server.common.response.PageResponse;
 import com.holaclimbing.server.common.upload.ImageUploadValidator;
@@ -14,6 +13,8 @@ import com.holaclimbing.server.domain.notification.service.NotificationService;
 import com.holaclimbing.server.domain.recommendation.mapper.RecommendationInteractionMapper;
 import com.holaclimbing.server.domain.video.VideoUploadProperties;
 import com.holaclimbing.server.domain.video.domain.Video;
+import com.holaclimbing.server.domain.video.dto.VideoFeedCursor;
+import com.holaclimbing.server.domain.video.dto.VideoFeedCursorCodec;
 import com.holaclimbing.server.domain.video.dto.request.CreateVideoRequest;
 import com.holaclimbing.server.domain.video.dto.request.UpdateVideoRequest;
 import com.holaclimbing.server.domain.video.dto.request.UploadUrlRequest;
@@ -135,9 +136,15 @@ public class VideoServiceImpl implements VideoService {
     @Override
     public CursorPageResponse<VideoSummaryResponse> getFeed(Long uploaderId, String cursor, LocalDate recordedDate,
                                                             int size, Long viewerId) {
-        Long cursorId = CursorCodec.decode(cursor);
+        VideoFeedCursor decodedCursor = VideoFeedCursorCodec.decode(cursor);
         // hasNext 판정을 위해 한 건 더 가져온다.
-        List<Video> rows = videoMapper.findFeedByCursor(uploaderId, cursorId, recordedDate, size + 1, viewerId);
+        List<Video> rows = videoMapper.findFeedByCursor(
+                uploaderId,
+                decodedCursor == null ? null : decodedCursor.recordedDate(),
+                decodedCursor == null ? null : decodedCursor.id(),
+                recordedDate,
+                size + 1,
+                viewerId);
         boolean hasNext = rows.size() > size;
         List<Video> pageRows = hasNext ? rows.subList(0, size) : rows;
         List<VideoSummaryResponse> content = pageRows.stream()
@@ -146,7 +153,9 @@ public class VideoServiceImpl implements VideoService {
                         gcsStorageService.createPublicThumbnailUrl(v.getThumbnailPath()),
                         resolveProfileImage(v.getProfileImage())))
                 .toList();
-        String nextCursor = hasNext ? CursorCodec.encode(pageRows.get(pageRows.size() - 1).getId()) : null;
+        String nextCursor = hasNext
+                ? VideoFeedCursorCodec.encode(VideoFeedCursor.from(pageRows.get(pageRows.size() - 1)))
+                : null;
         return CursorPageResponse.of(content, nextCursor, hasNext);
     }
 
@@ -184,7 +193,9 @@ public class VideoServiceImpl implements VideoService {
     public VideoDetailResponse updateVideo(Long userId, Long videoId, UpdateVideoRequest request) {
         Video video = findActiveVideo(videoId);
         requireOwner(video, userId);
-        videoMapper.updateVideo(videoId, request.title(), request.description(), request.isPublic());
+        validateGymGradeUpdate(video, request);
+        videoMapper.updateVideo(videoId, request.title(), request.description(), request.isPublic(),
+                request.gymId(), request.gymGradeId(), request.recordedDate());
         boolean isLiked = likeMapper.exists(userId, videoId);
         return toDetail(videoMapper.findById(videoId), isLiked);
     }
@@ -274,6 +285,22 @@ public class VideoServiceImpl implements VideoService {
     private void requireOwner(Video video, Long userId) {
         if (!video.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+    }
+
+    private void validateGymGradeUpdate(Video video, UpdateVideoRequest request) {
+        if (request.gymId() == null && request.gymGradeId() == null) {
+            return;
+        }
+        Long targetGymId = request.gymId() == null ? video.getGymId() : request.gymId();
+        if (request.gymId() != null && request.gymGradeId() == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "암장을 수정할 때는 난이도도 함께 선택해야 합니다.");
+        }
+        if (request.gymId() != null && gymMapper.findById(request.gymId()) == null) {
+            throw new BusinessException(ErrorCode.GYM_NOT_FOUND);
+        }
+        if (gymGradeMapper.findActiveByGymAndId(targetGymId, request.gymGradeId()) == null) {
+            throw new BusinessException(ErrorCode.INVALID_GYM_GRADE);
         }
     }
 

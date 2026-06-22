@@ -57,7 +57,7 @@
         </choose>
     </sql>
 
-    <!-- 커서 keyset 스캔: id는 BIGSERIAL이라 created_at DESC와 동일 순서. cursorId보다 작은 id부터. -->
+    <!-- 커서 keyset 스캔: 촬영일 최신순, 같은 촬영일은 id 최신순. -->
     <select id="findFeedByCursor" resultType="com.holaclimbing.server.domain.video.domain.Video">
         SELECT <include refid="columns"/>
         FROM videos
@@ -69,14 +69,17 @@
         <if test="userId != null">
             AND videos.user_id = #{userId}
         </if>
-        <if test="cursorId != null">
-            AND videos.id &lt; #{cursorId}
+        <if test="cursorRecordedDate != null and cursorId != null">
+            AND (
+                videos.recorded_date &lt; #{cursorRecordedDate}
+                OR (videos.recorded_date = #{cursorRecordedDate} AND videos.id &lt; #{cursorId})
+            )
         </if>
         <if test="recordedDate != null">
             AND videos.recorded_date = #{recordedDate}
         </if>
         <include refid="notBlockedByViewer"/>
-        ORDER BY videos.id DESC
+        ORDER BY videos.recorded_date DESC, videos.id DESC
         LIMIT #{limit}
     </select>
 
@@ -129,6 +132,9 @@
             <if test="title != null">title = #{title},</if>
             <if test="description != null">description = #{description},</if>
             <if test="isPublic != null">is_public = #{isPublic},</if>
+            <if test="gymId != null">gym_id = #{gymId},</if>
+            <if test="gymGradeId != null">gym_grade_id = #{gymGradeId},</if>
+            <if test="recordedDate != null">recorded_date = #{recordedDate},</if>
             updated_at = NOW()
         </set>
         WHERE id = #{id} AND deleted_at IS NULL

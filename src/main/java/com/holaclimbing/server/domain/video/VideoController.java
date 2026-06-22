@@ -98,11 +98,17 @@ public class VideoController {
     public ApiResponse<CursorPageResponse<VideoSummaryResponse>> getFeed(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) String nextCursor,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate recordedDate,
             @RequestParam(defaultValue = "20") @Positive @Max(100) int size,
             @AuthenticationPrincipal Long viewerId) {
-        return ApiResponse.success(videoService.getFeed(userId, cursor, recordedDate, size, viewerId));
+        return ApiResponse.success(videoService.getFeed(
+                userId, resolveCursor(cursor, nextCursor), recordedDate, size, viewerId));
+    }
+
+    private String resolveCursor(String cursor, String nextCursor) {
+        return cursor == null || cursor.isBlank() ? nextCursor : cursor;
     }
 
     @ApiErrorCodes({VIDEO_NOT_FOUND, VIDEO_NOT_ACCESSIBLE})
@@ -112,7 +118,7 @@ public class VideoController {
         return ApiResponse.success(videoService.getVideoDetail(videoId, viewerId));
     }
 
-    @ApiErrorCodes({VIDEO_NOT_FOUND, FORBIDDEN})
+    @ApiErrorCodes({VIDEO_NOT_FOUND, GYM_NOT_FOUND, INVALID_GYM_GRADE, INVALID_INPUT, FORBIDDEN})
     @PatchMapping("/{videoId}")
     public ApiResponse<VideoDetailResponse> updateVideo(@AuthenticationPrincipal Long userId,
                                                         @PathVariable Long videoId,
