@@ -6,17 +6,23 @@ import com.holaclimbing.server.TestcontainersConfiguration;
 import static com.holaclimbing.server.TestSignupRequests.signupRequest;
 import com.holaclimbing.server.domain.notification.dto.request.UpdateNotificationSettingsRequest;
 import com.holaclimbing.server.domain.user.dto.request.LoginRequest;
+import com.holaclimbing.server.domain.user.dto.request.RegisterDeviceTokenRequest;
 import com.holaclimbing.server.domain.user.dto.request.SignupRequest;
 import com.holaclimbing.server.domain.user.dto.request.VerifyEmailRequest;
 import com.holaclimbing.server.domain.user.mapper.UserMapper;
 import com.holaclimbing.server.domain.video.dto.request.CreateCommentRequest;
 import com.holaclimbing.server.domain.video.dto.request.CreateVideoRequest;
+import com.holaclimbing.server.infrastructure.fcm.FcmSender;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
@@ -24,7 +30,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -37,7 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest(properties = "app.cors.allowed-origins=http://localhost:3000")
 @AutoConfigureMockMvc
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, NotificationIntegrationTest.FcmTestConfig.class})
 @ActiveProfiles("test")
 @Sql(scripts = {
         "classpath:sql/users-schema.sql",
@@ -59,6 +69,14 @@ class NotificationIntegrationTest {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private RecordingFcmSender recordingFcmSender;
+
+    @BeforeEach
+    void clearFcmMessages() {
+        recordingFcmSender.clear();
+    }
 
     @Test
     @DisplayName("알림 조회 실패 — 토큰 없이 호출하면 401")
@@ -83,6 +101,7 @@ class NotificationIntegrationTest {
     void comment_notifiesVideoOwner() throws Exception {
         TestUser owner = register("a@hola.com", "climberone");
         TestUser commenter = register("b@hola.com", "climbertwo");
+        registerDeviceToken(owner.token(), "owner-comment-token");
         long videoId = createVideo(owner.token());
 
         comment(commenter.token(), videoId, "great climb", null);
@@ -93,6 +112,7 @@ class NotificationIntegrationTest {
                 .andExpect(jsonPath("$.data.content[0].type").value("comment"))
                 .andExpect(jsonPath("$.data.content[0].senderId").value(commenter.id()))
                 .andExpect(jsonPath("$.data.content[0].isRead").value(false));
+        assertSinglePush("owner-comment-token", "새 댓글", "comment", "video", videoId);
     }
 
     @Test
@@ -113,6 +133,7 @@ class NotificationIntegrationTest {
     void like_notifiesVideoOwner() throws Exception {
         TestUser owner = register("a@hola.com", "climberone");
         TestUser liker = register("b@hola.com", "climbertwo");
+        registerDeviceToken(owner.token(), "owner-like-token");
         long videoId = createVideo(owner.token());
 
         mockMvc.perform(post("/api/videos/" + videoId + "/like")
@@ -122,6 +143,7 @@ class NotificationIntegrationTest {
         mockMvc.perform(get("/api/notifications").header("Authorization", "Bearer " + owner.token()))
                 .andExpect(jsonPath("$.data.totalElements").value(1))
                 .andExpect(jsonPath("$.data.content[0].type").value("like"));
+        assertSinglePush("owner-like-token", "좋아요", "like", "video", videoId);
     }
 
     @Test
@@ -129,6 +151,7 @@ class NotificationIntegrationTest {
     void follow_notifiesFollowedUser() throws Exception {
         TestUser target = register("a@hola.com", "climberone");
         TestUser follower = register("b@hola.com", "climbertwo");
+        registerDeviceToken(target.token(), "target-follow-token");
 
         mockMvc.perform(post("/api/users/" + target.id() + "/follow")
                         .header("Authorization", "Bearer " + follower.token()))
@@ -138,6 +161,7 @@ class NotificationIntegrationTest {
                 .andExpect(jsonPath("$.data.totalElements").value(1))
                 .andExpect(jsonPath("$.data.content[0].type").value("follow"))
                 .andExpect(jsonPath("$.data.content[0].senderId").value(follower.id()));
+        assertSinglePush("target-follow-token", "새 팔로워", "follow", "user", follower.id());
     }
 
     @Test
@@ -145,14 +169,16 @@ class NotificationIntegrationTest {
     void reply_notifiesParentCommentAuthor() throws Exception {
         TestUser owner = register("a@hola.com", "climberone");
         TestUser replier = register("b@hola.com", "climbertwo");
+        registerDeviceToken(owner.token(), "owner-reply-token");
         long videoId = createVideo(owner.token());
         long parentCommentId = comment(owner.token(), videoId, "owner comment", null);
 
-        comment(replier.token(), videoId, "nice point", parentCommentId);
+        long replyCommentId = comment(replier.token(), videoId, "nice point", parentCommentId);
 
         mockMvc.perform(get("/api/notifications").header("Authorization", "Bearer " + owner.token()))
                 .andExpect(jsonPath("$.data.totalElements").value(1))
                 .andExpect(jsonPath("$.data.content[0].type").value("reply"));
+        assertSinglePush("owner-reply-token", "새 답글", "reply", "comment", replyCommentId);
     }
 
     @Test
@@ -319,6 +345,15 @@ class NotificationIntegrationTest {
         return new TestUser(id, token);
     }
 
+    private void registerDeviceToken(String token, String fcmToken) throws Exception {
+        mockMvc.perform(post("/api/users/me/device-tokens")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new RegisterDeviceTokenRequest(fcmToken, "android"))))
+                .andExpect(status().isCreated());
+    }
+
     private long comment(String token, long videoId, String content, Long parentId) throws Exception {
         return dataOf(mockMvc.perform(post("/api/videos/" + videoId + "/comments")
                 .header("Authorization", "Bearer " + token)
@@ -333,8 +368,49 @@ class NotificationIntegrationTest {
                 .path("content").get(0).path("id").asLong();
     }
 
+    private void assertSinglePush(String token, String title, String type, String targetType, long targetId) {
+        assertThat(recordingFcmSender.sent()).hasSize(1);
+        SentPush push = recordingFcmSender.sent().getFirst();
+        assertThat(push.tokens()).containsExactly(token);
+        assertThat(push.title()).isEqualTo(title);
+        assertThat(push.data()).containsEntry("type", type);
+        assertThat(push.data()).containsEntry("targetType", targetType);
+        assertThat(push.data()).containsEntry("targetId", String.valueOf(targetId));
+    }
+
     private JsonNode dataOf(ResultActions actions) throws Exception {
         String body = actions.andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         return objectMapper.readTree(body).path("data");
+    }
+
+    private record SentPush(List<String> tokens, String title, String body, Map<String, String> data) {
+    }
+
+    static class RecordingFcmSender implements FcmSender {
+
+        private final List<SentPush> sent = new ArrayList<>();
+
+        @Override
+        public synchronized void send(List<String> tokens, String title, String body, Map<String, String> data) {
+            sent.add(new SentPush(List.copyOf(tokens), title, body, Map.copyOf(data)));
+        }
+
+        synchronized List<SentPush> sent() {
+            return List.copyOf(sent);
+        }
+
+        synchronized void clear() {
+            sent.clear();
+        }
+    }
+
+    @TestConfiguration
+    static class FcmTestConfig {
+
+        @Bean
+        @Primary
+        RecordingFcmSender recordingFcmSender() {
+            return new RecordingFcmSender();
+        }
     }
 }

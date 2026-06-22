@@ -139,7 +139,7 @@ app:
     allowed-extensions: mp4,mov,hevc   # NF-05: MP4·MOV·HEVC
     max-duration-seconds: 60           # NF-05: 최대 60초
     max-file-size-bytes: 209715200     # NF-05: 최대 200MB
-  # FCM 푸시 알림 (영상 분석 완료/실패 알림)
+  # FCM 푸시 알림 (영상 분석 완료/실패 + 댓글/답글/좋아요/팔로우 알림)
   # enabled=false면 NoopFcmSender가 주입되어 호출이 모두 no-op (개발·테스트 기본값).
   # 운영에서는 enabled=true + 서비스 계정 키 경로(또는 GOOGLE_APPLICATION_CREDENTIALS) 지정.
   fcm:

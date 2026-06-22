@@ -10,6 +10,8 @@ import com.holaclimbing.server.domain.notification.dto.request.UpdateNotificatio
 import com.holaclimbing.server.domain.notification.dto.response.NotificationResponse;
 import com.holaclimbing.server.domain.notification.dto.response.NotificationSettingsResponse;
 import com.holaclimbing.server.domain.notification.mapper.NotificationMapper;
+import com.holaclimbing.server.domain.user.mapper.DeviceTokenMapper;
+import com.holaclimbing.server.infrastructure.fcm.FcmSender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -25,6 +28,8 @@ import java.util.List;
 public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationMapper notificationMapper;
+    private final DeviceTokenMapper deviceTokenMapper;
+    private final FcmSender fcmSender;
 
     @Override
     public void notifyComment(Long videoOwnerId, Long commenterId, Long videoId) {
@@ -132,11 +137,26 @@ public class NotificationServiceImpl implements NotificationService {
         runAfterCommit(() -> {
             try {
                 notificationMapper.insert(notification);
+                sendPush(notification);
             } catch (Exception e) {
-                log.warn("알림 INSERT 실패 — recipient={}, type={}: {}",
+                log.warn("알림 생성/푸시 실패 — recipient={}, type={}: {}",
                         recipientId, type.getCode(), e.getMessage());
             }
         });
+    }
+
+    private void sendPush(Notification notification) {
+        List<String> tokens = deviceTokenMapper.findTokensByUserId(notification.getRecipientId());
+        if (tokens.isEmpty()) {
+            return;
+        }
+        Map<String, String> data = Map.of(
+                "notificationId", String.valueOf(notification.getId()),
+                "type", notification.getType(),
+                "targetType", notification.getTargetType(),
+                "targetId", String.valueOf(notification.getTargetId())
+        );
+        fcmSender.send(tokens, notification.getTitle(), notification.getContent(), data);
     }
 
     /** 트랜잭션 활성 시 AFTER_COMMIT으로 지연 실행, 비-트랜잭션 컨텍스트에선 즉시 실행. */
