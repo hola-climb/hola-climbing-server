@@ -41,6 +41,9 @@ public interface UserMapper {
     /** 활성 관리자 행을 잠가 마지막 관리자 강등 같은 운영자 변경 경쟁 상태를 방지한다. */
     List<Long> lockActiveAdminIds();
 
+    /** 월간 리포트 스케줄러 대상 활성 회원 ID 목록. */
+    List<Long> findActiveUserIdsForMonthlyReport();
+
     /** 이메일 인증 토큰으로 조회 (soft-delete 제외). 없으면 null. */
     User findByEmailVerificationToken(String token);
 

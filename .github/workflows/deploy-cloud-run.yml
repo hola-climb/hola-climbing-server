@@ -108,6 +108,16 @@ jobs:
             GOOGLE_OAUTH_CLIENT_ID=${{ vars.GOOGLE_OAUTH_CLIENT_ID }}
             KAKAO_OAUTH_CLIENT_ID=${{ vars.KAKAO_OAUTH_CLIENT_ID }}
             NAVER_OAUTH_CLIENT_ID=${{ vars.NAVER_OAUTH_CLIENT_ID }}
+            MONTHLY_REPORT_MIN_VIDEOS=${{ vars.MONTHLY_REPORT_MIN_VIDEOS }}
+            MONTHLY_REPORT_MIN_PROBLEMS=${{ vars.MONTHLY_REPORT_MIN_PROBLEMS }}
+            MONTHLY_REPORT_GENERATE_ON_MISS=${{ vars.MONTHLY_REPORT_GENERATE_ON_MISS }}
+            MONTHLY_REPORT_PROMPT_VERSION=${{ vars.MONTHLY_REPORT_PROMPT_VERSION }}
+            MONTHLY_REPORT_SCHEDULER_ENABLED=${{ vars.MONTHLY_REPORT_SCHEDULER_ENABLED }}
+            MONTHLY_REPORT_SCHEDULER_CRON=${{ vars.MONTHLY_REPORT_SCHEDULER_CRON }}
+            MONTHLY_REPORT_LLM_MODE=${{ vars.MONTHLY_REPORT_LLM_MODE }}
+            MONTHLY_REPORT_LLM_BASE_URL=${{ vars.MONTHLY_REPORT_LLM_BASE_URL }}
+            MONTHLY_REPORT_LLM_MODEL=${{ vars.MONTHLY_REPORT_LLM_MODEL }}
+            MONTHLY_REPORT_LLM_TIMEOUT_SECONDS=${{ vars.MONTHLY_REPORT_LLM_TIMEOUT_SECONDS }}
           secrets: |-
             SPRING_DATASOURCE_PASSWORD=hola-postgres-password:latest
             SPRING_DATA_REDIS_PASSWORD=hola-redis-password:latest
@@ -118,6 +128,7 @@ jobs:
             GOOGLE_OAUTH_CLIENT_SECRET=hola-google-oauth-client-secret:latest
             KAKAO_OAUTH_CLIENT_SECRET=hola-kakao-oauth-client-secret:latest
             NAVER_OAUTH_CLIENT_SECRET=hola-naver-oauth-client-secret:latest
+            MONTHLY_REPORT_LLM_API_KEY=hola-openai-api-key:latest
             /secrets/gcp/gcp-sa.json=hola-gcp-service-account-json:latest
             /secrets/firebase/firebase-sa.json=hola-firebase-service-account-json:latest
 

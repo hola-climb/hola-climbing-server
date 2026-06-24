@@ -81,6 +81,14 @@
         FOR UPDATE
     </select>
 
+    <select id="findActiveUserIdsForMonthlyReport" resultType="long">
+        SELECT id
+        FROM users
+        WHERE deleted_at IS NULL
+          AND status = 'ACTIVE'
+        ORDER BY id
+    </select>
+
     <select id="findByEmailVerificationToken" resultType="com.holaclimbing.server.domain.user.domain.User">
         SELECT <include refid="columns"/>
         FROM users

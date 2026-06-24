@@ -95,7 +95,7 @@ class FlywayMigrationIntegrationTest {
     }
 
     @Test
-    @DisplayName("Flyway migrations seed requested brand gyms and The Climb pink grade")
+    @DisplayName("Flyway migrations seed requested brand gyms and audited grade scales")
     void flywayMigrations_seedBrandGymsAndTheClimbPinkGrade() {
         Integer requestedGymCount = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
@@ -145,7 +145,32 @@ class FlywayMigrationIntegrationTest {
                 """, Integer.class);
 
         assertThat(requestedGymCount).isEqualTo(32);
-        assertThat(requestedActiveGradeCount).isEqualTo(313);
+        assertThat(requestedActiveGradeCount).isEqualTo(320);
         assertThat(theClimbPinkCount).isEqualTo(12);
+        assertActiveGrades(
+                "http://place.map.kakao.com/1455205552",
+                "흰색 > 노랑 > 연두 > 초록 > 파랑 > 빨강 > 회색 > 갈색 > 핑크 > 검정");
+        assertActiveGrades(
+                "http://place.map.kakao.com/1615143674",
+                "빨강 > 주황 > 노랑 > 초록 > 하늘색 > 남색 > 보라 > 갈색 > 검정 > 핑크");
+        assertActiveGrades(
+                "http://place.map.kakao.com/662516308",
+                "빨강 > 주황 > 노랑 > 초록 > 파랑 > 남색 > 보라 > 회색 > 갈색 > 검정 > 흰색");
+        assertActiveGrades(
+                "http://place.map.kakao.com/444613083",
+                "빨강 > 주황 > 노랑 > 초록 > 파랑 > 남색 > 보라 > 흰색 > 검정");
+    }
+
+    private void assertActiveGrades(String website, String expectedGrades) {
+        String activeGrades = jdbcTemplate.queryForObject("""
+                SELECT string_agg(grade.label, ' > ' ORDER BY grade.difficulty_order, grade.id)
+                FROM gyms gym
+                JOIN gym_grades grade ON grade.gym_id = gym.id
+                WHERE gym.deleted_at IS NULL
+                  AND gym.website = ?
+                  AND grade.is_active = TRUE
+                """, String.class, website);
+
+        assertThat(activeGrades).isEqualTo(expectedGrades);
     }
 }

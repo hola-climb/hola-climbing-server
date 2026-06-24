@@ -1,8 +1,5 @@
 -- Purpose: fix grade scales found during the 2026-06-22 all-gym grade audit.
 -- Source summary: see ops/gym-import/2026-06-22-grade-audit.md.
--- Status: applied to production on 2026-06-22; mirrored as Flyway V11.
-
-BEGIN;
 
 WITH grade_seed (website, label, difficulty_order) AS (
     VALUES
@@ -215,5 +212,3 @@ SELECT
     (SELECT COUNT(*) FROM target_gyms) AS target_gyms,
     (SELECT COUNT(*) FROM upserted_grades) AS upserted_grades,
     (SELECT COUNT(*) FROM deactivated_grades) AS deactivated_grades;
-
-COMMIT;

@@ -4,7 +4,7 @@
 - Target: production `gyms` active rows after Flyway V9.
 - Production snapshot at audit time: `active_gyms=75`, `active_grades=628`.
 - Method: compare production grades with `output-researched/kakao-gyms-researched.csv`, then search public blog snippets for gyms added after the original researched seed.
-- Status: audit only. `2026-06-22-fix-audited-gym-grades.sql` is a draft and has not been applied to production.
+- Status: applied to production on 2026-06-22. Mirrored as Flyway `V11__fix_audited_gym_grades.sql`.
 
 ## Existing Researched Seed Check
 - Existing researched rows matched: 54.
@@ -14,7 +14,7 @@
 ## Confirmed Fix Candidates
 | Gym / Brand | Current | Candidate | Evidence |
 |---|---|---|---|
-| 알레클라이밍 혜화/강동/영등포 | `흰색 > 노랑 > 주황 > 초록 > 파랑 > 빨강 > 보라 > 갈색 > 회색 > 검정` | `흰색 > 노랑 > 연두 > 초록 > 파랑 > 빨강 > 회색 > 갈색 > 검정` | Manual review: official/base setting ends with `검정`; event pink is not the standard grade tag |
+| 알레클라이밍 혜화/강동/영등포 | `흰색 > 노랑 > 주황 > 초록 > 파랑 > 빨강 > 보라 > 갈색 > 회색 > 검정` | `흰색 > 노랑 > 연두 > 초록 > 파랑 > 빨강 > 회색 > 갈색 > 핑크 > 검정` | Manual review: standard grade includes `핑크` between `갈색` and `검정` |
 | 락트리클라이밍 분당 | default rainbow with white first | `빨강 > 주황 > 노랑 > 초록 > 파랑 > 남색 > 보라 > 흰색 > 회색 > 검정` | Naver blogs: `224296119270`, `223912349325` |
 | 스톤즈클라이밍 | default rainbow with white first | `빨강 > 주황 > 노랑 > 초록 > 파랑 > 남색 > 보라 > 흰색 > 검정` | Naver blogs: `224240756939`, `223891312414`, `223583482403` |
 | 피크닉클라이밍 | default rainbow with white first | `빨강 > 주황 > 노랑 > 초록 > 파랑 > 남색 > 보라 > 갈색 > 검정 > 핑크` | Naver blog: `224314067903` |
@@ -39,5 +39,8 @@
 
 ## Draft SQL
 - `ops/gym-import/2026-06-22-fix-audited-gym-grades.sql`
+- Applied to production after backup `ops/gym-import/backups/hola_climbing_before_grade_audit_fix_20260622_210843.dump`.
+- Follow-up correction for Allez `핑크` was applied after backup `ops/gym-import/backups/hola_climbing_before_allez_pink_fix_20260622_212851.dump`.
+- Mirrored to `src/main/resources/db/migration/V11__fix_audited_gym_grades.sql`.
 - Applies only confirmed fix candidates above.
 - Uses idempotent upsert and deactivates obsolete active grades for target gyms.

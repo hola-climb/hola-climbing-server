@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.holaclimbing.server.domain.stats.mapper.MonthlyReportMapper">
+
+    <select id="findReport" resultType="com.holaclimbing.server.domain.stats.domain.MonthlyReport">
+        SELECT id,
+               user_id,
+               period,
+               selected_gym_id,
+               status,
+               source,
+               metrics::text AS metrics,
+               grade::text AS grade,
+               tip::text AS tip,
+               next_month_goal::text AS next_month_goal,
+               recommended_gyms::text AS recommended_gyms,
+               narrative::text AS narrative,
+               requirement::text AS requirement,
+               model,
+               prompt_version,
+               generated_at,
+               created_at,
+               updated_at
+        FROM monthly_reports
+        WHERE user_id = #{userId}
+          AND period = #{period}
+        <choose>
+            <when test="gymId == null">
+                AND selected_gym_id IS NULL
+            </when>
+            <otherwise>
+                AND selected_gym_id = #{gymId}
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="findAvailablePeriods" resultType="string">
+        SELECT DISTINCT period
+        FROM monthly_reports
+        WHERE user_id = #{userId}
+          AND status = 'ready'
+        ORDER BY period DESC
+    </select>
+
+    <insert id="upsertReport" parameterType="com.holaclimbing.server.domain.stats.domain.MonthlyReport">
+        INSERT INTO monthly_reports (
+            user_id,
+            period,
+            selected_gym_id,
+            status,
+            source,
+            metrics,
+            grade,
+            tip,
+            next_month_goal,
+            recommended_gyms,
+            narrative,
+            requirement,
+            model,
+            prompt_version,
+            generated_at
+        )
+        VALUES (
+            #{userId},
+            #{period},
+            #{selectedGymId},
+            #{status},
+            #{source},
+            #{metrics,jdbcType=VARCHAR}::jsonb,
+            #{grade,jdbcType=VARCHAR}::jsonb,
+            #{tip,jdbcType=VARCHAR}::jsonb,
+            #{nextMonthGoal,jdbcType=VARCHAR}::jsonb,
+            #{recommendedGyms,jdbcType=VARCHAR}::jsonb,
+            #{narrative,jdbcType=VARCHAR}::jsonb,
+            #{requirement,jdbcType=VARCHAR}::jsonb,
+            #{model},
+            #{promptVersion},
+            #{generatedAt}
+        )
+        ON CONFLICT ON CONSTRAINT uq_monthly_reports_user_period_gym
+        DO UPDATE SET
+            status = EXCLUDED.status,
+            source = EXCLUDED.source,
+            metrics = EXCLUDED.metrics,
+            grade = EXCLUDED.grade,
+            tip = EXCLUDED.tip,
+            next_month_goal = EXCLUDED.next_month_goal,
+            recommended_gyms = EXCLUDED.recommended_gyms,
+            narrative = EXCLUDED.narrative,
+            requirement = EXCLUDED.requirement,
+            model = EXCLUDED.model,
+            prompt_version = EXCLUDED.prompt_version,
+            generated_at = EXCLUDED.generated_at,
+            updated_at = NOW()
+    </insert>
+
+    <select id="findLogAggregate"
+            resultType="com.holaclimbing.server.domain.stats.domain.MonthlyReportAggregate">
+        WITH logs AS (
+            SELECT l.*
+            FROM climbing_logs l
+            WHERE l.user_id = #{userId}
+              AND l.deleted_at IS NULL
+              AND l.climbed_on BETWEEN #{from} AND #{to}
+        ),
+        problem_totals AS (
+            SELECT COALESCE(SUM((grade.value)::int), 0)::int AS problems_solved
+            FROM logs l
+            CROSS JOIN LATERAL jsonb_each_text(l.grade_counts) AS grade(label, value)
+        ),
+        primary_gym AS (
+            SELECT l.gym_id, g.name AS gym_name
+            FROM logs l
+            JOIN gyms g ON g.id = l.gym_id
+            GROUP BY l.gym_id, g.name
+            ORDER BY COUNT(*) DESC, MAX(l.climbed_on) DESC, l.gym_id ASC
+            LIMIT 1
+        )
+        SELECT COUNT(*)::int AS sessions,
+               (SELECT problems_solved FROM problem_totals) AS problems_solved,
+               COUNT(DISTINCT gym_id)::int AS gyms_visited,
+               (SELECT gym_id FROM primary_gym) AS primary_gym_id,
+               (SELECT gym_name FROM primary_gym) AS primary_gym_name
+        FROM logs
+    </select>
+
+    <select id="findVideoFallbackAggregate"
+            resultType="com.holaclimbing.server.domain.stats.domain.MonthlyReportAggregate">
+        WITH active_videos AS (
+            SELECT v.*
+            FROM videos v
+            WHERE v.user_id = #{userId}
+              AND v.deleted_at IS NULL
+              AND v.status != 'failed'
+              AND v.recorded_date BETWEEN #{from} AND #{to}
+        ),
+        primary_gym AS (
+            SELECT v.gym_id, g.name AS gym_name
+            FROM active_videos v
+            JOIN gyms g ON g.id = v.gym_id
+            GROUP BY v.gym_id, g.name
+            ORDER BY COUNT(*) DESC, MAX(v.recorded_date) DESC, v.gym_id ASC
+            LIMIT 1
+        )
+        SELECT COUNT(DISTINCT (recorded_date, gym_id))::int AS sessions,
+               COUNT(*)::int AS problems_solved,
+               COUNT(DISTINCT gym_id)::int AS gyms_visited,
+               COUNT(*)::int AS videos,
+               (SELECT gym_id FROM primary_gym) AS primary_gym_id,
+               (SELECT gym_name FROM primary_gym) AS primary_gym_name
+        FROM active_videos
+    </select>
+
+    <select id="findTechniqueCountsJson" resultType="string">
+        SELECT COALESCE(jsonb_object_agg(technique, technique_count ORDER BY technique), '{}'::jsonb)::text
+        FROM (
+            SELECT t.technique, COUNT(*)::int AS technique_count
+            FROM videos v
+            JOIN analysis_video_results r ON r.video_id = v.id
+            CROSS JOIN LATERAL jsonb_array_elements_text(
+                COALESCE(r.final_techniques, '[]'::jsonb)
+            ) AS t(technique)
+            WHERE v.user_id = #{userId}
+              AND v.deleted_at IS NULL
+              AND v.status = 'done'
+              AND v.recorded_date BETWEEN #{from} AND #{to}
+            GROUP BY t.technique
+        ) counted
+    </select>
+
+    <select id="findDynamicStaticAggregate"
+            resultType="com.holaclimbing.server.domain.stats.domain.MonthlyReportAggregate">
+        SELECT COUNT(*)::int AS videos,
+               COUNT(r.video_id)::int AS analyzed_videos,
+               COALESCE(SUM(CASE WHEN r.final_is_dynamic = TRUE THEN 1 ELSE 0 END), 0)::int AS dynamic_count,
+               COALESCE(SUM(CASE WHEN r.final_is_dynamic = FALSE THEN 1 ELSE 0 END), 0)::int AS static_count
+        FROM videos v
+        LEFT JOIN analysis_video_results r
+          ON r.video_id = v.id
+         AND v.status = 'done'
+         AND r.final_is_dynamic IS NOT NULL
+        WHERE v.user_id = #{userId}
+          AND v.deleted_at IS NULL
+          AND v.status != 'failed'
+          AND v.recorded_date BETWEEN #{from} AND #{to}
+    </select>
+
+    <select id="findGradeFromLogs"
+            resultType="com.holaclimbing.server.domain.stats.domain.MonthlyReportAggregate">
+        SELECT g.id AS grade_gym_id,
+               g.name AS grade_gym_name,
+               gg.label AS max_grade,
+               gg.difficulty_order AS max_grade_order
+        FROM climbing_logs l
+        JOIN gyms g ON g.id = l.gym_id
+        CROSS JOIN LATERAL jsonb_each_text(l.grade_counts) AS grade(label, value)
+        JOIN gym_grades gg ON gg.gym_id = l.gym_id AND gg.label = grade.label
+        WHERE l.user_id = #{userId}
+          AND l.gym_id = #{gymId}
+          AND l.deleted_at IS NULL
+          AND l.climbed_on BETWEEN #{from} AND #{to}
+          AND (grade.value)::int > 0
+        ORDER BY gg.difficulty_order DESC, gg.id DESC
+        LIMIT 1
+    </select>
+
+    <select id="findGradeFromVideos"
+            resultType="com.holaclimbing.server.domain.stats.domain.MonthlyReportAggregate">
+        SELECT g.id AS grade_gym_id,
+               g.name AS grade_gym_name,
+               gg.label AS max_grade,
+               gg.difficulty_order AS max_grade_order
+        FROM videos v
+        JOIN gyms g ON g.id = v.gym_id
+        JOIN gym_grades gg ON gg.id = v.gym_grade_id
+        WHERE v.user_id = #{userId}
+          AND v.gym_id = #{gymId}
+          AND v.deleted_at IS NULL
+          AND v.status != 'failed'
+          AND v.recorded_date BETWEEN #{from} AND #{to}
+        ORDER BY gg.difficulty_order DESC, gg.id DESC
+        LIMIT 1
+    </select>
+
+    <select id="findRecommendedGymsByTechniques"
+            resultType="com.holaclimbing.server.domain.stats.domain.MonthlyReportRecommendedGym">
+        SELECT g.id AS gym_id,
+               g.name,
+               COUNT(DISTINCT v.id)::int AS matching_video_count,
+               COALESCE(jsonb_agg(DISTINCT t.technique ORDER BY t.technique), '[]'::jsonb)::text AS matched_techniques
+        FROM gyms g
+        JOIN videos v ON v.gym_id = g.id
+        JOIN analysis_video_results r ON r.video_id = v.id
+        CROSS JOIN LATERAL jsonb_array_elements_text(
+            COALESCE(r.final_techniques, '[]'::jsonb)
+        ) AS t(technique)
+        WHERE g.status = 'active'
+          AND g.deleted_at IS NULL
+          AND v.deleted_at IS NULL
+          AND v.is_public = TRUE
+          AND v.status = 'done'
+        <choose>
+            <when test="techniques != null and techniques.size() > 0">
+                AND t.technique IN
+                <foreach collection="techniques" item="technique" open="(" separator="," close=")">
+                    #{technique}
+                </foreach>
+            </when>
+            <otherwise>
+                AND FALSE
+            </otherwise>
+        </choose>
+        GROUP BY g.id, g.name
+        ORDER BY matching_video_count DESC, g.id ASC
+        LIMIT #{size}
+    </select>
+
+</mapper>
