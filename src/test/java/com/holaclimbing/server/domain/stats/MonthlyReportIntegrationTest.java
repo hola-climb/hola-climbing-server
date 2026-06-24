@@ -73,7 +73,7 @@ class MonthlyReportIntegrationTest {
         insertLog(userId, 1L, LocalDate.of(2026, 5, 10), Map.of("빨강", 4, "파랑", 2));
         insertLog(userId, 2L, LocalDate.of(2026, 5, 20), Map.of("노랑", 4));
         insertVideo(userId, 1L, 1003L, LocalDate.of(2026, 5, 10), true, "[\"dyno\"]");
-        insertVideo(userId, 2L, 1004L, LocalDate.of(2026, 5, 20), false, "[\"flagging\"]");
+        insertVideo(userId, 1L, 1002L, LocalDate.of(2026, 5, 10), false, "[\"flagging\"]");
 
         mockMvc.perform(get("/api/stats/me/monthly-reports")
                         .header("Authorization", "Bearer " + token)
@@ -103,6 +103,7 @@ class MonthlyReportIntegrationTest {
                 .andExpect(jsonPath("$.data.status").value("insufficientData"))
                 .andExpect(jsonPath("$.data.source").value("videoFallback"))
                 .andExpect(jsonPath("$.data.metrics.sessions").value(2))
+                .andExpect(jsonPath("$.data.metrics.videos").value(3))
                 .andExpect(jsonPath("$.data.metrics.problemsSolved").value(3))
                 .andExpect(jsonPath("$.data.metrics.gymsVisited").value(2));
     }
@@ -160,6 +161,7 @@ class MonthlyReportIntegrationTest {
                 .andExpect(jsonPath("$.data.metrics.staticCount").value(1))
                 .andExpect(jsonPath("$.data.metrics.dynamicRatio").value(0.67))
                 .andExpect(jsonPath("$.data.metrics.techniqueCounts.dyno").value(2))
+                .andExpect(jsonPath("$.data.metrics.techniqueCounts.toe_hook").value(1))
                 .andExpect(jsonPath("$.data.metrics.techniqueCounts.flagging").value(1));
     }
 
