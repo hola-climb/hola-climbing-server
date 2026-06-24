@@ -26,7 +26,7 @@
 - Create: `src/main/java/com/holaclimbing/server/domain/video/domain/VideoRecommendedGym.java`
   - Query projection containing gym fields and score components.
 - Create: `src/main/java/com/holaclimbing/server/domain/video/dto/response/VideoRecommendedGymResponse.java`
-  - API response DTO with `similarityScore`, component scores, `source`, business hours, and open/favorite status.
+  - API response DTO with `similarityScore`, component scores, `source`, `reasons`, business hours, and open/favorite status.
 - Create: `src/main/resources/mapper/video/VideoGymRecommendationMapper.xml`
   - SQL for video-based similarity and public nearby fallback.
 - Modify: `src/test/java/com/holaclimbing/server/domain/video/VideoIntegrationTest.java`
@@ -74,13 +74,29 @@ Success response:
       "dynamicScore": 0.15,
       "locationRatingScore": 0.07,
       "analyzedVideoCount": 3,
-      "source": "video_style_match"
+      "source": "video_style_match",
+      "reasons": ["technique", "dynamic"]
     }
   ]
 }
 ```
 
-Fallback response uses the same shape, but `similarityScore`, `techniqueScore`, `dynamicScore`, and `analyzedVideoCount` are omitted because `@JsonInclude(NON_NULL)` is applied. `locationRatingScore` may be present for nearby rows, and `source` is `"nearby"`.
+Fallback response uses the same shape, but `similarityScore`, `techniqueScore`, `dynamicScore`, and `analyzedVideoCount` are omitted because `@JsonInclude(NON_NULL)` is applied. `locationRatingScore` may be present for nearby rows, `source` is `"nearby"`, and `reasons` includes at least `"distance"`.
+
+Reason keyword contract:
+
+```text
+technique: technique overlap contributed meaningfully to the score
+dynamic: dynamic/static match contributed meaningfully to the score
+distance: the gym is close, or the response is nearby fallback because analysis data was sparse
+rating: rating contribution is high enough to affect ordering
+```
+
+Use only these lowercase keywords in V1:
+
+```text
+technique, dynamic, distance, rating
+```
 
 ## Ranking Rules
 
@@ -90,17 +106,22 @@ Use these constants in `VideoGymRecommendationServiceImpl`:
 private static final int MIN_ANALYZED_VIDEOS_PER_GYM = 2;
 private static final double TECHNIQUE_WEIGHT = 0.70;
 private static final double DYNAMIC_WEIGHT = 0.15;
-private static final double LOCATION_RATING_WEIGHT = 0.15;
+private static final double TECHNIQUE_REASON_THRESHOLD = 0.35;
+private static final double DYNAMIC_REASON_THRESHOLD = 0.10;
+private static final double DISTANCE_REASON_RATIO = 0.25;
+private static final double RATING_REASON_THRESHOLD = 4.30;
 ```
 
 Score definition:
 
 ```text
-techniqueScore = matched reference techniques / reference technique count
-dynamicScore = 1.0 when reference final_is_dynamic is null
-dynamicScore = matching dynamic/static candidate video ratio when reference final_is_dynamic is true/false
+rawTechniqueScore = matched reference techniques / reference technique count
+rawDynamicScore = 1.0 when reference final_is_dynamic is null
+rawDynamicScore = matching dynamic/static candidate video ratio when reference final_is_dynamic is true/false
+techniqueScore = rawTechniqueScore * 0.70
+dynamicScore = rawDynamicScore * 0.15
 locationRatingScore = distanceScore * 0.10 + ratingScore * 0.05
-similarityScore = techniqueScore * 0.70 + dynamicScore * 0.15 + locationRatingScore
+similarityScore = techniqueScore + dynamicScore + locationRatingScore
 ```
 
 Distance and rating normalization:
@@ -108,7 +129,7 @@ Distance and rating normalization:
 ```text
 distanceScore = 1 - LEAST(distance_km / radiusKm, 1)
 ratingScore = LEAST(rating_avg / 5, 1)
-locationRatingScore = distanceScore * (0.10 / 0.15) + ratingScore * (0.05 / 0.15)
+locationRatingScore = distanceScore * 0.10 + ratingScore * 0.05
 ```
 
 The response exposes `locationRatingScore` as the final weighted contribution in `similarityScore`, not the normalized 0..1 intermediate. This makes the score components add up:
@@ -117,11 +138,17 @@ The response exposes `locationRatingScore` as the final weighted contribution in
 similarityScore = techniqueScoreContribution + dynamicScoreContribution + locationRatingScore
 ```
 
-where `techniqueScore` and `dynamicScore` response fields are also weighted contributions:
+The `techniqueScore`, `dynamicScore`, and `locationRatingScore` response fields are weighted contributions, so they add up to `similarityScore`.
+
+Reason resolution:
 
 ```text
-techniqueScore = rawTechniqueScore * 0.70
-dynamicScore = rawDynamicScore * 0.15
+source == nearby -> reasons starts with distance, and adds rating when rating_avg >= 4.30
+source == video_style_match -> add technique when weighted techniqueScore >= 0.35
+source == video_style_match -> add dynamic when weighted dynamicScore >= 0.10
+source == video_style_match -> add distance when distance_km <= radiusKm * 0.25
+source == video_style_match -> add rating when rating_avg >= 4.30
+if no keyword is selected -> reasons = ["distance"]
 ```
 
 Fallback rules:
@@ -247,6 +274,8 @@ void getVideoGymRecommendations_ordersByTechniqueAndDynamicSimilarity() throws E
             .andExpect(jsonPath("$.data[0].locationRatingScore", greaterThan(0.0)))
             .andExpect(jsonPath("$.data[0].analyzedVideoCount").value(2))
             .andExpect(jsonPath("$.data[0].isFavorite").value(false))
+            .andExpect(jsonPath("$.data[0].reasons[0]").value("technique"))
+            .andExpect(jsonPath("$.data[0].reasons[1]").value("dynamic"))
             .andExpect(jsonPath("$.data[0].distanceKm").isNumber())
             .andExpect(jsonPath("$.data[0].businessHours").exists())
             .andExpect(jsonPath("$.data[1].id").value(2))
@@ -277,7 +306,8 @@ void getVideoGymRecommendations_withoutSeedAnalysisFallsBackToNearby() throws Ex
             .andExpect(jsonPath("$.data[0].similarityScore").doesNotExist())
             .andExpect(jsonPath("$.data[0].techniqueScore").doesNotExist())
             .andExpect(jsonPath("$.data[0].dynamicScore").doesNotExist())
-            .andExpect(jsonPath("$.data[0].analyzedVideoCount").doesNotExist());
+            .andExpect(jsonPath("$.data[0].analyzedVideoCount").doesNotExist())
+            .andExpect(jsonPath("$.data[0].reasons[0]").value("distance"));
 }
 ```
 
@@ -305,7 +335,8 @@ void getVideoGymRecommendations_sparseGymAnalysisFallsBackToNearby() throws Exce
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.length()").value(2))
             .andExpect(jsonPath("$.data[0].source").value("nearby"))
-            .andExpect(jsonPath("$.data[0].similarityScore").doesNotExist());
+            .andExpect(jsonPath("$.data[0].similarityScore").doesNotExist())
+            .andExpect(jsonPath("$.data[0].reasons[0]").value("distance"));
 }
 ```
 
@@ -517,6 +548,7 @@ import com.holaclimbing.server.domain.gym.dto.DayHours;
 import com.holaclimbing.server.domain.video.domain.VideoRecommendedGym;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -537,13 +569,15 @@ public record VideoRecommendedGymResponse(
         Double dynamicScore,
         Double locationRatingScore,
         Integer analyzedVideoCount,
-        String source
+        String source,
+        List<String> reasons
 ) {
     public static VideoRecommendedGymResponse from(VideoRecommendedGym gym,
                                                    String thumbnailUrl,
                                                    Map<String, DayHours> businessHours,
                                                    boolean isOpen,
-                                                   boolean isFavorite) {
+                                                   boolean isFavorite,
+                                                   List<String> reasons) {
         return new VideoRecommendedGymResponse(
                 gym.getId(),
                 gym.getName(),
@@ -561,7 +595,8 @@ public record VideoRecommendedGymResponse(
                 gym.getDynamicScore(),
                 gym.getLocationRatingScore(),
                 gym.getAnalyzedVideoCount(),
-                gym.getSource()
+                gym.getSource(),
+                reasons
         );
     }
 }
@@ -627,15 +662,13 @@ public interface VideoGymRecommendationMapper {
                                               @Param("limit") int limit,
                                               @Param("minAnalyzedVideos") int minAnalyzedVideos,
                                               @Param("techniqueWeight") double techniqueWeight,
-                                              @Param("dynamicWeight") double dynamicWeight,
-                                              @Param("locationRatingWeight") double locationRatingWeight);
+                                              @Param("dynamicWeight") double dynamicWeight);
 
     List<VideoRecommendedGym> findNearbyGyms(@Param("viewerId") Long viewerId,
                                              @Param("lat") double lat,
                                              @Param("lng") double lng,
                                              @Param("radiusKm") double radiusKm,
-                                             @Param("limit") int limit,
-                                             @Param("locationRatingWeight") double locationRatingWeight);
+                                             @Param("limit") int limit);
 }
 ```
 
@@ -895,7 +928,10 @@ public class VideoGymRecommendationServiceImpl implements VideoGymRecommendation
     private static final int MIN_ANALYZED_VIDEOS_PER_GYM = 2;
     private static final double TECHNIQUE_WEIGHT = 0.70;
     private static final double DYNAMIC_WEIGHT = 0.15;
-    private static final double LOCATION_RATING_WEIGHT = 0.15;
+    private static final double TECHNIQUE_REASON_THRESHOLD = 0.35;
+    private static final double DYNAMIC_REASON_THRESHOLD = 0.10;
+    private static final double DISTANCE_REASON_RATIO = 0.25;
+    private static final double RATING_REASON_THRESHOLD = 4.30;
     private static final double MIN_LAT = -90.0;
     private static final double MAX_LAT = 90.0;
     private static final double MIN_LNG = -180.0;
@@ -927,7 +963,7 @@ public class VideoGymRecommendationServiceImpl implements VideoGymRecommendation
 
         AnalysisVideoResult seedAnalysis = recommendationMapper.findSeedAnalysis(videoId);
         if (seedAnalysis == null || parseFinalTechniques(seedAnalysis).isEmpty()) {
-            return toResponses(findNearby(viewerId, lat, lng, radiusKm, size));
+            return toResponses(findNearby(viewerId, lat, lng, radiusKm, size), radiusKm);
         }
 
         List<VideoRecommendedGym> similarGyms = recommendationMapper.findSimilarGyms(
@@ -939,16 +975,15 @@ public class VideoGymRecommendationServiceImpl implements VideoGymRecommendation
                 size,
                 MIN_ANALYZED_VIDEOS_PER_GYM,
                 TECHNIQUE_WEIGHT,
-                DYNAMIC_WEIGHT,
-                LOCATION_RATING_WEIGHT);
+                DYNAMIC_WEIGHT);
         if (similarGyms.isEmpty()) {
-            return toResponses(findNearby(viewerId, lat, lng, radiusKm, size));
+            return toResponses(findNearby(viewerId, lat, lng, radiusKm, size), radiusKm);
         }
-        return toResponses(similarGyms);
+        return toResponses(similarGyms, radiusKm);
     }
 
     private List<VideoRecommendedGym> findNearby(Long viewerId, double lat, double lng, double radiusKm, int size) {
-        return recommendationMapper.findNearbyGyms(viewerId, lat, lng, radiusKm, size, LOCATION_RATING_WEIGHT);
+        return recommendationMapper.findNearbyGyms(viewerId, lat, lng, radiusKm, size);
     }
 
     private List<String> parseFinalTechniques(AnalysisVideoResult result) {
@@ -963,7 +998,7 @@ public class VideoGymRecommendationServiceImpl implements VideoGymRecommendation
         }
     }
 
-    private List<VideoRecommendedGymResponse> toResponses(List<VideoRecommendedGym> gyms) {
+    private List<VideoRecommendedGymResponse> toResponses(List<VideoRecommendedGym> gyms, double radiusKm) {
         return gyms.stream()
                 .map(gym -> {
                     Map<String, DayHours> businessHours =
@@ -973,9 +1008,37 @@ public class VideoGymRecommendationServiceImpl implements VideoGymRecommendation
                             profileImageUrlResolver.resolve(gym.getThumbnailUrl()),
                             businessHours,
                             operatingStatusResolver.isOpenNow(businessHours),
-                            Boolean.TRUE.equals(gym.getFavorite()));
+                            Boolean.TRUE.equals(gym.getFavorite()),
+                            resolveReasons(gym, radiusKm));
                 })
                 .toList();
+    }
+
+    private List<String> resolveReasons(VideoRecommendedGym gym, double radiusKm) {
+        if ("nearby".equals(gym.getSource())) {
+            if (gym.getRatingAvg() != null && gym.getRatingAvg().doubleValue() >= RATING_REASON_THRESHOLD) {
+                return List.of("distance", "rating");
+            }
+            return List.of("distance");
+        }
+
+        java.util.ArrayList<String> reasons = new java.util.ArrayList<>();
+        if (gym.getTechniqueScore() != null && gym.getTechniqueScore() >= TECHNIQUE_REASON_THRESHOLD) {
+            reasons.add("technique");
+        }
+        if (gym.getDynamicScore() != null && gym.getDynamicScore() >= DYNAMIC_REASON_THRESHOLD) {
+            reasons.add("dynamic");
+        }
+        if (gym.getDistanceKm() != null && gym.getDistanceKm() <= radiusKm * DISTANCE_REASON_RATIO) {
+            reasons.add("distance");
+        }
+        if (gym.getRatingAvg() != null && gym.getRatingAvg().doubleValue() >= RATING_REASON_THRESHOLD) {
+            reasons.add("rating");
+        }
+        if (reasons.isEmpty()) {
+            reasons.add("distance");
+        }
+        return List.copyOf(reasons);
     }
 
     private void validateRequest(double lat, double lng, double radiusKm) {
@@ -1271,6 +1334,7 @@ git commit -m "docs(video): describe video-based gym recommendations"
 - Data scarcity fallback is covered by Task 5 service and Task 2 fallback tests.
 - Public access is covered by SecurityConfig no-change note and tests that call without token.
 - Optional favorite for authenticated callers is covered by Task 2 favorite test and Task 4 SQL.
+- Recommendation reason keywords are covered by the response contract, Task 2 assertions, Task 3 DTO, and Task 5 `resolveReasons`.
 
 ### Placeholder Scan
 
@@ -1284,7 +1348,7 @@ git commit -m "docs(video): describe video-based gym recommendations"
 - Service uses `VideoGymRecommendationMapper.findSeedVideo`, `findSeedAnalysis`, `findSimilarGyms`, and `findNearbyGyms`, all defined in Task 4.
 - Mapper XML result type is `VideoRecommendedGym`, defined in Task 3.
 - Response DTO consumes `VideoRecommendedGym`, also defined in Task 3.
-- Test response field names match `VideoRecommendedGymResponse` record component names.
+- Test response field names, including `reasons`, match `VideoRecommendedGymResponse` record component names.
 
 ### Risk Notes
 
