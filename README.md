@@ -132,6 +132,7 @@ docker run -d --name hola-redis -p 6379:6379 redis:7
 | `MONTHLY_REPORT_LLM_MODE` / `MONTHLY_REPORT_LLM_API_KEY` / `MONTHLY_REPORT_LLM_MODEL` | 월간 리포트 문장 생성 모드와 OpenAI 설정 (`rule` 또는 `openai`) | `rule` / (없음) / `gpt-4.1-mini` |
 
 > `JWT_SECRET`, `AI_CALLBACK_SECRET`, GCS 자격증명, SMTP 설정, OAuth client credentials는 운영 환경에서 반드시 별도 설정해야 합니다.
+> Cloud Run 운영 배포 변수와 OpenAI Secret Manager 설정은 `docs/deployment/gcp-backend-vm-ai.md`를 기준으로 관리합니다.
 
 ### OAuth 프론트 연동 흐름
 
