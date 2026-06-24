@@ -139,6 +139,20 @@ app:
     allowed-extensions: mp4,mov,hevc   # NF-05: MP4·MOV·HEVC
     max-duration-seconds: 60           # NF-05: 최대 60초
     max-file-size-bytes: 209715200     # NF-05: 최대 200MB
+  monthly-report:
+    min-videos: ${MONTHLY_REPORT_MIN_VIDEOS:3}
+    min-problems: ${MONTHLY_REPORT_MIN_PROBLEMS:10}
+    generate-on-miss: ${MONTHLY_REPORT_GENERATE_ON_MISS:true}
+    prompt-version: ${MONTHLY_REPORT_PROMPT_VERSION:monthly-report-v1}
+    scheduler:
+      enabled: ${MONTHLY_REPORT_SCHEDULER_ENABLED:false}
+      cron: ${MONTHLY_REPORT_SCHEDULER_CRON:0 0 0 1 * *}
+    llm:
+      mode: ${MONTHLY_REPORT_LLM_MODE:rule}
+      base-url: ${MONTHLY_REPORT_LLM_BASE_URL:https://api.openai.com/v1}
+      api-key: ${MONTHLY_REPORT_LLM_API_KEY:}
+      model: ${MONTHLY_REPORT_LLM_MODEL:gpt-4.1-mini}
+      timeout-seconds: ${MONTHLY_REPORT_LLM_TIMEOUT_SECONDS:20}
   # FCM 푸시 알림 (영상 분석 완료/실패 + 댓글/답글/좋아요/팔로우 알림)
   # enabled=false면 NoopFcmSender가 주입되어 호출이 모두 no-op (개발·테스트 기본값).
   # 운영에서는 enabled=true + 서비스 계정 키 경로(또는 GOOGLE_APPLICATION_CREDENTIALS) 지정.
