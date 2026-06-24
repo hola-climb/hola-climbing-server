@@ -57,6 +57,9 @@ public enum ErrorCode {
 
     // ===== 통계 / 클라이밍 기록 F-03 (T) =====
     CLIMBING_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "클라이밍 기록을 찾을 수 없습니다."),
+    MONTHLY_REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "T002", "월간 리포트를 찾을 수 없습니다."),
+    INVALID_MONTH(HttpStatus.BAD_REQUEST, "T003", "월 형식이 올바르지 않습니다."),
+    MONTHLY_REPORT_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "T004", "월간 리포트 생성에 실패했습니다."),
 
     // ===== 인프라 / 외부 시스템 (S) =====
     GCS_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "S001", "영상 업로드에 실패했습니다."),
