@@ -71,7 +71,7 @@ class MonthlyReportIntegrationTest {
         String token = register("monthly-log@hola.com", "monthlylog");
         long userId = userMapper.findByEmail("monthly-log@hola.com").getId();
         insertLog(userId, 1L, LocalDate.of(2026, 5, 10), Map.of("빨강", 4, "파랑", 2));
-        insertLog(userId, 2L, LocalDate.of(2026, 5, 20), Map.of("노랑", 3));
+        insertLog(userId, 2L, LocalDate.of(2026, 5, 20), Map.of("노랑", 4));
         insertVideo(userId, 1L, 1003L, LocalDate.of(2026, 5, 10), true, "[\"dyno\"]");
         insertVideo(userId, 2L, 1004L, LocalDate.of(2026, 5, 20), false, "[\"flagging\"]");
 
@@ -82,7 +82,7 @@ class MonthlyReportIntegrationTest {
                 .andExpect(jsonPath("$.data.status").value("insufficientData"))
                 .andExpect(jsonPath("$.data.source").value("log"))
                 .andExpect(jsonPath("$.data.metrics.sessions").value(2))
-                .andExpect(jsonPath("$.data.metrics.problemsSolved").value(9))
+                .andExpect(jsonPath("$.data.metrics.problemsSolved").value(10))
                 .andExpect(jsonPath("$.data.metrics.gymsVisited").value(2))
                 .andExpect(jsonPath("$.data.metrics.videos").value(2));
     }
@@ -100,6 +100,7 @@ class MonthlyReportIntegrationTest {
                         .header("Authorization", "Bearer " + token)
                         .param("month", "2026-05"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("insufficientData"))
                 .andExpect(jsonPath("$.data.source").value("videoFallback"))
                 .andExpect(jsonPath("$.data.metrics.sessions").value(2))
                 .andExpect(jsonPath("$.data.metrics.problemsSolved").value(3))
@@ -169,6 +170,8 @@ class MonthlyReportIntegrationTest {
         long userId = userMapper.findByEmail("monthly-recommend@hola.com").getId();
         insertLog(userId, 1L, LocalDate.of(2026, 5, 10), Map.of("빨강", 12));
         insertVideo(userId, 1L, 1003L, LocalDate.of(2026, 5, 11), true, "[\"dyno\"]");
+        insertVideo(userId, 1L, 1003L, LocalDate.of(2026, 5, 12), true, "[\"dyno\"]");
+        insertVideo(userId, 1L, 1003L, LocalDate.of(2026, 5, 13), true, "[\"dyno\"]");
         insertPublicTechniqueVideo(2L, 1004L, LocalDate.of(2026, 5, 12), false, "[\"heel_hook\", \"lock_off\"]");
         insertPublicTechniqueVideo(2L, 1005L, LocalDate.of(2026, 5, 13), false, "[\"heel_hook\"]");
 
