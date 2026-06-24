@@ -2,7 +2,7 @@ package com.holaclimbing.server.domain.stats.service;
 
 import com.holaclimbing.server.domain.stats.domain.MonthlyReportAggregate;
 import com.holaclimbing.server.domain.stats.domain.MonthlyReportNarrative;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-@ConditionalOnMissingBean(value = MonthlyReportNarrativeClient.class, ignored = RuleBasedMonthlyReportNarrativeClient.class)
+@ConditionalOnProperty(prefix = "app.monthly-report.llm", name = "mode", havingValue = "rule", matchIfMissing = true)
 public class RuleBasedMonthlyReportNarrativeClient implements MonthlyReportNarrativeClient {
 
     @Override

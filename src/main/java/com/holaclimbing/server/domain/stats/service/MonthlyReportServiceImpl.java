@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.holaclimbing.server.common.exception.BusinessException;
 import com.holaclimbing.server.common.exception.error.ErrorCode;
 import com.holaclimbing.server.domain.analysis.domain.AnalysisTechniqueCatalog;
+import com.holaclimbing.server.domain.gym.mapper.GymMapper;
 import com.holaclimbing.server.domain.stats.MonthlyReportProperties;
 import com.holaclimbing.server.domain.stats.domain.MonthlyReport;
 import com.holaclimbing.server.domain.stats.domain.MonthlyReportAggregate;
@@ -46,13 +47,16 @@ public class MonthlyReportServiceImpl implements MonthlyReportService {
 
     private final MonthlyReportMapper monthlyReportMapper;
     private final UserMapper userMapper;
+    private final GymMapper gymMapper;
     private final MonthlyReportProperties properties;
     private final MonthlyReportNarrativeClient narrativeClient;
     private final ObjectMapper objectMapper;
 
     @Override
+    @Transactional
     public MonthlyReportResponse getMonthlyReport(Long userId, YearMonth month, Long gymId) {
         requireUser(userId);
+        validateSelectedGym(gymId);
         MonthlyReport existing = monthlyReportMapper.findReport(userId, month.toString(), gymId);
         if (existing != null) {
             return toStoredResponse(existing);
@@ -67,6 +71,7 @@ public class MonthlyReportServiceImpl implements MonthlyReportService {
     @Transactional
     public MonthlyReportResponse generateMonthlyReport(Long userId, YearMonth month, Long gymId) {
         requireUser(userId);
+        validateSelectedGym(gymId);
         LocalDate from = month.atDay(1);
         LocalDate to = month.atEndOfMonth();
 
@@ -110,6 +115,7 @@ public class MonthlyReportServiceImpl implements MonthlyReportService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public MonthlyReportAvailablePeriodsResponse getAvailablePeriods(Long userId) {
         requireUser(userId);
         return new MonthlyReportAvailablePeriodsResponse(monthlyReportMapper.findAvailablePeriods(userId));
@@ -118,6 +124,12 @@ public class MonthlyReportServiceImpl implements MonthlyReportService {
     private void requireUser(Long userId) {
         if (userMapper.findById(userId) == null) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+    }
+
+    private void validateSelectedGym(Long gymId) {
+        if (gymId != null && gymMapper.findById(gymId) == null) {
+            throw new BusinessException(ErrorCode.GYM_NOT_FOUND);
         }
     }
 
