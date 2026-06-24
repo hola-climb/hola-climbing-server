@@ -28,8 +28,7 @@ public class MonthlyReportScheduler {
             try {
                 monthlyReportService.generateMonthlyReport(userId, targetMonth, null);
             } catch (Exception e) {
-                log.warn("monthly report generation failed. userId={}, period={}, error={}",
-                        userId, targetMonth, e.getMessage());
+                log.warn("monthly report generation failed. userId={}, period={}", userId, targetMonth, e);
             }
         }
     }
