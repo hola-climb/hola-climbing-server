@@ -83,6 +83,21 @@ class ReportIntegrationTest {
     }
 
     @Test
+    @DisplayName("신고 등록 — 사용자와 연관없음 category도 등록된다")
+    void createReport_irrelevantCategory_success() throws Exception {
+        String token = register("a@hola.com", "climberone");
+        long targetId = userId("victim@hola.com", "targetuser");
+
+        mockMvc.perform(post("/api/reports")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new CreateReportRequest("user", targetId, "irrelevant", "사용자와 연관없음"))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.reportId").isNumber());
+    }
+
+    @Test
     @DisplayName("신고 등록 실패 — 토큰 없이 호출하면 401")
     void createReport_withoutToken_returns401() throws Exception {
         mockMvc.perform(post("/api/reports")

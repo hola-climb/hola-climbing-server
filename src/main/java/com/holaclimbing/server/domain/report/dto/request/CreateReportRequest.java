@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 /**
  * 신고 등록 요청.
  * targetType: video | comment | user
- * category: obscene | copyright | abuse | spam | etc
+ * category: obscene | copyright | abuse | spam | irrelevant | etc
  */
 public record CreateReportRequest(
         @NotBlank String targetType,

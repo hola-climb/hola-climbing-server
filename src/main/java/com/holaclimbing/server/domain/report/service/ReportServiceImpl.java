@@ -24,7 +24,7 @@ public class ReportServiceImpl implements ReportService {
 
     private static final Set<String> TARGET_TYPES = Set.of("video", "comment", "user");
     private static final Set<String> CATEGORIES =
-            Set.of("obscene", "copyright", "abuse", "spam", "etc");
+            Set.of("obscene", "copyright", "abuse", "spam", "irrelevant", "etc");
 
     private final ReportMapper reportMapper;
     private final UserMapper userMapper;

@@ -351,7 +351,7 @@ CREATE TABLE reports (
     reporter_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     target_type     VARCHAR(30) NOT NULL,  -- 'video' | 'comment' | 'user'
     target_id       BIGINT NOT NULL,
-    category        VARCHAR(50) NOT NULL,  -- 'obscene' | 'copyright' | 'abuse' | 'spam' | 'etc'
+    category        VARCHAR(50) NOT NULL,  -- 'obscene' | 'copyright' | 'abuse' | 'spam' | 'irrelevant' | 'etc'
     reason          TEXT,
     status          VARCHAR(20) NOT NULL DEFAULT 'pending',  -- 'pending' | 'reviewed' | 'resolved' | 'rejected'
     reviewed_by     BIGINT REFERENCES users(id),
