@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.holaclimbing.server.common.exception.BusinessException;
 import com.holaclimbing.server.common.exception.error.ErrorCode;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
@@ -28,6 +29,7 @@ public class AppleJwksClient {
     private final Clock clock;
     private final Map<CacheKey, CachedKey> cache = new ConcurrentHashMap<>();
 
+    @Autowired
     public AppleJwksClient(RestClient.Builder builder, ObjectMapper objectMapper) {
         this(builder, objectMapper, Clock.systemUTC());
     }

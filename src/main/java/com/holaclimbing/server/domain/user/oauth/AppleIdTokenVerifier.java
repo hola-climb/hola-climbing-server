@@ -106,7 +106,7 @@ public class AppleIdTokenVerifier {
             return booleanValue;
         }
         if (value instanceof String stringValue) {
-            return Boolean.parseBoolean(stringValue);
+            return "true".equals(stringValue);
         }
         return false;
     }

@@ -110,6 +110,22 @@ class AppleIdTokenVerifierTest {
         assertAuthorizationFailure(() -> verifier.verify(token, provider, NONCE));
     }
 
+    @Test
+    void verify_missingEmailVerifiedThrowsAuthorizationFailure() {
+        String token = appleIdTokenWithoutEmailVerified(provider.clientId(), NONCE);
+
+        assertAuthorizationFailure(() -> verifier.verify(token, provider, NONCE));
+    }
+
+    @Test
+    void verify_uppercaseStringEmailVerifiedThrowsAuthorizationFailure() {
+        String uppercaseToken = appleIdToken(provider.clientId(), NONCE, "TRUE");
+        String titleCaseToken = appleIdToken(provider.clientId(), NONCE, "True");
+
+        assertAuthorizationFailure(() -> verifier.verify(uppercaseToken, provider, NONCE));
+        assertAuthorizationFailure(() -> verifier.verify(titleCaseToken, provider, NONCE));
+    }
+
     private String appleIdToken(String audience, String nonce) {
         return appleIdToken(audience, nonce, true);
     }
@@ -119,6 +135,14 @@ class AppleIdTokenVerifierTest {
                 .header().keyId(KEY_ID).and()
                 .claim("nonce", nonce)
                 .claim("email_verified", emailVerified)
+                .signWith(keyPair.getPrivate(), Jwts.SIG.RS256)
+                .compact();
+    }
+
+    private String appleIdTokenWithoutEmailVerified(String audience, String nonce) {
+        return baseAppleIdToken(audience)
+                .header().keyId(KEY_ID).and()
+                .claim("nonce", nonce)
                 .signWith(keyPair.getPrivate(), Jwts.SIG.RS256)
                 .compact();
     }
