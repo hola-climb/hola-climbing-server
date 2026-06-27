@@ -6,6 +6,7 @@ import com.holaclimbing.server.TestcontainersConfiguration;
 import static com.holaclimbing.server.TestSignupRequests.signupRequest;
 import com.holaclimbing.server.domain.user.dto.request.LoginRequest;
 import com.holaclimbing.server.domain.user.dto.request.SignupRequest;
+import com.holaclimbing.server.domain.user.dto.request.WithdrawRequest;
 import com.holaclimbing.server.domain.user.dto.request.VerifyEmailRequest;
 import com.holaclimbing.server.domain.user.mapper.UserMapper;
 import com.holaclimbing.server.domain.video.dto.request.CreateCommentRequest;
@@ -436,6 +437,33 @@ class VideoIntegrationTest {
                 .isEqualTo(videoId);
         org.assertj.core.api.Assertions.assertThat(gymVideos.path("content").get(0).path("status").asText())
                 .isEqualTo("failed");
+    }
+
+    @Test
+    @DisplayName("피드·암장 영상 목록 — 탈퇴한 작성자의 영상은 제외된다")
+    void videoLists_excludeWithdrawnUploaderVideos() throws Exception {
+        String activeUploader = register("active-feed@hola.com", "activefeed");
+        String withdrawnUploader = register("withdrawn-feed@hola.com", "withdrawnfeed");
+        long withdrawnVideoId = createVideo(withdrawnUploader, true);
+        long activeVideoId = createVideo(activeUploader, true);
+
+        withdraw(withdrawnUploader);
+
+        var feed = dataOf(mockMvc.perform(get("/api/videos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.hasNext").value(false)));
+        org.assertj.core.api.Assertions.assertThat(feed.path("content").get(0).path("id").asLong())
+                .isEqualTo(activeVideoId)
+                .isNotEqualTo(withdrawnVideoId);
+
+        var gymVideos = dataOf(mockMvc.perform(get("/api/gyms/1/videos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.content.length()").value(1)));
+        org.assertj.core.api.Assertions.assertThat(gymVideos.path("content").get(0).path("id").asLong())
+                .isEqualTo(activeVideoId)
+                .isNotEqualTo(withdrawnVideoId);
     }
 
     @Test
@@ -1282,6 +1310,14 @@ class VideoIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest(email, PASSWORD)))))
                 .path("accessToken").asText();
+    }
+
+    private void withdraw(String token) throws Exception {
+        mockMvc.perform(delete("/api/users/me")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new WithdrawRequest(PASSWORD, null))))
+                .andExpect(status().isOk());
     }
 
     private long createVideo(String token, boolean isPublic) throws Exception {

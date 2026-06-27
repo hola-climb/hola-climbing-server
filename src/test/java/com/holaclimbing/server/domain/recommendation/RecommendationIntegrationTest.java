@@ -6,6 +6,7 @@ import com.holaclimbing.server.TestcontainersConfiguration;
 import static com.holaclimbing.server.TestSignupRequests.signupRequest;
 import com.holaclimbing.server.domain.user.dto.request.LoginRequest;
 import com.holaclimbing.server.domain.user.dto.request.SignupRequest;
+import com.holaclimbing.server.domain.user.dto.request.WithdrawRequest;
 import com.holaclimbing.server.domain.user.dto.request.VerifyEmailRequest;
 import com.holaclimbing.server.domain.user.mapper.UserMapper;
 import com.holaclimbing.server.domain.video.dto.request.CreateVideoRequest;
@@ -28,6 +29,7 @@ import java.util.Base64;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -157,6 +159,29 @@ class RecommendationIntegrationTest {
                 .andExpect(jsonPath("$.data.content.length()").value(0))
                 .andExpect(jsonPath("$.data.hasNext").value(false))
                 .andExpect(jsonPath("$.data.totalElements").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("홈 피드 — 탈퇴한 업로더의 공개 영상은 제외된다")
+    void getVideoFeed_excludesWithdrawnUploaderVideos() throws Exception {
+        String viewer = register("viewer-withdrawn@hola.com", "viewer");
+        String activeUploader = register("active-rec@hola.com", "activeuser");
+        String withdrawnUploader = register("withdrawn-rec@hola.com", "withdrawnuser");
+        long withdrawnVideoId = createVideo(withdrawnUploader);
+        long activeVideoId = createVideo(activeUploader);
+
+        withdraw(withdrawnUploader);
+
+        JsonNode page = dataOf(mockMvc.perform(get("/api/recommendations/videos")
+                        .header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.hasNext").value(false))
+                .andExpect(jsonPath("$.data.totalElements").doesNotExist()));
+
+        assertThat(page.path("content").get(0).path("id").asLong())
+                .isEqualTo(activeVideoId)
+                .isNotEqualTo(withdrawnVideoId);
     }
 
     @Test
@@ -343,6 +368,42 @@ class RecommendationIntegrationTest {
         assertThat(secondPage.path("content").get(0).path("id").asLong())
                 .isNotIn(firstPage.path("content").get(0).path("id").asLong(),
                         firstPage.path("content").get(1).path("id").asLong());
+    }
+
+    @Test
+    @DisplayName("홈 피드 — snapshot 이후 탈퇴한 업로더의 영상은 다음 페이지에서 건너뛴다")
+    void getVideoFeed_snapshotCursorSkipsWithdrawnUploaderVideos() throws Exception {
+        String viewer = register("viewer-snapshot-withdrawn@hola.com", "viewer");
+        String oldestUploader = register("snapshot-oldest@hola.com", "snapshotoldest");
+        String withdrawnUploader = register("snapshot-withdrawn@hola.com", "snapshotwithdrawn");
+        String newestUploader = register("snapshot-newest@hola.com", "snapshotnewest");
+
+        long oldestVideoId = createVideo(oldestUploader);
+        long withdrawnVideoId = createVideo(withdrawnUploader);
+        long newestVideoId = createVideo(newestUploader);
+
+        JsonNode firstPage = dataOf(mockMvc.perform(get("/api/recommendations/videos")
+                        .param("size", "1")
+                        .header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.nextCursor").isString())
+                .andExpect(jsonPath("$.data.hasNext").value(true)));
+        assertThat(firstPage.path("content").get(0).path("id").asLong()).isEqualTo(newestVideoId);
+
+        withdraw(withdrawnUploader);
+
+        JsonNode secondPage = dataOf(mockMvc.perform(get("/api/recommendations/videos")
+                        .param("size", "1")
+                        .param("cursor", firstPage.path("nextCursor").asText())
+                        .header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.hasNext").value(false)));
+
+        assertThat(secondPage.path("content").get(0).path("id").asLong())
+                .isEqualTo(oldestVideoId)
+                .isNotEqualTo(withdrawnVideoId);
     }
 
     @Test
@@ -585,6 +646,14 @@ class RecommendationIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new LoginRequest(email, PASSWORD)))))
                 .path("accessToken").asText();
+    }
+
+    private void withdraw(String token) throws Exception {
+        mockMvc.perform(delete("/api/users/me")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new WithdrawRequest(PASSWORD, null))))
+                .andExpect(status().isOk());
     }
 
     private JsonNode dataOf(ResultActions actions) throws Exception {

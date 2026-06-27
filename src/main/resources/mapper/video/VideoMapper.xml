@@ -57,6 +57,16 @@
         </choose>
     </sql>
 
+    <sql id="hasActiveAuthor">
+        AND EXISTS (
+            SELECT 1
+            FROM users author
+            WHERE author.id = videos.user_id
+              AND author.status = 'ACTIVE'
+              AND author.deleted_at IS NULL
+        )
+    </sql>
+
     <!-- 커서 keyset 스캔: 촬영일 최신순, 같은 촬영일은 id 최신순. -->
     <select id="findFeedByCursor" resultType="com.holaclimbing.server.domain.video.domain.Video">
         SELECT <include refid="columns"/>
@@ -65,6 +75,7 @@
         JOIN gyms g ON g.id = videos.gym_id
         JOIN gym_grades gg ON gg.id = videos.gym_grade_id AND gg.gym_id = videos.gym_id
         WHERE videos.deleted_at IS NULL
+        <include refid="hasActiveAuthor"/>
         <include refid="viewableByViewer"/>
         <if test="userId != null">
             AND videos.user_id = #{userId}
@@ -90,6 +101,7 @@
         JOIN gyms g ON g.id = videos.gym_id
         JOIN gym_grades gg ON gg.id = videos.gym_grade_id AND gg.gym_id = videos.gym_id
         WHERE videos.deleted_at IS NULL
+        <include refid="hasActiveAuthor"/>
         <include refid="viewableByViewer"/>
           AND videos.gym_id = #{gymId}
         <if test="gymGradeId != null">
@@ -104,6 +116,7 @@
         SELECT COUNT(*)
         FROM videos
         WHERE deleted_at IS NULL
+        <include refid="hasActiveAuthor"/>
         <include refid="viewableByViewer"/>
           AND gym_id = #{gymId}
         <if test="gymGradeId != null">
