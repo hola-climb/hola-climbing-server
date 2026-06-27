@@ -77,7 +77,7 @@ Do not put the OpenAI API key in GitHub variables, workflow YAML, local docs, or
 ```bash
 PROJECT_ID=hola-climbing-log
 REGION=asia-northeast3
-SERVICE=hola-backend
+SERVICE=hola-climbing-backend
 SECRET_ID=hola-openai-api-key
 
 gcloud secrets describe "$SECRET_ID" --project="$PROJECT_ID" >/dev/null 2>&1 || \
@@ -99,7 +99,7 @@ Grant the Cloud Run runtime service account access to the secret:
 ```bash
 PROJECT_ID=hola-climbing-log
 REGION=asia-northeast3
-SERVICE=hola-backend
+SERVICE=hola-climbing-backend
 SECRET_ID=hola-openai-api-key
 
 RUNTIME_SA="$(gcloud run services describe "$SERVICE" \
