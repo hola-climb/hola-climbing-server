@@ -1,5 +1,7 @@
 package com.holaclimbing.server.domain.user.oauth;
 
+import com.holaclimbing.server.common.exception.BusinessException;
+import com.holaclimbing.server.common.exception.error.ErrorCode;
 import org.springframework.stereotype.Component;
 
 import java.util.EnumMap;
@@ -16,6 +18,10 @@ public class OAuthProviderClientResolver {
     }
 
     public OAuthProviderClient resolve(OAuthProvider provider) {
-        return clients.get(provider);
+        OAuthProviderClient client = clients.get(provider);
+        if (client == null) {
+            throw new BusinessException(ErrorCode.OAUTH_AUTHORIZATION_FAILED);
+        }
+        return client;
     }
 }
