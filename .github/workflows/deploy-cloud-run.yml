@@ -111,7 +111,6 @@ jobs:
             APPLE_OAUTH_CLIENT_ID=${{ vars.APPLE_OAUTH_CLIENT_ID }}
             APPLE_OAUTH_TEAM_ID=${{ vars.APPLE_OAUTH_TEAM_ID }}
             APPLE_OAUTH_KEY_ID=${{ vars.APPLE_OAUTH_KEY_ID }}
-            APPLE_OAUTH_PRIVATE_KEY_BASE64=${{ secrets.APPLE_OAUTH_PRIVATE_KEY_BASE64 }}
             APPLE_OAUTH_CLIENT_SECRET_TTL_DAYS=30
             MONTHLY_REPORT_MIN_VIDEOS=${{ vars.MONTHLY_REPORT_MIN_VIDEOS }}
             MONTHLY_REPORT_MIN_PROBLEMS=${{ vars.MONTHLY_REPORT_MIN_PROBLEMS }}
@@ -133,6 +132,7 @@ jobs:
             GOOGLE_OAUTH_CLIENT_SECRET=hola-google-oauth-client-secret:latest
             KAKAO_OAUTH_CLIENT_SECRET=hola-kakao-oauth-client-secret:latest
             NAVER_OAUTH_CLIENT_SECRET=hola-naver-oauth-client-secret:latest
+            APPLE_OAUTH_PRIVATE_KEY_BASE64=hola-apple-oauth-private-key-base64:latest
             MONTHLY_REPORT_LLM_API_KEY=hola-openai-api-key:latest
             /secrets/gcp/gcp-sa.json=hola-gcp-service-account-json:latest
             /secrets/firebase/firebase-sa.json=hola-firebase-service-account-json:latest
