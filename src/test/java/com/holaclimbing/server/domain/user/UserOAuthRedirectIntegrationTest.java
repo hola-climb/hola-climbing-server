@@ -70,7 +70,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.oauth.providers.naver.authorization-uri=https://nid.naver.com/oauth2.0/authorize",
         "app.oauth.providers.naver.token-uri=https://nid.naver.com/oauth2.0/token",
         "app.oauth.providers.naver.user-info-uri=https://openapi.naver.com/v1/nid/me",
-        "app.oauth.providers.naver.scope=email,nickname,profile_image"
+        "app.oauth.providers.naver.scope=email,nickname,profile_image",
+        "app.oauth.providers.apple.client-id=test.apple.service",
+        "app.oauth.providers.apple.client-secret=",
+        "app.oauth.providers.apple.authorization-uri=https://appleid.apple.com/auth/authorize",
+        "app.oauth.providers.apple.token-uri=https://appleid.apple.com/auth/token",
+        "app.oauth.providers.apple.user-info-uri=",
+        "app.oauth.providers.apple.scope=openid,email,name",
+        "app.oauth.providers.apple.jwks-uri=https://appleid.apple.com/auth/keys",
+        "app.oauth.providers.apple.response-mode=form_post",
+        "app.oauth.providers.apple.team-id=TEAM1234567",
+        "app.oauth.providers.apple.key-id=KEY1234567",
+        "app.oauth.providers.apple.private-key-base64=dGVzdC1rZXk=",
+        "app.oauth.providers.apple.client-secret-ttl-days=30"
 })
 @AutoConfigureMockMvc
 @Import({TestcontainersConfiguration.class, UserOAuthRedirectIntegrationTest.FakeOAuthProviderConfig.class})
@@ -107,6 +119,23 @@ class UserOAuthRedirectIntegrationTest {
         assertThat(query).containsEntry("redirect_uri", "http://localhost:8080/api/auth/oauth/google/callback");
         assertThat(query).containsEntry("scope", "openid email profile");
         assertThat(query.get("state")).isNotBlank();
+        assertThat(redis.hasKey("auth:oauth:state:" + query.get("state"))).isTrue();
+    }
+
+    @Test
+    @DisplayName("Apple OAuth authorize redirects to Apple with form_post response mode and nonce")
+    void appleAuthorize_redirectsWithFormPostAndNonce() throws Exception {
+        String location = authorizeAndGetProviderLocation("apple");
+        Map<String, String> query = queryOf(location);
+
+        assertThat(location).startsWith("https://appleid.apple.com/auth/authorize?");
+        assertThat(query).containsEntry("response_type", "code");
+        assertThat(query).containsEntry("client_id", "test.apple.service");
+        assertThat(query).containsEntry("redirect_uri", "http://localhost:8080/api/auth/oauth/apple/callback");
+        assertThat(query).containsEntry("scope", "openid email name");
+        assertThat(query).containsEntry("response_mode", "form_post");
+        assertThat(query.get("state")).isNotBlank();
+        assertThat(query.get("nonce")).isNotBlank();
         assertThat(redis.hasKey("auth:oauth:state:" + query.get("state"))).isTrue();
     }
 
@@ -315,7 +344,11 @@ class UserOAuthRedirectIntegrationTest {
     }
 
     private String authorizeAndGetProviderLocation() throws Exception {
-        return mockMvc.perform(get("/api/auth/oauth/google/authorize")
+        return authorizeAndGetProviderLocation("google");
+    }
+
+    private String authorizeAndGetProviderLocation(String provider) throws Exception {
+        return mockMvc.perform(get("/api/auth/oauth/{provider}/authorize", provider)
                         .param("redirectUri", FRONTEND_CALLBACK))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(header().exists(HttpHeaders.LOCATION))

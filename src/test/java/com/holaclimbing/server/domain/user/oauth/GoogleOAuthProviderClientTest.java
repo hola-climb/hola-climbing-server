@@ -40,7 +40,13 @@ class GoogleOAuthProviderClientTest {
                         "https://accounts.google.com/o/oauth2/v2/auth",
                         baseUrl + "/token",
                         baseUrl + "/userinfo",
-                        List.of("openid", "email", "profile")
+                        List.of("openid", "email", "profile"),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
                 ))
         );
         client = new GoogleOAuthProviderClient(RestClient.builder(), properties, new ObjectMapper());

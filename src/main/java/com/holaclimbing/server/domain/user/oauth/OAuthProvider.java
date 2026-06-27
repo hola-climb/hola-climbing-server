@@ -8,7 +8,8 @@ import java.util.Arrays;
 public enum OAuthProvider {
     GOOGLE("google"),
     KAKAO("kakao"),
-    NAVER("naver");
+    NAVER("naver"),
+    APPLE("apple");
 
     private final String value;
 

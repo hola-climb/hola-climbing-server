@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class OAuthRedirectService {
@@ -44,7 +46,8 @@ public class OAuthRedirectService {
         }
 
         String backendRedirectUri = backendCallbackUri(provider);
-        String state = stateStore.issue(OAuthState.of(provider, frontendRedirectUri, backendRedirectUri));
+        String nonce = UUID.randomUUID().toString();
+        String state = stateStore.issue(OAuthState.of(provider, frontendRedirectUri, backendRedirectUri, nonce));
         UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(providerProperties.authorizationUri())
                 .queryParam("response_type", "code")
                 .queryParam("client_id", providerProperties.clientId())
@@ -53,6 +56,12 @@ public class OAuthRedirectService {
         String scope = providerProperties.scopeValue();
         if (!isBlank(scope)) {
             builder.queryParam("scope", scope);
+        }
+        if (!isBlank(providerProperties.responseMode())) {
+            builder.queryParam("response_mode", providerProperties.responseMode());
+        }
+        if (provider == OAuthProvider.APPLE) {
+            builder.queryParam("nonce", nonce);
         }
         return builder.encode().toUriString();
     }

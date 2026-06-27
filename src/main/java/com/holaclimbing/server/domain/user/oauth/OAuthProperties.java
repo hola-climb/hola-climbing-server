@@ -32,13 +32,23 @@ public record OAuthProperties(
             String authorizationUri,
             String tokenUri,
             String userInfoUri,
-            List<String> scope
+            List<String> scope,
+            String jwksUri,
+            String responseMode,
+            String teamId,
+            String keyId,
+            String privateKeyBase64,
+            Integer clientSecretTtlDays
     ) {
         public String scopeValue() {
             if (scope == null || scope.isEmpty()) {
                 return null;
             }
             return String.join(" ", scope);
+        }
+
+        public int effectiveClientSecretTtlDays() {
+            return clientSecretTtlDays == null ? 30 : clientSecretTtlDays;
         }
     }
 }
