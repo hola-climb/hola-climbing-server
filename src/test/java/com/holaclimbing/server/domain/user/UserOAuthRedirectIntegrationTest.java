@@ -173,6 +173,25 @@ class UserOAuthRedirectIntegrationTest {
     }
 
     @Test
+    @DisplayName("Apple OAuth callback accepts form_post from Apple origin")
+    void applePostCallback_acceptsAppleOrigin() throws Exception {
+        String authorizeLocation = authorizeAndGetProviderLocation("apple");
+        String state = queryOf(authorizeLocation).get("state");
+
+        mockMvc.perform(post("/api/auth/oauth/apple/callback")
+                        .header(HttpHeaders.ORIGIN, "https://appleid.apple.com")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("code", "apple-new-code")
+                        .param("state", state)
+                        .param("user", """
+                                {"name":{"firstName":"Apple","lastName":"New"},"email":"apple-new@hola.com"}
+                                """))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://appleid.apple.com"))
+                .andExpect(header().exists(HttpHeaders.LOCATION));
+    }
+
+    @Test
     @DisplayName("Apple OAuth callback for existing social user returns Hola tokens")
     void appleCallback_existingSocialUser_returnsTokenThroughOneTimeCode() throws Exception {
         User existing = User.builder()

@@ -20,6 +20,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -40,6 +41,8 @@ public class SecurityConfig {
 
     /** BCrypt 워크 팩터. 메모리: strength=12 */
     private static final int BCRYPT_STRENGTH = 12;
+    private static final String APPLE_OAUTH_CALLBACK_PATH = "/api/auth/oauth/apple/callback";
+    private static final String APPLE_OAUTH_ORIGIN = "https://appleid.apple.com";
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final AiCallbackSecretFilter aiCallbackSecretFilter;
@@ -143,16 +146,39 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration appConfig = corsConfiguration(
+                configuredAllowedOrigins(),
+                List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+        );
+
+        List<String> appleCallbackOrigins = new ArrayList<>(configuredAllowedOrigins());
+        appleCallbackOrigins.add(APPLE_OAUTH_ORIGIN);
+        CorsConfiguration appleCallbackConfig = corsConfiguration(
+                appleCallbackOrigins,
+                List.of("POST", "OPTIONS")
+        );
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration(APPLE_OAUTH_CALLBACK_PATH, appleCallbackConfig);
+        source.registerCorsConfiguration("/**", appConfig);
+        return source;
+    }
+
+    private CorsConfiguration corsConfiguration(List<String> origins, List<String> methods) {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedOrigins(origins);
+        config.setAllowedMethods(methods);
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
+        return config;
+    }
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
+    private List<String> configuredAllowedOrigins() {
+        return Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isBlank())
+                .toList();
     }
 }
