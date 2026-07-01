@@ -7,6 +7,7 @@ import java.time.OffsetDateTime;
 public record MyProfileResponse(
         Long userId,
         String email,
+        String role,
         String nickname,
         String profileImage,
         String bio,
@@ -21,7 +22,7 @@ public record MyProfileResponse(
 
     public static MyProfileResponse of(User user, long followerCount, long followingCount, String profileImage) {
         return new MyProfileResponse(
-                user.getId(), user.getEmail(), user.getNickname(), profileImage,
+                user.getId(), user.getEmail(), user.getRole(), user.getNickname(), profileImage,
                 user.getBio(), user.isEmailVerified(), followerCount, followingCount, user.getCreatedAt());
     }
 }

@@ -81,6 +81,7 @@ class UserProfileIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.userId").value(me.id()))
                 .andExpect(jsonPath("$.data.email").value("me@hola.com"))
+                .andExpect(jsonPath("$.data.role").value("USER"))
                 .andExpect(jsonPath("$.data.followerCount").value(0))
                 .andExpect(jsonPath("$.data.followingCount").value(0))
                 .andExpect(jsonPath("$.data.emailVerified").value(true));
