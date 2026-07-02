@@ -14,5 +14,5 @@ public interface ChatService {
     ChatMessageResponse sendMessage(Long gymId, Long userId, SendMessageRequest request);
 
     /** 암장 채팅방 메시지 이력 조회 (최신순). 방이 없으면 빈 목록. */
-    PageResponse<ChatMessageResponse> getMessages(Long gymId, int page, int size);
+    PageResponse<ChatMessageResponse> getMessages(Long gymId, Long viewerId, int page, int size);
 }

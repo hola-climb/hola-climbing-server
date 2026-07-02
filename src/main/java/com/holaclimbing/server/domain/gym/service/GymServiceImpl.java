@@ -106,6 +106,9 @@ public class GymServiceImpl implements GymService {
         if (gym == null) {
             throw new BusinessException(ErrorCode.GYM_NOT_FOUND);
         }
+        if (!"pending".equals(gym.getStatus()) && !"active".equals(gym.getStatus())) {
+            throw new BusinessException(ErrorCode.GYM_NOT_FOUND);
+        }
         // 운영시간 변경 권한 — 등록 제안자(또는 향후 ADMIN/GYM_STAFF 역할)만 허용.
         // 임시 모델: 제안자가 없는(legacy) 암장은 누구도 수정 불가 → 운영 도구로 처리.
         if (gym.getCreatedBy() == null || !gym.getCreatedBy().equals(userId)) {

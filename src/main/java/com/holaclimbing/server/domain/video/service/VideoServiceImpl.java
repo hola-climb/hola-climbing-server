@@ -175,7 +175,7 @@ public class VideoServiceImpl implements VideoService {
 
     @Override
     public VideoDetailResponse getVideoDetail(Long videoId, Long viewerId) {
-        Video video = findActiveVideo(videoId);
+        Video video = findVisibleVideo(videoId);
         videoAccessPolicy.requireViewable(video, viewerId);
         // 의도적으로 비-트랜잭션. view counter는 eventual하게 증가해도 무방하고,
         // 단일 read에 UPDATE를 묶어 PK 락 보유 시간을 늘리지 않는다.
@@ -186,7 +186,7 @@ public class VideoServiceImpl implements VideoService {
             recommendationInteractionMapper.upsertView(viewerId, videoId);
         }
         boolean isLiked = viewerId != null && likeMapper.exists(viewerId, videoId);
-        return toDetail(videoMapper.findById(videoId), isLiked);
+        return toDetail(videoMapper.findVisibleById(videoId), isLiked);
     }
 
     @Override
@@ -211,7 +211,7 @@ public class VideoServiceImpl implements VideoService {
 
     @Override
     public VideoStatusResponse getStatus(Long videoId, Long viewerId) {
-        Video video = findActiveVideo(videoId);
+        Video video = findVisibleVideo(videoId);
         videoAccessPolicy.requireViewable(video, viewerId);
         return VideoStatusResponse.from(videoId, video.getStatus(),
                 analysisStatusStore.find(videoId).orElse(null));
@@ -220,7 +220,7 @@ public class VideoServiceImpl implements VideoService {
     @Override
     @Transactional
     public LikeResponse likeVideo(Long userId, Long videoId) {
-        Video video = findActiveVideo(videoId);
+        Video video = findVisibleVideo(videoId);
         videoAccessPolicy.requireViewable(video, userId);
         // ON CONFLICT DO NOTHING으로 안전화. inserted == 0이면 이미 좋아요 상태였음.
         int inserted = likeMapper.insert(userId, videoId);
@@ -229,23 +229,23 @@ public class VideoServiceImpl implements VideoService {
         }
         videoMapper.incrementLikeCount(videoId);
         notificationService.notifyLike(video.getUserId(), userId, videoId);
-        return new LikeResponse(true, videoMapper.findById(videoId).getLikeCount());
+        return new LikeResponse(true, videoMapper.findVisibleById(videoId).getLikeCount());
     }
 
     @Override
     @Transactional
     public LikeResponse unlikeVideo(Long userId, Long videoId) {
-        Video video = findActiveVideo(videoId);
+        Video video = findVisibleVideo(videoId);
         videoAccessPolicy.requireViewable(video, userId);
         if (likeMapper.delete(userId, videoId) > 0) {
             videoMapper.decrementLikeCount(videoId);
         }
-        return new LikeResponse(false, videoMapper.findById(videoId).getLikeCount());
+        return new LikeResponse(false, videoMapper.findVisibleById(videoId).getLikeCount());
     }
 
     @Override
     public ShareLinkResponse createShareLink(Long viewerId, Long videoId) {
-        Video video = findActiveVideo(videoId);
+        Video video = findVisibleVideo(videoId);
         videoAccessPolicy.requireViewable(video, viewerId);
         String shareUrl = frontendBaseUrl + "/videos/" + videoId;
         return new ShareLinkResponse(shareUrl);
@@ -277,6 +277,14 @@ public class VideoServiceImpl implements VideoService {
 
     private Video findActiveVideo(Long videoId) {
         Video video = videoMapper.findById(videoId);
+        if (video == null) {
+            throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND);
+        }
+        return video;
+    }
+
+    private Video findVisibleVideo(Long videoId) {
+        Video video = videoMapper.findVisibleById(videoId);
         if (video == null) {
             throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND);
         }

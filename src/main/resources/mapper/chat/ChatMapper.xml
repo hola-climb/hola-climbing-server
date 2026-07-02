@@ -56,15 +56,36 @@
         SELECT m.id, m.room_id, m.user_id, u.nickname, m.content, m.verified_at_gym, m.created_at, m.deleted_at
         FROM chat_messages m
         JOIN users u ON u.id = m.user_id
+                    AND u.status = 'ACTIVE'
+                    AND u.deleted_at IS NULL
         WHERE m.room_id = #{roomId} AND m.deleted_at IS NULL
+        <if test="viewerId != null">
+          AND NOT EXISTS (
+              SELECT 1
+              FROM user_blocks b
+              WHERE (b.blocker_id = #{viewerId} AND b.blocked_id = m.user_id)
+                 OR (b.blocker_id = m.user_id AND b.blocked_id = #{viewerId})
+          )
+        </if>
         ORDER BY m.created_at DESC, m.id DESC
         LIMIT #{size} OFFSET #{offset}
     </select>
 
     <select id="countMessages" resultType="long">
         SELECT COUNT(*)
-        FROM chat_messages
-        WHERE room_id = #{roomId} AND deleted_at IS NULL
+        FROM chat_messages m
+        JOIN users u ON u.id = m.user_id
+                    AND u.status = 'ACTIVE'
+                    AND u.deleted_at IS NULL
+        WHERE m.room_id = #{roomId} AND m.deleted_at IS NULL
+        <if test="viewerId != null">
+          AND NOT EXISTS (
+              SELECT 1
+              FROM user_blocks b
+              WHERE (b.blocker_id = #{viewerId} AND b.blocked_id = m.user_id)
+                 OR (b.blocker_id = m.user_id AND b.blocked_id = #{viewerId})
+          )
+        </if>
     </select>
 
 </mapper>

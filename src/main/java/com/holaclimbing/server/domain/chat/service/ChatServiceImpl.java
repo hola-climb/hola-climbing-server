@@ -104,13 +104,13 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public PageResponse<ChatMessageResponse> getMessages(Long gymId, int page, int size) {
+    public PageResponse<ChatMessageResponse> getMessages(Long gymId, Long viewerId, int page, int size) {
         ChatRoom room = chatMapper.findRoomByGymId(gymId);
         if (room == null) {
             return PageResponse.of(List.of(), page, size, 0);
         }
-        long total = chatMapper.countMessages(room.getId());
-        List<ChatMessageResponse> content = chatMapper.findMessages(room.getId(), size, page * size)
+        long total = chatMapper.countMessages(room.getId(), viewerId);
+        List<ChatMessageResponse> content = chatMapper.findMessages(room.getId(), viewerId, size, page * size)
                 .stream().map(ChatMessageResponse::of).toList();
         return PageResponse.of(content, page, size, total);
     }

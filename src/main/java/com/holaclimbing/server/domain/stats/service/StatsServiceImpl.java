@@ -13,6 +13,7 @@ import com.holaclimbing.server.domain.stats.dto.response.GymRankingResponse;
 import com.holaclimbing.server.domain.stats.dto.response.TechniqueStatsResponse;
 import com.holaclimbing.server.domain.stats.dto.response.UserStatsResponse;
 import com.holaclimbing.server.domain.stats.mapper.StatsMapper;
+import com.holaclimbing.server.domain.user.domain.User;
 import com.holaclimbing.server.domain.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,9 +41,7 @@ public class StatsServiceImpl implements StatsService {
 
     @Override
     public UserStatsResponse getUserStats(Long userId) {
-        if (userMapper.findById(userId) == null) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
-        }
+        requireActiveUser(userId);
         // 분석 세그먼트 dynamic/static 집계는 user_stats 행이 없어도 의미가 있으므로 항상 조회.
         DynamicSegmentCounts dynamicCounts = statsMapper.findDynamicSegmentCountsByUserId(userId);
         Stats stats = statsMapper.findByUserId(userId);
@@ -56,9 +55,7 @@ public class StatsServiceImpl implements StatsService {
 
     @Override
     public TechniqueStatsResponse getTechniqueStats(Long userId) {
-        if (userMapper.findById(userId) == null) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
-        }
+        requireActiveUser(userId);
         Stats stats = statsMapper.findByUserId(userId);
         Map<String, Integer> counts = stats == null
                 ? Map.of() : parseTechniqueCounts(stats.getTechniqueCounts());
@@ -71,9 +68,7 @@ public class StatsServiceImpl implements StatsService {
 
     @Override
     public GymRankingResponse getMyGymRankings(Long userId, YearMonth month, String cursor, int limit) {
-        if (userMapper.findById(userId) == null) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
-        }
+        requireActiveUser(userId);
         int pageSize = Math.min(limit, MAX_RANKING_LIMIT);
         GymRankingCursor decodedCursor = GymRankingCursorCodec.decode(cursor);
         LocalDate from = month == null ? null : month.atDay(1);
@@ -136,5 +131,12 @@ public class StatsServiceImpl implements StatsService {
                 row.getLatestVisitDate(),
                 row.getGymId(),
                 rank));
+    }
+
+    private void requireActiveUser(Long userId) {
+        User user = userMapper.findById(userId);
+        if (user == null || !"ACTIVE".equals(user.getStatus())) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
     }
 }

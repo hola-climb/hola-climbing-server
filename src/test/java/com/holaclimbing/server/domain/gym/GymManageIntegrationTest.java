@@ -18,6 +18,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
@@ -57,6 +58,9 @@ class GymManageIntegrationTest {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     @DisplayName("암장 등록 제안 — 201, status=pending으로 등록된다")
@@ -149,6 +153,22 @@ class GymManageIntegrationTest {
                         .header("Authorization", "Bearer " + other)
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("운영시간 수정 실패 — 거절되어 닫힌 암장은 제안자도 수정할 수 없다")
+    void updateBusinessHours_closedSuggestedGym_returns404() throws Exception {
+        String owner = register("closed-suggest@hola.com", "closedsuggest");
+        long gymId = suggestGym(owner, "Rejected Gym", "addr");
+        jdbcTemplate.update("UPDATE gyms SET status = 'closed' WHERE id = ?", gymId);
+        var body = objectMapper.writeValueAsString(new UpdateBusinessHoursRequest(Map.of(
+                "mon", new DayHours("07:00", "22:00"))));
+
+        mockMvc.perform(patch("/api/gyms/" + gymId + "/business-hours")
+                        .header("Authorization", "Bearer " + owner)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("G001"));
     }
 
     private long suggestGym(String token, String name, String address) throws Exception {

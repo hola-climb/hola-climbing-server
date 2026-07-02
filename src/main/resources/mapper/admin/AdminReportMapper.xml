@@ -53,4 +53,14 @@
         WHERE id = #{reportId}
     </update>
 
+    <update id="updatePendingByTarget">
+        UPDATE reports
+        SET status = #{status},
+            reviewed_by = #{reviewedBy},
+            reviewed_at = NOW()
+        WHERE target_type = #{targetType}
+          AND target_id = #{targetId}
+          AND status = 'pending'
+    </update>
+
 </mapper>

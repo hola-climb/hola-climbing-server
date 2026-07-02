@@ -42,9 +42,10 @@ public class ChatController {
 
     @GetMapping("/gyms/{gymId}/messages")
     public ApiResponse<PageResponse<ChatMessageResponse>> getMessages(
+            @AuthenticationPrincipal Long viewerId,
             @PathVariable Long gymId,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "30") @Positive @Max(100) int size) {
-        return ApiResponse.success(chatService.getMessages(gymId, page, size));
+        return ApiResponse.success(chatService.getMessages(gymId, viewerId, page, size));
     }
 }

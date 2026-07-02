@@ -24,4 +24,9 @@ public interface AdminReportMapper {
     int updateStatus(@Param("reportId") Long reportId,
                      @Param("status") String status,
                      @Param("reviewedBy") Long reviewedBy);
+
+    int updatePendingByTarget(@Param("targetType") String targetType,
+                              @Param("targetId") Long targetId,
+                              @Param("status") String status,
+                              @Param("reviewedBy") Long reviewedBy);
 }

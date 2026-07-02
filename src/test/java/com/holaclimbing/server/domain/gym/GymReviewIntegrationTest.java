@@ -130,6 +130,22 @@ class GymReviewIntegrationTest {
     }
 
     @Test
+    @DisplayName("리뷰 목록 실패 — 닫힌 암장은 사용자 API에서 리뷰도 숨긴다")
+    void getReviews_closedGym_returns404() throws Exception {
+        String token = register("closed-review@hola.com", "closedreviewer");
+        mockMvc.perform(post("/api/gyms/1/reviews").header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CreateReviewRequest(3, "보통"))))
+                .andExpect(status().isCreated());
+
+        jdbcTemplate.update("UPDATE gyms SET status = 'closed' WHERE id = ?", 1L);
+
+        mockMvc.perform(get("/api/gyms/1/reviews"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("G001"));
+    }
+
+    @Test
     @DisplayName("리뷰 목록 — 작성자 닉네임과 프로필 이미지를 함께 반환한다")
     void getReviews_includesAuthorProfile() throws Exception {
         String token = register("profile-review@hola.com", "profilereviewer");

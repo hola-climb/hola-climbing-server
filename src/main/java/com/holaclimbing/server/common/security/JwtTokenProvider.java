@@ -32,6 +32,7 @@ public class JwtTokenProvider {
     public static final String CLAIM_TYPE = "type";
     public static final String CLAIM_EMAIL = "email";
     public static final String CLAIM_ROLE = "role";
+    public static final String CLAIM_ISSUED_AT_MILLIS = "iat_ms";
     public static final String TYPE_ACCESS = "access";
     public static final String TYPE_REFRESH = "refresh";
 
@@ -78,7 +79,8 @@ public class JwtTokenProvider {
                 .issuer(props.issuer())
                 .issuedAt(now)
                 .expiration(expiry)
-                .claim(CLAIM_TYPE, type);
+                .claim(CLAIM_TYPE, type)
+                .claim(CLAIM_ISSUED_AT_MILLIS, now.getTime());
 
         if (email != null) {
             builder.claim(CLAIM_EMAIL, email);
@@ -96,6 +98,21 @@ public class JwtTokenProvider {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    public long getIssuedAtMillis(Claims claims) {
+        Object value = claims.get(CLAIM_ISSUED_AT_MILLIS);
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text) {
+            try {
+                return Long.parseLong(text);
+            } catch (NumberFormatException ignored) {
+                // Fall back to the standard iat claim below.
+            }
+        }
+        return claims.getIssuedAt().toInstant().toEpochMilli();
     }
 
     public Long getUserId(String token) {

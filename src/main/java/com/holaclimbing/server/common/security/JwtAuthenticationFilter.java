@@ -76,8 +76,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             Long userId = Long.parseLong(claims.getSubject());
             // 비밀번호 재설정·탈퇴 등으로 사용자 단위 revoke가 표시돼 있고 토큰 iat가 그보다 이르면 거부.
-            long issuedAtSec = claims.getIssuedAt().toInstant().getEpochSecond();
-            if (userTokenRevoker.isRevoked(userId, issuedAtSec)) {
+            long issuedAtMillis = tokenProvider.getIssuedAtMillis(claims);
+            if (userTokenRevoker.isRevoked(userId, issuedAtMillis)) {
                 log.debug("Revoked JWT (user-level invalidation) — userId={}", userId);
                 sendError(response, ErrorCode.INVALID_TOKEN);
                 return;

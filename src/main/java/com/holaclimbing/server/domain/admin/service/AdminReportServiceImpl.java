@@ -58,6 +58,7 @@ public class AdminReportServiceImpl implements AdminReportService {
 
         applyResolutionAction(adminId, before, action, request.reason());
         adminReportMapper.updateStatus(reportId, status, adminId);
+        syncPendingReportsForHandledTarget(adminId, before, status, action, request.reason());
 
         Report after = requireReport(reportId);
         adminAuditService.record(adminId, "REPORT_STATUS_CHANGE", "report", reportId,
@@ -82,7 +83,7 @@ public class AdminReportServiceImpl implements AdminReportService {
         }
         Video video = videoMapper.findById(report.getTargetId());
         if (video == null) {
-            throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND);
+            return;
         }
         videoMapper.softDelete(report.getTargetId());
         adminAuditService.record(adminId, "MODERATION_DELETE_VIDEO", "video", report.getTargetId(),
@@ -95,9 +96,10 @@ public class AdminReportServiceImpl implements AdminReportService {
         }
         Comment comment = commentMapper.findById(report.getTargetId());
         if (comment == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "댓글을 찾을 수 없습니다.");
+            return;
         }
         commentMapper.softDelete(report.getTargetId());
+        videoMapper.decrementCommentCount(comment.getVideoId());
         adminAuditService.record(adminId, "MODERATION_DELETE_COMMENT", "comment", report.getTargetId(),
                 reason, comment, null);
     }
@@ -132,6 +134,19 @@ public class AdminReportServiceImpl implements AdminReportService {
             return comment.getUserId();
         }
         throw new BusinessException(ErrorCode.INVALID_INPUT, "회원 정지 대상을 확인할 수 없습니다.");
+    }
+
+    private void syncPendingReportsForHandledTarget(Long adminId, Report report, String status, String action,
+                                                    String reason) {
+        if ("none".equals(action)) {
+            return;
+        }
+        int synced = adminReportMapper.updatePendingByTarget(
+                report.getTargetType(), report.getTargetId(), status, adminId);
+        if (synced > 0) {
+            adminAuditService.record(adminId, "REPORT_TARGET_STATUS_SYNC", report.getTargetType(), report.getTargetId(),
+                    reason, null, "syncedPendingReports=" + synced + ", status=" + status);
+        }
     }
 
     private Report requireReport(Long reportId) {

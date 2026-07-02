@@ -148,6 +148,46 @@ class ChatIntegrationTest {
     }
 
     @Test
+    @DisplayName("메시지 이력 — 차단한 사용자의 메시지는 조회에서 제외된다")
+    void getMessages_excludesBlockedSender() throws Exception {
+        String sender = register("chat-sender@hola.com", "chatsender");
+        String viewer = register("chat-viewer@hola.com", "chatviewer");
+        Long senderId = userMapper.findByEmail("chat-sender@hola.com").getId();
+        joinRoom(sender, 1L);
+        joinRoom(viewer, 1L);
+        chatService.sendMessage(1L, senderId, new SendMessageRequest("hidden after block", null, null));
+
+        mockMvc.perform(post("/api/users/" + senderId + "/block")
+                        .header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/chats/gyms/1/messages")
+                        .header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(0))
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("메시지 이력 — 정지된 사용자의 메시지는 조회에서 제외된다")
+    void getMessages_excludesSuspendedSender() throws Exception {
+        String sender = register("chat-suspended@hola.com", "chatsuspended");
+        String viewer = register("chat-active-viewer@hola.com", "chatactiveviewer");
+        Long senderId = userMapper.findByEmail("chat-suspended@hola.com").getId();
+        joinRoom(sender, 1L);
+        joinRoom(viewer, 1L);
+        chatService.sendMessage(1L, senderId, new SendMessageRequest("hidden after suspension", null, null));
+
+        userMapper.updateStatus(senderId, "SUSPENDED");
+
+        mockMvc.perform(get("/api/chats/gyms/1/messages")
+                        .header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(0))
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+    }
+
+    @Test
     @DisplayName("STOMP — 메시지를 보내면 구독자에게 실시간 전달되고 이력에 저장된다")
     void stomp_sendAndBroadcast() throws Exception {
         String token = register("a@hola.com", "climberone");

@@ -224,6 +224,18 @@ class StatsIntegrationTest {
     }
 
     @Test
+    @DisplayName("사용자 통계 — 정지된 사용자는 공개 통계에서 숨긴다")
+    void getUserStats_suspendedUser_returns404() throws Exception {
+        register("suspended-stats@hola.com", "suspendedstats");
+        long userId = userMapper.findByEmail("suspended-stats@hola.com").getId();
+        userMapper.updateStatus(userId, "SUSPENDED");
+
+        mockMvc.perform(get("/api/stats/users/" + userId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("U001"));
+    }
+
+    @Test
     @DisplayName("기술별 통계 — 최다/최소 사용 기술을 함께 반환한다")
     void getTechniqueStats_withData() throws Exception {
         String token = register("a@hola.com", "climberone");

@@ -18,12 +18,13 @@
         WHERE comments.id = #{id} AND comments.deleted_at IS NULL
     </select>
 
-    <!-- viewer가 차단한 작성자의 댓글을 제외하는 공통 조건. -->
+    <!-- viewer와 댓글 작성자 사이에 차단 관계가 있으면 댓글을 제외하는 공통 조건. -->
     <sql id="notBlockedByViewer">
         <if test="viewerId != null">
             AND NOT EXISTS (
                 SELECT 1 FROM user_blocks
-                WHERE blocker_id = #{viewerId} AND blocked_id = comments.user_id
+                WHERE (blocker_id = #{viewerId} AND blocked_id = comments.user_id)
+                   OR (blocker_id = comments.user_id AND blocked_id = #{viewerId})
             )
         </if>
     </sql>
@@ -35,6 +36,8 @@
                comments.created_at, comments.updated_at, comments.deleted_at
         FROM comments
         JOIN users u ON u.id = comments.user_id
+                    AND u.status = 'ACTIVE'
+                    AND u.deleted_at IS NULL
         WHERE comments.video_id = #{videoId} AND comments.deleted_at IS NULL
         <include refid="notBlockedByViewer"/>
         ORDER BY comments.created_at, comments.id
@@ -42,8 +45,12 @@
     </select>
 
     <select id="countByVideoId" resultType="long">
-        SELECT COUNT(*) FROM comments
-        WHERE video_id = #{videoId} AND deleted_at IS NULL
+        SELECT COUNT(*)
+        FROM comments
+        JOIN users u ON u.id = comments.user_id
+                    AND u.status = 'ACTIVE'
+                    AND u.deleted_at IS NULL
+        WHERE comments.video_id = #{videoId} AND comments.deleted_at IS NULL
         <include refid="notBlockedByViewer"/>
     </select>
 

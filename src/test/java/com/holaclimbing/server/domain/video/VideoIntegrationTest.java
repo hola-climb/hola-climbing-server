@@ -467,6 +467,52 @@ class VideoIntegrationTest {
     }
 
     @Test
+    @DisplayName("피드·상세·분석 — 정지된 작성자의 영상은 사용자 API에서 숨긴다")
+    void videoApis_excludeSuspendedUploaderVideos() throws Exception {
+        String activeUploader = register("active-suspended-feed@hola.com", "activesuspendedfeed");
+        String suspendedUploader = register("suspended-feed@hola.com", "suspendedfeed");
+        long suspendedUserId = userMapper.findByEmail("suspended-feed@hola.com").getId();
+        long suspendedVideoId = createVideo(suspendedUploader, true);
+        long activeVideoId = createVideo(activeUploader, true);
+
+        userMapper.updateStatus(suspendedUserId, "SUSPENDED");
+
+        var feed = dataOf(mockMvc.perform(get("/api/videos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1)));
+        org.assertj.core.api.Assertions.assertThat(feed.path("content").get(0).path("id").asLong())
+                .isEqualTo(activeVideoId)
+                .isNotEqualTo(suspendedVideoId);
+
+        mockMvc.perform(get("/api/videos/" + suspendedVideoId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("V001"));
+        mockMvc.perform(get("/api/videos/" + suspendedVideoId + "/analysis"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("V001"));
+    }
+
+    @Test
+    @DisplayName("피드·암장 영상 목록·상세 — 닫힌 암장의 영상은 사용자 API에서 숨긴다")
+    void videoApis_excludeClosedGymVideos() throws Exception {
+        String token = register("closed-gym-video@hola.com", "closedgymvideo");
+        long videoId = createVideo(token, true);
+
+        jdbcTemplate.update("UPDATE gyms SET status = 'closed' WHERE id = ?", 1L);
+
+        mockMvc.perform(get("/api/videos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+        mockMvc.perform(get("/api/gyms/1/videos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(0))
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+        mockMvc.perform(get("/api/videos/" + videoId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("V001"));
+    }
+
+    @Test
     @DisplayName("피드 — 커서로 다음 페이지를 중복·누락 없이 가져온다")
     void getFeed_cursorPagination() throws Exception {
         String token = register("a@hola.com", "climberone");
@@ -758,6 +804,74 @@ class VideoIntegrationTest {
     }
 
     @Test
+    @DisplayName("영상 상세·분석·액션 — 조회자가 작성자를 차단하면 직접 접근도 막힌다")
+    void videoAccess_viewerBlockedAuthor_returns403() throws Exception {
+        String owner = register("blocked-video-owner@hola.com", "blockedvideoowner");
+        String viewer = register("blocked-video-viewer@hola.com", "blockedvideoviewer");
+        long ownerId = userMapper.findByEmail("blocked-video-owner@hola.com").getId();
+        long videoId = createVideo(owner, true);
+
+        mockMvc.perform(post("/api/users/" + ownerId + "/block")
+                        .header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/videos/" + videoId)
+                        .header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("V006"));
+        mockMvc.perform(get("/api/videos/" + videoId + "/analysis")
+                        .header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("V006"));
+        mockMvc.perform(post("/api/videos/" + videoId + "/like")
+                        .header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("V006"));
+        mockMvc.perform(post("/api/videos/" + videoId + "/comments")
+                        .header("Authorization", "Bearer " + viewer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CreateCommentRequest("blocked comment", null))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("V006"));
+    }
+
+    @Test
+    @DisplayName("영상 상세 — 작성자가 조회자를 차단해도 직접 접근을 막는다")
+    void videoAccess_authorBlockedViewer_returns403() throws Exception {
+        String owner = register("author-block-owner@hola.com", "authorblockowner");
+        String viewer = register("author-block-viewer@hola.com", "authorblockviewer");
+        long viewerId = userMapper.findByEmail("author-block-viewer@hola.com").getId();
+        long videoId = createVideo(owner, true);
+
+        mockMvc.perform(post("/api/users/" + viewerId + "/block")
+                        .header("Authorization", "Bearer " + owner))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/videos/" + videoId)
+                        .header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("V006"));
+    }
+
+    @Test
+    @DisplayName("피드 — 업로더가 조회자를 차단하면 목록에서도 제외된다")
+    void getFeed_excludesUploaderWhoBlockedViewer() throws Exception {
+        String owner = register("feed-block-owner@hola.com", "feedblockowner");
+        String viewer = register("feed-block-viewer@hola.com", "feedblockviewer");
+        long viewerId = userMapper.findByEmail("feed-block-viewer@hola.com").getId();
+        createVideo(owner, true);
+
+        mockMvc.perform(post("/api/users/" + viewerId + "/block")
+                        .header("Authorization", "Bearer " + owner))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/videos")
+                        .header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+    }
+
+    @Test
     @DisplayName("영상 상세 — 없는 영상은 404 V001")
     void getVideoDetail_notFound_returns404() throws Exception {
         mockMvc.perform(get("/api/videos/999999"))
@@ -1008,6 +1122,46 @@ class VideoIntegrationTest {
                         .header("Authorization", "Bearer " + other))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("V006"));
+    }
+
+    @Test
+    @DisplayName("댓글 목록 — 정지된 작성자의 댓글은 카운트와 목록에서 제외된다")
+    void getComments_excludesSuspendedAuthors() throws Exception {
+        String owner = register("comment-owner@hola.com", "commentowner");
+        String commenter = register("comment-suspended@hola.com", "commentsuspended");
+        long commenterId = userMapper.findByEmail("comment-suspended@hola.com").getId();
+        long videoId = createVideo(owner, true);
+        long commentId = addComment(commenter, videoId, "hide me after suspension");
+
+        userMapper.updateStatus(commenterId, "SUSPENDED");
+
+        var comments = dataOf(mockMvc.perform(get("/api/videos/" + videoId + "/comments"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(0))
+                .andExpect(jsonPath("$.data.content.length()").value(0)));
+        org.assertj.core.api.Assertions.assertThat(comments.path("content").findValuesAsText("id"))
+                .doesNotContain(String.valueOf(commentId));
+    }
+
+    @Test
+    @DisplayName("댓글 목록 — 댓글 작성자가 조회자를 차단하면 목록에서 제외된다")
+    void getComments_excludesAuthorWhoBlockedViewer() throws Exception {
+        String owner = register("comment-block-owner@hola.com", "commentblockowner");
+        String commenter = register("comment-block-author@hola.com", "commentblockauthor");
+        String viewer = register("comment-block-viewer@hola.com", "commentblockviewer");
+        long viewerId = userMapper.findByEmail("comment-block-viewer@hola.com").getId();
+        long videoId = createVideo(owner, true);
+        addComment(commenter, videoId, "hidden after author block");
+
+        mockMvc.perform(post("/api/users/" + viewerId + "/block")
+                        .header("Authorization", "Bearer " + commenter))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/videos/" + videoId + "/comments")
+                        .header("Authorization", "Bearer " + viewer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(0))
+                .andExpect(jsonPath("$.data.content.length()").value(0));
     }
 
     @Test

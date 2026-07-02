@@ -186,6 +186,17 @@ class UserProfileIntegrationTest {
     }
 
     @Test
+    @DisplayName("다른 사용자 프로필 조회 실패 — 정지된 사용자는 공개 프로필에서 숨긴다")
+    void getUserProfile_suspendedUser_returns404() throws Exception {
+        TestUser target = register("suspended-profile@hola.com", "suspendedprofile");
+        userMapper.updateStatus(target.id(), "SUSPENDED");
+
+        mockMvc.perform(get("/api/users/" + target.id()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("U001"));
+    }
+
+    @Test
     @DisplayName("팔로우 성공 — 팔로우 후 프로필에 is_following=true, 팔로워 수가 증가한다")
     void follow_thenProfileShowsFollowing() throws Exception {
         TestUser a = register("a@hola.com", "climberone");
@@ -263,6 +274,35 @@ class UserProfileIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalElements").value(1))
                 .andExpect(jsonPath("$.data.content[0].userId").value(b.id()));
+    }
+
+    @Test
+    @DisplayName("팔로워/팔로잉 목록 — 정지된 사용자는 카운트와 목록에서 제외된다")
+    void followerAndFollowingLists_excludeSuspendedUsers() throws Exception {
+        TestUser active = register("active-profile@hola.com", "activeprofile");
+        TestUser suspendedFollower = register("suspended-follower@hola.com", "suspendedfollower");
+        TestUser suspendedFollowing = register("suspended-following@hola.com", "suspendedfollowing");
+
+        mockMvc.perform(post("/api/users/" + active.id() + "/follow")
+                .header("Authorization", "Bearer " + suspendedFollower.token())).andExpect(status().isOk());
+        mockMvc.perform(post("/api/users/" + suspendedFollowing.id() + "/follow")
+                .header("Authorization", "Bearer " + active.token())).andExpect(status().isOk());
+
+        userMapper.updateStatus(suspendedFollower.id(), "SUSPENDED");
+        userMapper.updateStatus(suspendedFollowing.id(), "SUSPENDED");
+
+        mockMvc.perform(get("/api/users/" + active.id()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.followerCount").value(0))
+                .andExpect(jsonPath("$.data.followingCount").value(0));
+        mockMvc.perform(get("/api/users/" + active.id() + "/followers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(0))
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+        mockMvc.perform(get("/api/users/" + active.id() + "/following"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(0))
+                .andExpect(jsonPath("$.data.content.length()").value(0));
     }
 
     @Test

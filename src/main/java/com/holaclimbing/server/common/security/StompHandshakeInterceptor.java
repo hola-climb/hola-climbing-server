@@ -53,8 +53,8 @@ public class StompHandshakeInterceptor implements HandshakeInterceptor {
             }
 
             Long userId = Long.parseLong(claims.getSubject());
-            long issuedAtSec = claims.getIssuedAt().toInstant().getEpochSecond();
-            if (userTokenRevoker.isRevoked(userId, issuedAtSec)) {
+            long issuedAtMillis = tokenProvider.getIssuedAtMillis(claims);
+            if (userTokenRevoker.isRevoked(userId, issuedAtMillis)) {
                 log.debug("WebSocket 핸드셰이크 JWT 검증 실패: revoked token — userId={}", userId);
                 return false;
             }

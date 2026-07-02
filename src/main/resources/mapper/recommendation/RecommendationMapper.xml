@@ -31,6 +31,13 @@
                     AND author.status = 'ACTIVE'
                     AND author.deleted_at IS NULL
               )
+              AND EXISTS (
+                  SELECT 1
+                  FROM gyms active_gym
+                  WHERE active_gym.id = v.gym_id
+                    AND active_gym.status = 'active'
+                    AND active_gym.deleted_at IS NULL
+              )
               AND NOT EXISTS (
                   SELECT 1
                   FROM blocked_users bu
@@ -152,6 +159,13 @@
                     AND author.status = 'ACTIVE'
                     AND author.deleted_at IS NULL
               )
+              AND EXISTS (
+                  SELECT 1
+                  FROM gyms active_gym
+                  WHERE active_gym.id = v.gym_id
+                    AND active_gym.status = 'active'
+                    AND active_gym.deleted_at IS NULL
+              )
               AND NOT EXISTS (
                   SELECT 1
                   FROM blocked_users bu
@@ -253,6 +267,8 @@
                     AND u.status = 'ACTIVE'
                     AND u.deleted_at IS NULL
         JOIN gyms g ON g.id = v.gym_id
+                   AND g.status = 'active'
+                   AND g.deleted_at IS NULL
         JOIN gym_grades gg ON gg.id = v.gym_grade_id AND gg.gym_id = v.gym_id
         LEFT JOIN follows f ON f.following_id = v.user_id AND f.follower_id = #{userId}
         WHERE v.is_public = TRUE

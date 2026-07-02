@@ -190,7 +190,7 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     private User findActiveUser(Long userId) {
         User user = userMapper.findById(userId);
-        if (user == null) {
+        if (user == null || !"ACTIVE".equals(user.getStatus())) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
         return user;

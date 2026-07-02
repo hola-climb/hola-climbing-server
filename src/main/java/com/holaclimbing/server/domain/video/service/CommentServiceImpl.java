@@ -31,7 +31,7 @@ public class CommentServiceImpl implements CommentService {
     @Override
     @Transactional
     public CommentResponse addComment(Long userId, Long videoId, CreateCommentRequest request) {
-        Video video = videoMapper.findById(videoId);
+        Video video = videoMapper.findVisibleById(videoId);
         if (video == null) {
             throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND);
         }
@@ -62,7 +62,7 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public PageResponse<CommentResponse> getComments(Long videoId, int page, int size, Long viewerId) {
-        Video video = videoMapper.findById(videoId);
+        Video video = videoMapper.findVisibleById(videoId);
         if (video == null) {
             throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND);
         }
@@ -104,7 +104,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     private void requireVideoViewable(Comment comment, Long userId) {
-        Video video = videoMapper.findById(comment.getVideoId());
+        Video video = videoMapper.findVisibleById(comment.getVideoId());
         if (video == null) {
             throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND);
         }

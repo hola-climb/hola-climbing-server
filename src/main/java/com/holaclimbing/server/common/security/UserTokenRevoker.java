@@ -33,11 +33,11 @@ public class UserTokenRevoker {
         if (userId == null) {
             return;
         }
-        redis.opsForValue().set(PREFIX + userId, String.valueOf(Instant.now().getEpochSecond()), RETENTION);
+        redis.opsForValue().set(PREFIX + userId, String.valueOf(Instant.now().toEpochMilli()), RETENTION);
     }
 
-    /** 토큰 발급 시각(epoch seconds)이 revoke 마커 이전이면 true (= 거부 대상). */
-    public boolean isRevoked(Long userId, long issuedAtEpochSeconds) {
+    /** 토큰 발급 시각(epoch millis)이 revoke 마커 이전이면 true (= 거부 대상). */
+    public boolean isRevoked(Long userId, long issuedAtEpochMillis) {
         if (userId == null) {
             return false;
         }
@@ -46,9 +46,18 @@ public class UserTokenRevoker {
             return false;
         }
         try {
-            return issuedAtEpochSeconds < Long.parseLong(marker);
+            long markerMillis = parseMarkerMillis(marker);
+            return issuedAtEpochMillis <= markerMillis;
         } catch (NumberFormatException e) {
             return false;
         }
+    }
+
+    private long parseMarkerMillis(String marker) {
+        long value = Long.parseLong(marker);
+        if (value < 1_000_000_000_000L) {
+            return Instant.ofEpochSecond(value).toEpochMilli() + 999;
+        }
+        return value;
     }
 }

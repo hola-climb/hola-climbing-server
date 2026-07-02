@@ -35,12 +35,26 @@
         WHERE videos.id = #{id} AND videos.deleted_at IS NULL
     </select>
 
-    <!-- viewer가 차단한 업로더의 영상을 제외하는 공통 조건. -->
+    <select id="findVisibleById" resultType="com.holaclimbing.server.domain.video.domain.Video">
+        SELECT <include refid="columns"/>
+        FROM videos
+        JOIN users u ON u.id = videos.user_id
+                    AND u.status = 'ACTIVE'
+                    AND u.deleted_at IS NULL
+        JOIN gyms g ON g.id = videos.gym_id
+                   AND g.status = 'active'
+                   AND g.deleted_at IS NULL
+        JOIN gym_grades gg ON gg.id = videos.gym_grade_id AND gg.gym_id = videos.gym_id
+        WHERE videos.id = #{id} AND videos.deleted_at IS NULL
+    </select>
+
+    <!-- viewer와 업로더 사이에 차단 관계가 있으면 영상을 제외하는 공통 조건. -->
     <sql id="notBlockedByViewer">
         <if test="viewerId != null">
             AND NOT EXISTS (
                 SELECT 1 FROM user_blocks
-                WHERE blocker_id = #{viewerId} AND blocked_id = videos.user_id
+                WHERE (blocker_id = #{viewerId} AND blocked_id = videos.user_id)
+                   OR (blocker_id = videos.user_id AND blocked_id = #{viewerId})
             )
         </if>
     </sql>
@@ -67,6 +81,16 @@
         )
     </sql>
 
+    <sql id="hasActiveGym">
+        AND EXISTS (
+            SELECT 1
+            FROM gyms active_gym
+            WHERE active_gym.id = videos.gym_id
+              AND active_gym.status = 'active'
+              AND active_gym.deleted_at IS NULL
+        )
+    </sql>
+
     <!-- 커서 keyset 스캔: 촬영일 최신순, 같은 촬영일은 id 최신순. -->
     <select id="findFeedByCursor" resultType="com.holaclimbing.server.domain.video.domain.Video">
         SELECT <include refid="columns"/>
@@ -76,6 +100,7 @@
         JOIN gym_grades gg ON gg.id = videos.gym_grade_id AND gg.gym_id = videos.gym_id
         WHERE videos.deleted_at IS NULL
         <include refid="hasActiveAuthor"/>
+        <include refid="hasActiveGym"/>
         <include refid="viewableByViewer"/>
         <if test="userId != null">
             AND videos.user_id = #{userId}
@@ -102,6 +127,7 @@
         JOIN gym_grades gg ON gg.id = videos.gym_grade_id AND gg.gym_id = videos.gym_id
         WHERE videos.deleted_at IS NULL
         <include refid="hasActiveAuthor"/>
+        <include refid="hasActiveGym"/>
         <include refid="viewableByViewer"/>
           AND videos.gym_id = #{gymId}
         <if test="gymGradeId != null">
@@ -117,6 +143,7 @@
         FROM videos
         WHERE deleted_at IS NULL
         <include refid="hasActiveAuthor"/>
+        <include refid="hasActiveGym"/>
         <include refid="viewableByViewer"/>
           AND gym_id = #{gymId}
         <if test="gymGradeId != null">

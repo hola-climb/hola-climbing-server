@@ -34,9 +34,10 @@ public interface ChatMapper {
 
     /** 채팅방 메시지 목록 (최신순, 삭제 제외). */
     List<ChatMessage> findMessages(@Param("roomId") Long roomId,
+                                   @Param("viewerId") Long viewerId,
                                    @Param("size") int size,
                                    @Param("offset") int offset);
 
     /** 채팅방 메시지 총 개수 (삭제 제외). */
-    long countMessages(Long roomId);
+    long countMessages(@Param("roomId") Long roomId, @Param("viewerId") Long viewerId);
 }

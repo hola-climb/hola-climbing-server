@@ -16,6 +16,9 @@ public interface VideoMapper {
     /** 영상 단건 조회 (soft-delete 제외). 없으면 null. */
     Video findById(Long id);
 
+    /** 사용자에게 노출 가능한 영상 단건 조회 (soft-delete, 비활성 작성자/암장 제외). */
+    Video findVisibleById(Long id);
+
     /**
      * 커서 기반 영상 피드. 공개 영상과 viewer 본인의 비공개 영상을 촬영일 최신순으로 keyset 스캔.
      * cursorRecordedDate/cursorId가 null이면 첫 페이지, 아니면 해당 촬영일+id 뒤부터.

@@ -50,7 +50,7 @@ public class AnalysisServiceImpl implements AnalysisService {
 
     @Override
     public VideoAnalysisResponse getAnalysis(Long videoId, Long viewerId) {
-        Video video = findVideo(videoId);
+        Video video = findVisibleVideo(videoId);
         videoAccessPolicy.requireViewable(video, viewerId);
         return toResponse(video);
     }
@@ -167,6 +167,14 @@ public class AnalysisServiceImpl implements AnalysisService {
 
     private Video findVideo(Long videoId) {
         Video video = videoMapper.findById(videoId);
+        if (video == null) {
+            throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND);
+        }
+        return video;
+    }
+
+    private Video findVisibleVideo(Long videoId) {
+        Video video = videoMapper.findVisibleById(videoId);
         if (video == null) {
             throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND);
         }

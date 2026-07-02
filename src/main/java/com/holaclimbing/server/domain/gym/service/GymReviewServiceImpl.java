@@ -46,6 +46,9 @@ public class GymReviewServiceImpl implements GymReviewService {
 
     @Override
     public PageResponse<GymReviewResponse> getReviews(Long gymId, int page, int size) {
+        if (gymMapper.findById(gymId) == null) {
+            throw new BusinessException(ErrorCode.GYM_NOT_FOUND);
+        }
         long total = reviewMapper.countByGymId(gymId);
         List<GymReviewResponse> content = reviewMapper.findByGymId(gymId, size, page * size)
                 .stream().map(this::toResponse).toList();

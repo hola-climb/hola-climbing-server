@@ -90,6 +90,103 @@ class AdminReportIntegrationTest {
     }
 
     @Test
+    @DisplayName("관리자 신고 - 영상 삭제 시 같은 영상의 대기 신고도 함께 해결 처리하고 사용자 응답에서 제외")
+    void resolveReport_deleteVideo_resolvesOtherPendingReportsAndHidesVideoFromUsers() throws Exception {
+        String adminToken = registerAndLoginAdmin();
+        long firstReporterId = userMapper.findByEmail("admin@hola.com").getId();
+        registerAndLoginUser("reporter2@hola.com", "reporter2");
+        long secondReporterId = userMapper.findByEmail("reporter2@hola.com").getId();
+        long videoId = insertVideo(firstReporterId);
+        long firstReportId = insertReport(firstReporterId, "video", videoId, "abuse");
+        long secondReportId = insertReport(secondReporterId, "video", videoId, "spam");
+
+        mockMvc.perform(patch("/api/admin/reports/" + firstReportId + "/status")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"resolved\",\"resolutionAction\":\"delete_video\",\"reason\":\"정책 위반\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("resolved"));
+
+        String secondStatus = jdbcTemplate.queryForObject(
+                "SELECT status FROM reports WHERE id = ?", String.class, secondReportId);
+        Long reviewedBy = jdbcTemplate.queryForObject(
+                "SELECT reviewed_by FROM reports WHERE id = ?", Long.class, secondReportId);
+        org.assertj.core.api.Assertions.assertThat(secondStatus).isEqualTo("resolved");
+        org.assertj.core.api.Assertions.assertThat(reviewedBy).isEqualTo(firstReporterId);
+
+        mockMvc.perform(get("/api/admin/reports")
+                        .param("status", "pending")
+                        .param("targetType", "video")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+
+        mockMvc.perform(get("/api/videos/" + videoId))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/videos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("관리자 신고 - 이미 삭제된 영상의 대기 신고도 닫을 수 있다")
+    void resolveReport_deleteVideo_allowsAlreadyDeletedVideoTarget() throws Exception {
+        String adminToken = registerAndLoginAdmin();
+        long firstReporterId = userMapper.findByEmail("admin@hola.com").getId();
+        registerAndLoginUser("reporter4@hola.com", "reporter4");
+        long secondReporterId = userMapper.findByEmail("reporter4@hola.com").getId();
+        long videoId = insertVideo(firstReporterId);
+        long firstReportId = insertReport(firstReporterId, "video", videoId, "abuse");
+        long secondReportId = insertReport(secondReporterId, "video", videoId, "spam");
+        jdbcTemplate.update("UPDATE videos SET deleted_at = NOW(), updated_at = NOW() WHERE id = ?", videoId);
+
+        mockMvc.perform(patch("/api/admin/reports/" + firstReportId + "/status")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"resolved\",\"resolutionAction\":\"delete_video\",\"reason\":\"이미 삭제된 대상\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("resolved"));
+
+        String secondStatus = jdbcTemplate.queryForObject(
+                "SELECT status FROM reports WHERE id = ?", String.class, secondReportId);
+        org.assertj.core.api.Assertions.assertThat(secondStatus).isEqualTo("resolved");
+    }
+
+    @Test
+    @DisplayName("관리자 신고 - 댓글 삭제 시 같은 댓글의 대기 신고도 함께 해결 처리하고 사용자 응답에서 제외")
+    void resolveReport_deleteComment_resolvesOtherPendingReportsAndHidesCommentFromUsers() throws Exception {
+        String adminToken = registerAndLoginAdmin();
+        long firstReporterId = userMapper.findByEmail("admin@hola.com").getId();
+        registerAndLoginUser("reporter3@hola.com", "reporter3");
+        long secondReporterId = userMapper.findByEmail("reporter3@hola.com").getId();
+        long videoId = insertVideo(firstReporterId);
+        long commentId = insertComment(firstReporterId, videoId);
+        long firstReportId = insertReport(firstReporterId, "comment", commentId, "abuse");
+        long secondReportId = insertReport(secondReporterId, "comment", commentId, "spam");
+
+        mockMvc.perform(patch("/api/admin/reports/" + firstReportId + "/status")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"resolved\",\"resolutionAction\":\"delete_comment\",\"reason\":\"정책 위반\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("resolved"));
+
+        String secondStatus = jdbcTemplate.queryForObject(
+                "SELECT status FROM reports WHERE id = ?", String.class, secondReportId);
+        Long reviewedBy = jdbcTemplate.queryForObject(
+                "SELECT reviewed_by FROM reports WHERE id = ?", Long.class, secondReportId);
+        org.assertj.core.api.Assertions.assertThat(secondStatus).isEqualTo("resolved");
+        org.assertj.core.api.Assertions.assertThat(reviewedBy).isEqualTo(firstReporterId);
+
+        mockMvc.perform(get("/api/videos/" + videoId + "/comments"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+        mockMvc.perform(get("/api/videos/" + videoId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.commentCount").value(0));
+    }
+
+    @Test
     @DisplayName("관리자 신고 - 회원 정지 액션은 기존 토큰을 무효화한다")
     void resolveReport_suspendUser_revokesExistingToken() throws Exception {
         String adminToken = registerAndLoginAdmin();
@@ -135,6 +232,16 @@ class AdminReportIntegrationTest {
                 VALUES (?, ?, ?, ?, '운영 확인 필요')
                 RETURNING id
                 """, Long.class, reporterId, targetType, targetId, category);
+    }
+
+    private long insertComment(long userId, long videoId) {
+        Long commentId = jdbcTemplate.queryForObject("""
+                INSERT INTO comments (user_id, video_id, content)
+                VALUES (?, ?, 'reported comment')
+                RETURNING id
+                """, Long.class, userId, videoId);
+        jdbcTemplate.update("UPDATE videos SET comment_count = comment_count + 1 WHERE id = ?", videoId);
+        return commentId;
     }
 
     private String registerAndLoginAdmin() throws Exception {
